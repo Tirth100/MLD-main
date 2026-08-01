@@ -398,8 +398,8 @@ public class ApiServer {
                 InputStream is = exchange.getRequestBody();
                 String body = new String(is.readAllBytes());
                 try {
-                    String email = extractJsonField(body, "email");
-                    String password = extractJsonField(body, "password");
+                    String email = extractJsonField(body, "email").trim();
+                    String password = extractJsonField(body, "password").trim();
                     
                     DatabaseHelper.LoginResult res = DatabaseHelper.login(email, password);
                     if (res.success) {

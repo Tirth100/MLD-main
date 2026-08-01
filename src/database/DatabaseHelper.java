@@ -204,10 +204,10 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "SELECT * FROM users WHERE email = ? AND password = ?";
+                String sql = "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) AND password = ?";
                 PreparedStatement pstmt = conn.prepareStatement(sql);
-                pstmt.setString(1, email);
-                pstmt.setString(2, password);
+                pstmt.setString(1, email != null ? email.trim() : "");
+                pstmt.setString(2, password != null ? password.trim() : "");
                 ResultSet rs = pstmt.executeQuery();
                 if (rs.next()) {
                     String role = rs.getString("role");
@@ -215,11 +215,19 @@ public class DatabaseHelper {
                     String name = rs.getString("name");
                     String uuid = UUID.randomUUID().toString();
 
-                    String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
-                    PreparedStatement dStmt = conn.prepareStatement(insertDevice);
-                    dStmt.setString(1, uuid);
-                    dStmt.setInt(2, userId);
-                    dStmt.executeUpdate();
+                    try {
+                        String ensureCol = "ALTER TABLE devices ADD COLUMN IF NOT EXISTS user_id INTEGER";
+                        try (Statement st = conn.createStatement()) { st.executeUpdate(ensureCol); } catch (Exception ignored) {}
+
+                        String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
+                        PreparedStatement dStmt = conn.prepareStatement(insertDevice);
+                        dStmt.setString(1, uuid);
+                        dStmt.setInt(2, userId);
+                        dStmt.executeUpdate();
+                    } catch (Exception devErr) {
+                        System.err.println("[Device Log Warning] " + devErr.getMessage());
+                    }
+
                     conn.close();
                     return new LoginResult(true, uuid, role, name, "Login successful");
                 }
