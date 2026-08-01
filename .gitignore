@@ -1,0 +1,12 @@
+# Temporary & System files
+*.log
+*.tmp
+.system_generated/
+scratch/
+
+# Compiled Java class files
+*.class
+bin/
+
+# Node modules
+node_modules/

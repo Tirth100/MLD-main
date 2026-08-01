@@ -1,0 +1,791 @@
+/**
+ * main.js
+ * Frontend logic, DOM manipulation, and Chart.js initialization
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- Login Logic ---
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            
+            try {
+                const response = await window.api.post('/login', { email: email, password: pass });
+                if (response.success) {
+                    localStorage.setItem('uuid_token', response.token);
+                    localStorage.setItem('username', response.name);
+                    if (response.role === 'ADMIN' || response.role === 'manager') {
+                        window.location.href = 'pages/manager-dashboard.html';
+                    } else {
+                        window.location.href = 'pages/employee-dashboard.html';
+                    }
+                } else {
+                    alert(response.message || 'Invalid email or password.');
+                }
+            } catch (err) {
+                alert('Login failed. Ensure backend server is running.');
+            }
+        });
+    }
+
+    // --- Org Signup Logic ---
+    const orgSignupForm = document.getElementById('orgSignupForm');
+    if (orgSignupForm) {
+        orgSignupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const orgName = document.getElementById('orgName').value;
+            const managerName = document.getElementById('managerName').value;
+            const email = document.getElementById('orgEmail').value;
+            const pass = document.getElementById('orgPassword').value;
+            
+            try {
+                const response = await window.api.post('/signup-org', { orgName, managerName, email, password: pass });
+                if (response.success) {
+                    orgSignupForm.classList.add('d-none');
+                    const successDiv = document.getElementById('orgSuccessMessage');
+                    if (successDiv) successDiv.classList.remove('d-none');
+                    const codeEl = document.getElementById('displayOrgCode');
+                    if (codeEl) codeEl.innerText = response.orgCode;
+                    if (response.message) alert(response.message);
+                } else {
+                    alert(response.message || 'Signup failed.');
+                }
+            } catch (err) {
+                alert('Signup network error: ' + (err.message || 'Unable to reach backend server.'));
+            }
+        });
+    }
+
+    // --- Employee Signup Logic ---
+    const empSignupForm = document.getElementById('empSignupForm');
+    if (empSignupForm) {
+        empSignupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('empName').value;
+            const email = document.getElementById('empEmail').value;
+            const pass = document.getElementById('empPassword').value;
+            const orgCode = document.getElementById('orgCodeInput').value;
+            
+            try {
+                const response = await window.api.post('/signup-emp', { name, email, password: pass, orgCode });
+                if (response.success) {
+                    alert(response.message || 'Successfully joined the organization! Please login.');
+                    window.location.href = 'index.html';
+                } else {
+                    alert(response.message || 'Signup failed.');
+                }
+            } catch (err) {
+                alert('Signup network error: ' + (err.message || 'Unable to reach backend server.'));
+            }
+        });
+    }
+
+    // --- Sidebar active state toggle ---
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.sidebar .nav-link');
+    navLinks.forEach(link => {
+        if(currentPath.includes(link.getAttribute('href'))) {
+            link.classList.add('active');
+        }
+    });
+
+    // --- Load Data Routines ---
+    if (document.getElementById('managerDashboard')) {
+        loadManagerDashboard();
+        setInterval(loadManagerDashboard, 3000);
+    }
+    if (document.getElementById('analyticsPage')) {
+        loadAnalytics();
+        setInterval(loadAnalytics, 3000);
+    }
+    if (document.getElementById('reportsPage')) {
+        loadReports();
+        setInterval(loadReports, 3000);
+    }
+    if (document.getElementById('alertsPage')) {
+        loadAlerts();
+        setInterval(loadAlerts, 3000);
+    }
+    if (document.getElementById('employeeDashboard')) {
+        loadEmployeeDashboard();
+        setInterval(loadEmployeeDashboard, 3000);
+    }
+
+    // --- Stop Session Button ---
+    const stopSessionBtn = document.getElementById('stopSessionBtn');
+    if (stopSessionBtn) {
+        stopSessionBtn.addEventListener('click', async () => {
+            if(confirm("Are you sure you want to officially end the current monitoring session for all participants?")) {
+                try {
+                    await window.api.get('/stop');
+                    localStorage.removeItem('active_session_code');
+                    if (autoTrackerInterval) {
+                        clearInterval(autoTrackerInterval);
+                        autoTrackerInterval = null;
+                    }
+                    
+                    const codeDisplay = document.getElementById('displaySessionCode');
+                    const startBtn = document.getElementById('btnGenerateSession');
+                    if (stopSessionBtn) stopSessionBtn.classList.add('d-none');
+                    if (codeDisplay) codeDisplay.classList.add('d-none');
+                    if (startBtn) startBtn.classList.remove('d-none');
+
+                    alert("Session successfully terminated for all connected employees. The final report has been saved.");
+                    if(document.getElementById('reportsPage')) loadReports();
+                    if(document.getElementById('managerDashboard')) loadManagerDashboard();
+                } catch(e) {
+                    alert("Error communicating with backend server.");
+                }
+            }
+        });
+    }
+
+    // --- User Activity & Idle Tracking ---
+    let lastActivityTimestamp = Date.now();
+    ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
+        window.addEventListener(evt, () => {
+            lastActivityTimestamp = Date.now();
+        }, { passive: true });
+    });
+
+    function getClientIdleSeconds() {
+        return Math.floor((Date.now() - lastActivityTimestamp) / 1000);
+    }
+
+    // --- Automatic Background Session Tracker ---
+    let autoTrackerInterval = null;
+
+    function startAutomaticTracking(sessionCode, uuid) {
+        if (autoTrackerInterval) clearInterval(autoTrackerInterval);
+        
+        sendTrackingTick(sessionCode, uuid);
+
+        autoTrackerInterval = setInterval(() => {
+            sendTrackingTick(sessionCode, uuid);
+        }, 5000);
+    }
+
+    async function sendTrackingTick(sessionCode, uuid) {
+        const isFocused = !document.hidden && document.hasFocus();
+        const activeWindow = isFocused ? (document.title || "Meeting Workspace") : "Background / Distracted Window";
+        const idleSecs = getClientIdleSeconds();
+        
+        try {
+            const res = await window.api.post('/track', {
+                uuid: uuid,
+                sessionCode: sessionCode,
+                window: activeWindow,
+                webcam: true,
+                idle: idleSecs
+            });
+
+            if (res && res.active === false) {
+                localStorage.removeItem('active_session_code');
+                if (autoTrackerInterval) {
+                    clearInterval(autoTrackerInterval);
+                    autoTrackerInterval = null;
+                }
+                const statusEl = document.getElementById('meetingStatus');
+                if (statusEl) {
+                    statusEl.textContent = "Session Terminated by Manager";
+                    statusEl.className = "text-danger fw-bold";
+                }
+            }
+        } catch(e) {
+            console.warn("Auto tracking tick failed:", e.message);
+        }
+    }
+
+    // --- Start Session Button (Manager) ---
+    const btnGenerateSession = document.getElementById('btnGenerateSession');
+    if (btnGenerateSession) {
+        btnGenerateSession.addEventListener('click', async () => {
+            try {
+                const response = await window.api.post('/start');
+                if (response.success) {
+                    localStorage.setItem('active_session_code', response.sessionCode);
+                    const codeDisplay = document.getElementById('displaySessionCode');
+                    const codeValue = document.getElementById('sessionCodeValue');
+                    const stopBtn = document.getElementById('stopSessionBtn');
+                    
+                    if (codeDisplay && codeValue) {
+                        codeValue.textContent = response.sessionCode;
+                        codeDisplay.classList.remove('d-none');
+                    }
+                    if (btnGenerateSession) btnGenerateSession.classList.add('d-none');
+                    if (stopBtn) stopBtn.classList.remove('d-none');
+
+                    const uuid = localStorage.getItem('uuid_token') || 'MANAGER_UUID';
+                    startAutomaticTracking(response.sessionCode, uuid);
+                } else {
+                    alert("Failed to start session.");
+                }
+            } catch(e) {
+                alert("Error starting backend session. Ensure server is running.");
+            }
+        });
+    }
+
+    // --- Join Session Button (Employee) ---
+    const btnJoinSession = document.getElementById('btnJoinSession');
+    if (btnJoinSession) {
+        btnJoinSession.addEventListener('click', async () => {
+            const sessionCodeInput = document.getElementById('sessionCodeInput');
+            if (sessionCodeInput && sessionCodeInput.value.trim().length > 0) {
+                const code = sessionCodeInput.value.trim().toUpperCase();
+                const uuid = localStorage.getItem('uuid_token') || 'UNKNOWN_EMP';
+                try {
+                    const response = await window.api.post('/join', { sessionCode: code, uuid: uuid });
+                    if (response.success) {
+                        alert("Joined session successfully! Background tracking active for session " + code);
+                        const statusEl = document.getElementById('meetingStatus');
+                        if (statusEl) {
+                            statusEl.textContent = "Monitoring Active for Session: " + code;
+                            statusEl.classList.remove('text-muted');
+                            statusEl.classList.add('text-success', 'fw-bold');
+                        }
+                        startAutomaticTracking(code, uuid);
+                    } else {
+                        alert(response.message || "Invalid Session Code.");
+                    }
+                } catch(e) {
+                    alert("Error joining session. Ensure server is running.");
+                }
+            } else {
+                alert("Please enter a valid session code (e.g., MLD123).");
+            }
+        });
+    }
+
+
+});
+
+// Global tracking for Charts so they can be securely destroyed during live polling
+let activeCharts = {};
+
+// --- Specific Page Loaders ---
+
+async function loadManagerDashboard() {
+    try {
+        const data = await window.api.get('/engagement');
+        const tbody = document.getElementById('engagementTableBody');
+        if(!tbody) return;
+        
+        // Calculate dynamic metrics
+        const uniqueEmployees = new Set(data.map(emp => emp.name)).size;
+        const totalMonitoredEl = document.getElementById('totalMonitoredMetricValue');
+        if (totalMonitoredEl) totalMonitoredEl.textContent = uniqueEmployees;
+
+        const avgScore = data.length > 0 ? Math.round(data.reduce((acc, emp) => acc + emp.score, 0) / data.length) : 0;
+        const avgEngagementEl = document.getElementById('avgEngagementMetricValue');
+        if (avgEngagementEl) avgEngagementEl.textContent = `${avgScore}%`;
+
+        tbody.innerHTML = '';
+        data.reverse();
+        
+        // Query backend server for live active session code
+        let liveSessionCode = "";
+        let isSessionActive = false;
+        try {
+            const activeSessionInfo = await window.api.get('/active-session');
+            if (activeSessionInfo && activeSessionInfo.active) {
+                isSessionActive = true;
+                liveSessionCode = activeSessionInfo.sessionCode;
+                localStorage.setItem('active_session_code', liveSessionCode);
+            } else {
+                localStorage.removeItem('active_session_code');
+            }
+        } catch (err) {
+            const savedSessionCode = localStorage.getItem('active_session_code');
+            isSessionActive = data.some(emp => emp.isLive) || savedSessionCode != null;
+            liveSessionCode = savedSessionCode || "";
+        }
+        
+        const stopBtn = document.getElementById('stopSessionBtn');
+        const startBtn = document.getElementById('btnGenerateSession');
+        const codeDisplay = document.getElementById('displaySessionCode');
+        const codeValue = document.getElementById('sessionCodeValue');
+        
+        if (isSessionActive) {
+            if (stopBtn) stopBtn.classList.remove('d-none');
+            if (startBtn) startBtn.classList.add('d-none');
+            if (codeDisplay && codeValue && liveSessionCode) {
+                codeValue.textContent = liveSessionCode;
+                codeDisplay.classList.remove('d-none');
+            }
+        } else {
+            if (stopBtn) stopBtn.classList.add('d-none');
+            if (startBtn) startBtn.classList.remove('d-none');
+            if (codeDisplay) codeDisplay.classList.add('d-none');
+        }
+        
+        const activeMeetingsEl = document.getElementById('activeMeetingsMetricValue');
+        if (activeMeetingsEl) activeMeetingsEl.textContent = isSessionActive ? "1" : "0";
+
+        data.forEach(emp => {
+            const statusClass = emp.status === 'engaging' ? 'bg-success' : 
+                               (emp.status === 'leeching' ? 'bg-danger' : 'bg-warning');
+            
+            const webcamBadge = emp.webcamActive !== false ? 
+                '<span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1"><i class="bi bi-camera-video-fill me-1"></i>ON</span>' : 
+                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2 py-1"><i class="bi bi-camera-video-off-fill me-1"></i>OFF</span>';
+                
+            const idleDisplay = emp.idleSeconds !== undefined ? `${emp.idleSeconds}s` : '0s';
+            const durationSecs = emp.durationSeconds || 0;
+            const durationDisplay = `${Math.floor(durationSecs / 60)}m ${durationSecs % 60}s`;
+            const codeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary font-monospace">${emp.sessionCode || liveSessionCode || 'MLD123'}</span>`;
+
+            const row = `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary rounded-circle text-white d-flex justify-content-center align-items-center me-3" style="width: 40px; height: 40px;">
+                                ${emp.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">${emp.name}</h6>
+                                <small class="text-muted">${emp.role} ${emp.isLive ? '<span class="text-primary fw-bold ms-1">(Live Session)</span>' : "(" + emp.timestamp + ")"}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${codeBadge}</td>
+                    <td>${webcamBadge}</td>
+                    <td><span class="text-muted fw-medium">${idleDisplay}</span></td>
+                    <td><span class="text-muted fw-medium">${durationDisplay}</span></td>
+                    <td>
+                        <div class="progress mt-2" style="height: 8px;">
+                            <div class="progress-bar ${statusClass}" role="progressbar" style="width: ${emp.score}%" aria-valuenow="${emp.score}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small class="text-muted mt-1 d-block fw-bold">${emp.score}%</small>
+                    </td>
+                    <td>
+                        <span class="badge badge-soft-${statusClass.replace('bg-', '')} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+        // Load recent alerts
+        const alerts = await window.api.get('/alerts');
+        const alertContainer = document.getElementById('alertNotificationSection');
+        if(alertContainer) {
+            alertContainer.innerHTML = '';
+            alerts.forEach(alert => {
+                alertContainer.innerHTML += `
+                    <div class="alert-item">
+                        <div>
+                            <h6 class="mb-1">${alert.name}</h6>
+                            <small class="text-muted">${alert.reason}</small>
+                        </div>
+                        <span class="badge bg-danger rounded-pill">${alert.time}</span>
+                    </div>
+                `;
+            });
+            // Update metric count
+            const metricValue = document.getElementById('alertsMetricValue');
+            if(metricValue) metricValue.textContent = alerts.length;
+            
+            const navBadges = document.querySelectorAll('#navAlertBadge');
+            navBadges.forEach(b => {
+                b.textContent = alerts.length;
+                if(alerts.length > 0) b.classList.remove('d-none');
+                else b.classList.add('d-none');
+            });
+        }
+        
+        // Render Latest Meeting Summary (MapReduce format)
+        if (data.length > 0) {
+            const latestMeeting = data[0]; // data is already reversed, so index 0 is the newest
+            const summaryContainer = document.getElementById('latestMeetingSummarySection');
+            const scoreBadge = document.getElementById('latestMeetingScoreBadge');
+            
+            if (summaryContainer && scoreBadge && latestMeeting.timeline) {
+                scoreBadge.textContent = `${latestMeeting.score}% Engagement`;
+                scoreBadge.className = `badge ms-2 ${latestMeeting.score >= 50 ? 'bg-success' : 'bg-danger'}`;
+                
+                // MapReduce Algorithm
+                const frequencies = {};
+                latestMeeting.timeline.forEach(item => {
+                    const win = item.window || "Unknown Window";
+                    frequencies[win] = (frequencies[win] || 0) + 1;
+                });
+                
+                // Sort by frequency descending
+                const sortedApps = Object.entries(frequencies).sort((a, b) => b[1] - a[1]);
+                
+                let html = '<div class="d-flex flex-wrap gap-3 mt-2">';
+                sortedApps.forEach(([app, count]) => {
+                    // Display format: App Name - Count
+                    // Clean up app name for display if it's too long
+                    const shortName = app.length > 40 ? app.substring(0, 40) + '...' : app;
+                    html += `
+                        <div class="border border-secondary rounded px-3 py-2 bg-light shadow-sm">
+                            <span class="fw-medium text-dark">${shortName}</span>
+                            <span class="badge bg-secondary ms-2">${count}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                if(sortedApps.length === 0) {
+                    summaryContainer.innerHTML = '<div class="text-muted text-center py-4">No window activity recorded yet.</div>';
+                } else {
+                    summaryContainer.innerHTML = html;
+                }
+            }
+        }
+        
+    } catch (e) {
+        console.error("Failed to load dashboard data", e);
+        const tbody = document.getElementById('engagementTableBody');
+        if(tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view live data.</td></tr>';
+    }
+}
+
+async function loadAnalytics() {
+    try {
+        const data = await window.api.get('/analytics');
+        
+        // Window Focus Pie Chart
+        const ctxPie = document.getElementById('focusPieChart');
+        if(ctxPie) {
+            if(activeCharts.pie) activeCharts.pie.destroy();
+            let pData = data.windowFocus;
+            if(pData[0] === 0 && pData[1] === 0 && pData[2] === 0) pData = [0, 0, 1]; // Draw minimal background if totally empty
+            activeCharts.pie = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Focused', 'Blurred', 'Background/Hidden'],
+                    datasets: [{
+                        data: pData,
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#1e293b' } }, animation: {duration: 0} }
+                }
+            });
+        }
+
+        // Chat Bar Chart
+        const ctxBar = document.getElementById('chatBarChart');
+        if(ctxBar) {
+            if(activeCharts.bar) activeCharts.bar.destroy();
+            activeCharts.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['10m', '20m', '30m', '40m', '50m', '60m'],
+                    datasets: [{
+                        label: 'Messages Sent',
+                        data: data.chatActivity,
+                        backgroundColor: '#0ea5e9',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {duration: 0},
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } },
+                        x: { grid: { display: false }, ticks: { color: '#1e293b' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Speaking Line Chart
+        const ctxLine = document.getElementById('speakingLineChart');
+        if(ctxLine) {
+            if(activeCharts.line) activeCharts.line.destroy();
+            activeCharts.line = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: data.speakingTime,
+                    datasets: [{
+                        label: 'Speaking Duration (s)',
+                        data: data.speakingData,
+                        borderColor: '#7c3aed',
+                        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {duration: 0},
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } },
+                        x: { grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+    } catch(e) {
+        console.error("Failed to load analytics", e);
+    }
+}
+
+async function loadReports() {
+    try {
+        const data = await window.api.get('/engagement');
+        const tbody = document.getElementById('reportsTableBody');
+        if(!tbody) return;
+        
+        tbody.innerHTML = '';
+        data.reverse();
+        data.forEach(emp => {
+            const statusClass = emp.status === 'engaging' ? 'success' : 
+                              (emp.status === 'leeching' ? 'danger' : 'warning');
+            
+            // Safely embed timeline data using JSON stringified attribute
+            const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${emp.name}</td>
+                    <td>${emp.role}</td>
+                    <td>${emp.score}%</td>
+                    <td>
+                        <span class="badge badge-soft-${statusClass} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
+                    </td>
+                    <td><small class="text-muted">${emp.timestamp || 'N/A'}</small></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary action-btn" data-timeline="${safeTimelineStr}">Actions</button>
+                        <button class="btn btn-sm btn-outline-danger delete-btn ms-2" data-timestamp="${emp.timestamp}">Delete</button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        // Re-bind Action Modal Triggers (since DOM was refreshed)
+        bindActionButtons();
+        bindDeleteButtons();
+
+        // Export CSV Logic
+        const exportBtn = document.getElementById('exportCsvBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                const link = document.createElement("a");
+                link.setAttribute("href", "http://localhost:3000/api/export");
+                link.setAttribute("download", "engagement_report.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+    } catch(e) {
+        console.error("Failed to load reports", e);
+        const tbody = document.getElementById('reportsTableBody');
+        if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view reports.</td></tr>';
+    }
+}
+
+async function loadAlerts() {
+    try {
+        const data = await window.api.get('/alerts');
+        const container = document.getElementById('alertsListContainer');
+        if(!container) return;
+
+        container.innerHTML = '';
+        data.forEach(alert => {
+            container.innerHTML += `
+                <div class="col-md-6 mb-4 alert-card">
+                    <div class="card glass-card h-100 border-start border-danger border-4">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0 fw-bold">${alert.name}</h5>
+                                <span class="badge bg-danger rounded-pill px-3 py-2">Low Engagement</span>
+                            </div>
+                            <p class="card-text text-muted mb-3">${alert.reason}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                                <small class="text-secondary"><i class="bi bi-clock me-1"></i>${alert.time}</small>
+                                <button class="btn btn-sm btn-outline-danger dismiss-btn">Dismiss</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Update nav badges
+        const navBadges = document.querySelectorAll('#navAlertBadge');
+        navBadges.forEach(b => {
+            b.textContent = data.length;
+            if(data.length > 0) b.classList.remove('d-none');
+            else b.classList.add('d-none');
+        });
+
+        // Add event listeners for dismiss buttons
+        const dismissBtns = container.querySelectorAll('.dismiss-btn');
+        dismissBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const card = this.closest('.alert-card');
+                if (card) {
+                    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.9)';
+                    setTimeout(() => card.remove(), 300);
+                }
+            });
+        });
+
+    } catch(e) {
+        console.error("Failed to load alerts", e);
+    }
+}
+
+async function loadEmployeeDashboard() {
+    try {
+        const data = await window.api.get('/employee-stats');
+        
+        // Update meeting status
+        const statusEl = document.getElementById('meetingStatus');
+        if(statusEl) {
+            statusEl.textContent = data.meetingStatus;
+            if (data.meetingStatus.includes("Stopped") || data.meetingStatus.includes("Terminated")) {
+                statusEl.className = "text-danger fw-bold";
+                if (autoTrackerInterval) {
+                    clearInterval(autoTrackerInterval);
+                    autoTrackerInterval = null;
+                }
+            }
+        }
+
+        // Update overall score
+        const scoreBar = document.getElementById('overallScoreBar');
+        const scoreText = document.getElementById('overallScoreText');
+        if(scoreBar) {
+            scoreBar.style.width = `${data.score}%`;
+            scoreBar.setAttribute('aria-valuenow', data.score);
+            scoreBar.className = `progress-bar progress-bar-striped progress-bar-animated ${data.score < 50 ? 'bg-danger' : 'bg-success'}`;
+        }
+        if(scoreText) scoreText.textContent = `${data.score}%`;
+
+        // Update sub-scores (Focus, Chat, Speaking)
+        document.getElementById('focusScoreVal').textContent = `${data.focus}%`;
+        document.getElementById('chatScoreVal').textContent = `${data.chat}%`;
+        document.getElementById('speakingScoreVal').textContent = `${data.speaking}%`;
+        
+        const focusBar = document.getElementById('focusBar');
+        if(focusBar) focusBar.style.width = `${data.focus}%`;
+        
+        const chatBar = document.getElementById('chatBar');
+        if(chatBar) chatBar.style.width = `${data.chat}%`;
+        
+        const speakingBar = document.getElementById('speakingBar');
+        if(speakingBar) speakingBar.style.width = `${data.speaking}%`;
+        
+        // Fetch and map Employee History
+        const engagementData = await window.api.get('/engagement');
+        const tbody = document.getElementById('employeeHistoryTableBody');
+        if(tbody) {
+            tbody.innerHTML = '';
+            // Only show history for specific employee to prevent data leakage
+            const myHistory = engagementData.filter(emp => emp.name === 'Employee123');
+            myHistory.reverse();
+            
+            if(myHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No history records found.</td></tr>';
+            } else {
+                myHistory.forEach(emp => {
+                    const statusClass = emp.status === 'engaging' ? 'success' : 
+                                      (emp.status === 'leeching' ? 'danger' : 'warning');
+                    const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><span class="ps-3">${emp.name}</span></td>
+                            <td>${emp.role}</td>
+                            <td><span class="fw-bold">${emp.score}%</span></td>
+                            <td><span class="badge badge-soft-${statusClass} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span></td>
+                            <td><button class="btn btn-sm btn-outline-primary action-btn" data-timeline="${safeTimelineStr}">Actions</button></td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+        
+        // Re-bind Action Modal Triggers (since DOM was refreshed)
+        bindActionButtons();
+
+    } catch(e) {
+        console.error("Failed to load employee stats", e);
+    }
+}
+
+// Ensure Action modals bind cleanly
+function bindActionButtons() {
+    document.querySelectorAll('.action-btn').forEach(btn => {
+        // Prevent stacking event listeners tightly inside intervals
+        btn.replaceWith(btn.cloneNode(true));
+    });
+    
+    document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const timelineDataStr = decodeURIComponent(this.getAttribute('data-timeline'));
+            const timelineData = JSON.parse(timelineDataStr);
+            
+            const mb = document.getElementById('timelineModalBody');
+            if(!mb) return;
+            
+            mb.innerHTML = '';
+            if(timelineData.length === 0) {
+                mb.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">No timeline activity stored.</td></tr>';
+            } else {
+                timelineData.forEach((check, index) => {
+                    const timeSec = index * 10;
+                    const classText = check.focused ? '<span class="text-success fw-bold">Focused</span>' : '<span class="text-danger">Distracted</span>';
+                    mb.innerHTML += `
+                        <tr>
+                            <td class="ps-4">${timeSec}s</td>
+                            <td><small class="text-secondary">${check.window}</small></td>
+                            <td>${classText}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            const timelineModalNode = document.getElementById('timelineModal');
+            if(timelineModalNode) {
+                const modalInst = new bootstrap.Modal(timelineModalNode);
+                modalInst.show();
+            }
+        });
+    });
+}
+
+// Bind Delete buttons
+function bindDeleteButtons() {
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.replaceWith(btn.cloneNode(true));
+    });
+    
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const timestamp = this.getAttribute('data-timestamp');
+            if(timestamp && confirm('Are you sure you want to delete this record?')) {
+                try {
+                    await window.api.delete(`/engagement?timestamp=${encodeURIComponent(timestamp)}`);
+                    loadReports(); // Refresh the table
+                } catch(e) {
+                    console.error("Failed to delete record", e);
+                    alert("Error deleting record.");
+                }
+            }
+        });
+    });
+}
