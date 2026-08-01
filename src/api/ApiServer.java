@@ -28,6 +28,7 @@ public class ApiServer {
     public void startServer() throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(3000), 0);
         
+        server.createContext("/", new RootHandler());
         server.createContext("/api/engagement", new EngagementHandler());
         server.createContext("/api/alerts", new AlertsHandler());
         server.createContext("/api/analytics", new AnalyticsHandler());
@@ -45,6 +46,19 @@ public class ApiServer {
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
         System.out.println("API Server started on port 3000!");
+    }
+
+    class RootHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            sendResponse(exchange, "{\"status\": \"online\", \"service\": \"Meeting Leech Detector Central Server\", \"version\": \"1.0.0\"}");
+        }
     }
 
     class ActiveSessionHandler implements HttpHandler {
