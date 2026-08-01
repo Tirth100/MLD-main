@@ -70,16 +70,48 @@ public class DatabaseHelper {
 
     public static Connection connect() {
         try {
-            String url = getJdbcUrl();
+            String rawUrl = System.getenv("DATABASE_URL");
             Connection conn;
-            if (System.getenv("DATABASE_URL") != null && !System.getenv("DATABASE_URL").isEmpty()) {
-                conn = DriverManager.getConnection(url);
+            if (rawUrl != null && !rawUrl.isEmpty()) {
+                String dbUser = null;
+                String dbPass = null;
+                String jdbcUrl = rawUrl;
+
+                if (rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://")) {
+                    String clean = rawUrl.substring(rawUrl.indexOf("://") + 3);
+                    if (clean.contains("@")) {
+                        String[] parts = clean.split("@", 2);
+                        String userInfo = parts[0];
+                        String hostInfo = parts[1];
+                        if (userInfo.contains(":")) {
+                            String[] userPass = userInfo.split(":", 2);
+                            dbUser = userPass[0];
+                            dbPass = userPass[1];
+                        } else {
+                            dbUser = userInfo;
+                        }
+                        jdbcUrl = "jdbc:postgresql://" + hostInfo;
+                    } else {
+                        jdbcUrl = "jdbc:postgresql://" + clean;
+                    }
+                }
+                
+                if (!jdbcUrl.startsWith("jdbc:postgresql://")) {
+                    jdbcUrl = "jdbc:postgresql://" + jdbcUrl;
+                }
+
+                if (dbUser != null && dbPass != null) {
+                    conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+                } else {
+                    conn = DriverManager.getConnection(jdbcUrl);
+                }
             } else {
-                conn = DriverManager.getConnection(url, USER, PASSWORD);
+                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME, USER, PASSWORD);
             }
             postgresAvailable = true;
             return conn;
         } catch (SQLException e) {
+            System.err.println("[Database Connection Warning] PostgreSQL connection failed: " + e.getMessage() + ". Using fallback mode.");
             postgresAvailable = false;
             return null;
         }
