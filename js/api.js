@@ -1,12 +1,17 @@
 const getApiBaseUrl = () => {
     const saved = localStorage.getItem('mld_server_url');
-    if (saved) return saved;
-    if (window.location.protocol === 'file:') return 'http://localhost:3000/api';
     const origin = window.location.origin;
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('file:');
+    
+    if (saved) {
+        if (isLocal) return saved;
+        if (!saved.includes('localhost') && !saved.includes('127.0.0.1')) return saved;
+    }
+    
+    if (isLocal) {
         return 'http://localhost:3000/api';
     }
-    return `${origin}/api`;
+    return 'https://mld-server.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
