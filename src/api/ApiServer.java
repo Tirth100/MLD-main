@@ -24,7 +24,23 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ApiServer {
     
-
+    private static String extractJsonField(String json, String field) {
+        if (json == null || field == null) return "";
+        try {
+            String pattern = "\"" + field + "\"";
+            int idx = json.indexOf(pattern);
+            if (idx == -1) return "";
+            int colonIdx = json.indexOf(":", idx + pattern.length());
+            if (colonIdx == -1) return "";
+            int startQuote = json.indexOf("\"", colonIdx + 1);
+            if (startQuote == -1) return "";
+            int endQuote = json.indexOf("\"", startQuote + 1);
+            if (endQuote == -1) return "";
+            return json.substring(startQuote + 1, endQuote);
+        } catch (Exception e) {
+            return "";
+        }
+    }
 
     public void startServer() throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(3000), 0);
@@ -40,6 +56,7 @@ public class ApiServer {
         server.createContext("/api/stop", new StopHandler());
         server.createContext("/api/start", new StartHandler());
         server.createContext("/api/join", new JoinHandler());
+        server.createContext("/api/leave-session", new LeaveSessionHandler());
         server.createContext("/api/login", new LoginHandler());
         server.createContext("/api/signup-org", new OrgSignupHandler());
         server.createContext("/api/signup-emp", new EmpSignupHandler());
@@ -101,6 +118,7 @@ public class ApiServer {
     }
 
     private static final Map<String, Long> lastAgentHeartbeats = new ConcurrentHashMap<>();
+    private static final Map<String, String> activeJoinedSessions = new ConcurrentHashMap<>();
 
     class AgentStatusHandler implements HttpHandler {
         @Override
@@ -157,19 +175,28 @@ public class ApiServer {
                 return;
             }
             String query = exchange.getRequestURI().getQuery();
+            String userUuid = "";
             if (query != null && query.contains("uuid=")) {
-                String uuid = query.split("uuid=")[1].split("&")[0].trim().toLowerCase();
-                if (!uuid.isEmpty()) {
-                    lastAgentHeartbeats.put(uuid, System.currentTimeMillis());
+                userUuid = query.split("uuid=")[1].split("&")[0].trim().toLowerCase();
+                if (!userUuid.isEmpty()) {
+                    lastAgentHeartbeats.put(userUuid, System.currentTimeMillis());
                 }
             }
-            boolean active = Main.isMonitoringActive();
-            String code = active ? Main.currentSessionCode : "";
+            
+            boolean active = false;
+            String code = "";
+            if (Main.isMonitoringActive()) {
+                if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
+                    active = true;
+                    code = activeJoinedSessions.get(userUuid);
+                } else if (userUuid.isEmpty()) {
+                    active = true;
+                    code = Main.currentSessionCode;
+                }
+            }
             sendResponse(exchange, "{\"active\": " + active + ", \"sessionCode\": \"" + code + "\"}");
         }
     }
-
-
 
     class StopHandler implements HttpHandler {
         @Override
@@ -182,6 +209,7 @@ public class ApiServer {
             }
             try {
                 Main.stopMonitoring();
+                activeJoinedSessions.clear();
                 sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped.\"}");
             } catch (Exception e) {
                 System.err.println("Stop error: " + e.getMessage());
@@ -190,21 +218,27 @@ public class ApiServer {
         }
     }
 
-    private static String extractJsonField(String json, String field) {
-        if (json == null || field == null) return "";
-        try {
-            String pattern = "\"" + field + "\"";
-            int idx = json.indexOf(pattern);
-            if (idx == -1) return "";
-            int colonIdx = json.indexOf(":", idx + pattern.length());
-            if (colonIdx == -1) return "";
-            int startQuote = json.indexOf("\"", colonIdx + 1);
-            if (startQuote == -1) return "";
-            int endQuote = json.indexOf("\"", startQuote + 1);
-            if (endQuote == -1) return "";
-            return json.substring(startQuote + 1, endQuote);
-        } catch (Exception e) {
-            return "";
+    class LeaveSessionHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            try {
+                InputStream is = exchange.getRequestBody();
+                String body = new String(is.readAllBytes());
+                String uuid = extractJsonField(body, "uuid").trim().toLowerCase();
+                if (!uuid.isEmpty()) {
+                    activeJoinedSessions.remove(uuid);
+                    Main.analyzers.remove(uuid);
+                }
+                sendResponse(exchange, "{\"success\": true, \"message\": \"Left session successfully.\"}");
+            } catch (Exception e) {
+                sendResponse(exchange, "{\"success\": false, \"message\": \"Failed to leave session.\"}");
+            }
         }
     }
 
@@ -255,10 +289,12 @@ public class ApiServer {
                 }
 
                 if (Main.isMonitoringActive() && sessionCode.equalsIgnoreCase(Main.currentSessionCode)) {
-                    Main.analyzers.put(uuid, new service.AttentionAnalyzer());
+                    activeJoinedSessions.put(uuid.toLowerCase(), sessionCode);
+                    Main.analyzers.put(uuid.toLowerCase(), new service.AttentionAnalyzer());
                     sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
                 } else if (DatabaseHelper.isValidSession(sessionCode)) {
-                    Main.analyzers.put(uuid, new service.AttentionAnalyzer());
+                    activeJoinedSessions.put(uuid.toLowerCase(), sessionCode);
+                    Main.analyzers.put(uuid.toLowerCase(), new service.AttentionAnalyzer());
                     sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
                 } else {
                     sendResponse(exchange, "{\"success\": false, \"message\": \"Session is not currently active.\"}");
@@ -285,7 +321,8 @@ public class ApiServer {
                     java.io.InputStream is = exchange.getRequestBody();
                     String body = new String(is.readAllBytes());
                     
-                    String uuid = extractJsonField(body, "uuid");
+                    String uuid = extractJsonField(body, "uuid").trim();
+                    String sessionCode = extractJsonField(body, "sessionCode").trim();
                     String window = extractJsonField(body, "window");
                     int idle = 0;
                     if (body.contains("\"idle\"")) {
@@ -296,8 +333,20 @@ public class ApiServer {
                     }
                     boolean webcam = body.contains("\"webcam\":true") || body.contains("\"webcam\": true");
                     
-                    if (Main.isMonitoringActive() && Main.analyzers.containsKey(uuid)) {
-                        Main.analyzers.get(uuid).analyzeWindow(window, webcam, idle);
+                    if (!uuid.isEmpty()) {
+                        lastAgentHeartbeats.put(uuid.toLowerCase(), System.currentTimeMillis());
+                    }
+
+                    if (Main.isMonitoringActive()) {
+                        String cleanUuid = uuid.toLowerCase();
+                        service.AttentionAnalyzer analyzer = Main.analyzers.get(cleanUuid);
+                        if (analyzer == null) analyzer = Main.analyzers.get(uuid);
+                        if (analyzer == null) {
+                            analyzer = new service.AttentionAnalyzer();
+                            Main.analyzers.put(cleanUuid.isEmpty() ? uuid : cleanUuid, analyzer);
+                        }
+                        analyzer.analyzeWindow(window, webcam, idle);
+                        DatabaseHelper.saveEngagementLog(sessionCode.isEmpty() ? Main.currentSessionCode : sessionCode, uuid, analyzer.getAttentionScore(), new service.LeechDetector().checkLeech(analyzer.getAttentionScore()), analyzer.getTotalCount(), analyzer.getFocusedCount(), webcam, "");
                         sendResponse(exchange, "{\"success\": true, \"active\": true}");
                     } else {
                         sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Session stopped by manager.\"}");
@@ -375,10 +424,11 @@ public class ApiServer {
                     int scorePct = (int) Math.round(score * 100);
                     String stat = new service.LeechDetector().checkLeech(score);
                     String empName = getEmployeeNameByUuid(uuid);
-                    
+                    String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace" : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
+
                     String liveJson = String.format(
-                        "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"isLive\": true}",
-                        empName, scorePct, stat, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.currentSessionCode
+                        "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"isLive\": true}",
+                        empName, scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.currentSessionCode
                     );
                     
                     if (combinedJson.length() > 1) combinedJson.append(", ");

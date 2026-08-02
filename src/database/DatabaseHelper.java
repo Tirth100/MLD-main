@@ -551,5 +551,28 @@ public class DatabaseHelper {
         }
         return "Employee (" + (uuid.length() > 6 ? uuid.substring(0, 6) : uuid) + ")";
     }
+
+    public static void saveEngagementLog(String sessionCode, String uuid, double score, String status, int totalChecks, int focusedChecks, boolean webcamActive, String timelineJson) {
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "INSERT INTO engagement_logs(session_code, device_uuid, score, status, total_checks, focused_checks, webcam_active, timeline, is_live) VALUES (?, ?, ?, ?, ?, ?, ?, ?, true)";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, sessionCode);
+                    pstmt.setString(2, uuid);
+                    pstmt.setDouble(3, score);
+                    pstmt.setString(4, status);
+                    pstmt.setInt(5, totalChecks);
+                    pstmt.setInt(6, focusedChecks);
+                    pstmt.setBoolean(7, webcamActive);
+                    pstmt.setString(8, timelineJson != null ? timelineJson : "");
+                    pstmt.executeUpdate();
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+    }
 }
 

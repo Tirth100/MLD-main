@@ -28,14 +28,18 @@ public class AttentionAnalyzer {
 
         boolean isFocused = false;
         
-        // Strict matching for valid meeting applications
-        if (!window.contains("Meeting Leech Detector")) {
-            if (window.contains("Google Meet")
-             || window.contains("Zoom Meeting")
-             || window.contains("Zoom")
-             || window.contains("Microsoft Teams")
-             || window.contains("Teams")
-             || window.contains("PowerPoint Slide Show")) 
+        // Comprehensive case-insensitive matching for valid meeting applications
+        String lowerWin = window.toLowerCase();
+        if (!lowerWin.contains("meeting leech detector")) {
+            if (lowerWin.contains("google meet")
+             || lowerWin.contains("meet.google.com")
+             || lowerWin.contains("zoom")
+             || lowerWin.contains("teams")
+             || lowerWin.contains("microsoft teams")
+             || lowerWin.contains("powerpoint")
+             || lowerWin.contains("webex")
+             || lowerWin.contains("slack")
+             || lowerWin.contains("meeting")) 
             {
                 // Must not be idle to be counted as focused
                 if (idleSeconds < 8) {

@@ -291,8 +291,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Leave Session Button ---
     const btnLeaveSession = document.getElementById('btnLeaveSession');
     if (btnLeaveSession) {
-        btnLeaveSession.addEventListener('click', () => {
+        btnLeaveSession.addEventListener('click', async () => {
             if (confirm("Are you sure you want to leave the active session?")) {
+                const uuid = localStorage.getItem('uuid_token') || '';
+                try {
+                    await window.api.post('/leave-session', { uuid: uuid });
+                } catch(e) {}
+
                 localStorage.removeItem('active_session_code');
                 if (autoTrackerInterval) {
                     clearInterval(autoTrackerInterval);
