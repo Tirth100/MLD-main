@@ -29,6 +29,8 @@ public class ApiServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(3000), 0);
         
         server.createContext("/", new RootHandler());
+        server.createContext("/download/mld-agent", new DownloadAgentHandler());
+        server.createContext("/api/agent-status", new AgentStatusHandler());
         server.createContext("/api/engagement", new EngagementHandler());
         server.createContext("/api/alerts", new AlertsHandler());
         server.createContext("/api/analytics", new AnalyticsHandler());
@@ -58,6 +60,68 @@ public class ApiServer {
                 return;
             }
             sendResponse(exchange, "{\"status\": \"online\", \"service\": \"Meeting Leech Detector Central Server\", \"version\": \"1.0.0\"}");
+        }
+    }
+
+    class DownloadAgentHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            try {
+                java.io.File jarFile = new java.io.File("MLD-Agent.jar");
+                if (!jarFile.exists()) {
+                    jarFile = new java.io.File("run-agent.bat");
+                }
+                if (jarFile.exists()) {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(jarFile.toPath());
+                    exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
+                    exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + jarFile.getName() + "\"");
+                    exchange.sendResponseHeaders(200, bytes.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(bytes);
+                    }
+                } else {
+                    String msg = "MLD Agent installer file not found on server.";
+                    exchange.sendResponseHeaders(404, msg.length());
+                    try (OutputStream os = exchange.getResponseBody()) { os.write(msg.getBytes()); }
+                }
+            } catch (Exception e) {
+                sendResponse(exchange, "{\"error\": \"Download failed\"}");
+            }
+        }
+    }
+
+    class AgentStatusHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            String query = exchange.getRequestURI().getQuery();
+            String uuid = "";
+            if (query != null && query.contains("uuid=")) {
+                uuid = query.split("uuid=")[1].split("&")[0].trim();
+            }
+
+            boolean isConnected = false;
+            if (!uuid.isEmpty() && Main.analyzers.containsKey(uuid)) {
+                service.AttentionAnalyzer analyzer = Main.analyzers.get(uuid);
+                if (analyzer != null && analyzer.getTotalCount() > 0) {
+                    isConnected = true;
+                }
+            }
+
+            String json = String.format("{\"connected\": %b, \"status\": \"%s\", \"uuid\": \"%s\"}", 
+                isConnected, isConnected ? "Connected" : "Offline", uuid);
+            sendResponse(exchange, json);
         }
     }
 

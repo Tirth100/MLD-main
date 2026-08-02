@@ -241,13 +241,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const response = await window.api.post('/join', { sessionCode: code, uuid: uuid });
                     if (response.success) {
-                        alert("Joined session successfully! Background tracking active for session " + code);
+                        localStorage.setItem('active_session_code', code);
                         const statusEl = document.getElementById('meetingStatus');
                         if (statusEl) {
                             statusEl.textContent = "Monitoring Active for Session: " + code;
                             statusEl.classList.remove('text-muted');
                             statusEl.classList.add('text-success', 'fw-bold');
                         }
+                        
+                        // Activate Desktop Agent UI Card
+                        const agentCard = document.getElementById('agentCardRow');
+                        const joinedCodeText = document.getElementById('joinedCodeText');
+                        const agentTokenDisplay = document.getElementById('agentTokenDisplay');
+                        if (agentCard) agentCard.classList.remove('d-none');
+                        if (joinedCodeText) joinedCodeText.textContent = code;
+                        if (agentTokenDisplay) agentTokenDisplay.value = uuid;
+
                         startAutomaticTracking(code, uuid);
                     } else {
                         alert(response.message || "Invalid Session Code.");
@@ -257,6 +266,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 alert("Please enter a valid session code (e.g., MLD123).");
+            }
+        });
+    }
+
+    // --- Copy Token Button ---
+    const btnCopyToken = document.getElementById('btnCopyToken');
+    if (btnCopyToken) {
+        btnCopyToken.addEventListener('click', () => {
+            const agentTokenDisplay = document.getElementById('agentTokenDisplay');
+            if (agentTokenDisplay && agentTokenDisplay.value) {
+                navigator.clipboard.writeText(agentTokenDisplay.value).then(() => {
+                    btnCopyToken.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+                    btnCopyToken.classList.replace('btn-outline-secondary', 'btn-success');
+                    setTimeout(() => {
+                        btnCopyToken.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copy Token';
+                        btnCopyToken.classList.replace('btn-success', 'btn-outline-secondary');
+                    }, 2500);
+                });
+            }
+        });
+    }
+
+    // --- Leave Session Button ---
+    const btnLeaveSession = document.getElementById('btnLeaveSession');
+    if (btnLeaveSession) {
+        btnLeaveSession.addEventListener('click', () => {
+            if (confirm("Are you sure you want to leave the active session?")) {
+                localStorage.removeItem('active_session_code');
+                if (autoTrackerInterval) {
+                    clearInterval(autoTrackerInterval);
+                    autoTrackerInterval = null;
+                }
+                const agentCard = document.getElementById('agentCardRow');
+                if (agentCard) agentCard.classList.add('d-none');
+                const statusEl = document.getElementById('meetingStatus');
+                if (statusEl) {
+                    statusEl.textContent = "Session Left by User";
+                    statusEl.className = "text-muted";
+                }
             }
         });
     }
