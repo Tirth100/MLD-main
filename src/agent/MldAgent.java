@@ -1,142 +1,164 @@
 package agent;
 
 import monitor.ActiveWindowTracker;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.Scanner;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class MldAgent {
 
     private static String serverUrl = "https://mld-server.onrender.com";
     private static String uuid = "";
-    private static String sessionCode = "";
     private static String employeeName = "";
-    private static ScheduledExecutorService scheduler;
-    private static ScheduledFuture<?> taskHandle;
-    private static boolean isRunning = false;
+    private static String currentSessionCode = "";
+    private static boolean isMonitoring = false;
+    private static final File CONFIG_FILE = new File(System.getProperty("user.home"), ".mld_agent.properties");
 
     public static void main(String[] args) {
         System.out.println("=================================================");
         System.out.println("   Meeting Leech Detector (MLD) - Desktop Agent  ");
+        System.out.println("   [MLD Automated Background Client]      ");
         System.out.println("=================================================");
 
         Scanner scanner = new Scanner(System.in);
 
-        // 1. Central Server URL Prompt
-        System.out.print("Enter Central Server URL [default: https://mld-server.onrender.com]: ");
-        String customUrl = scanner.nextLine().trim();
-        if (!customUrl.isEmpty()) {
-            if (!customUrl.startsWith("http://") && !customUrl.startsWith("https://")) {
-                customUrl = "https://" + customUrl;
-            }
-            if (customUrl.endsWith("/")) customUrl = customUrl.substring(0, customUrl.length() - 1);
-            serverUrl = customUrl;
-        }
+        // 1. Load Saved Configuration if available
+        loadSavedConfig();
 
-        // 2. Authentication Option (Email/Password Login vs Token)
-        System.out.println("\nSelect Authentication Method:");
-        System.out.println(" 1. Login using Website Credentials (Email & Password) [Recommended]");
-        System.out.println(" 2. Enter User Token / UUID directly");
-        System.out.print("Choice [1/2, default 1]: ");
-        String authChoice = scanner.nextLine().trim();
-
-        if ("2".equals(authChoice)) {
-            System.out.print("Enter your User Token / UUID (from Employee Dashboard): ");
-            uuid = scanner.nextLine().trim();
-            while (uuid.isEmpty()) {
-                System.out.print("User Token cannot be empty. Enter User Token: ");
-                uuid = scanner.nextLine().trim();
+        // 2. Perform Initial Setup & Login if not configured
+        if (uuid.isEmpty()) {
+            System.out.print("\nEnter Central Server URL [default: https://mld-server.onrender.com]: ");
+            String customUrl = scanner.nextLine().trim();
+            if (!customUrl.isEmpty()) {
+                if (!customUrl.startsWith("http://") && !customUrl.startsWith("https://")) {
+                    customUrl = "https://" + customUrl;
+                }
+                if (customUrl.endsWith("/")) customUrl = customUrl.substring(0, customUrl.length() - 1);
+                serverUrl = customUrl;
             }
-        } else {
-            // Email & Password Agent Login
+
             boolean loggedIn = false;
             while (!loggedIn) {
-                System.out.print("\nEnter Employee Email: ");
+                System.out.println("\n--- One-Time Employee Login ---");
+                System.out.print("Enter Employee Email: ");
                 String email = scanner.nextLine().trim();
                 System.out.print("Enter Password: ");
                 String password = scanner.nextLine().trim();
 
-                System.out.println("[MLD Agent] Authenticating credentials with server...");
+                System.out.println("[MLD Agent] Authenticating with server...");
                 LoginResponse loginRes = agentLogin(serverUrl, email, password);
                 if (loginRes.success) {
                     uuid = loginRes.token;
                     employeeName = loginRes.name;
                     loggedIn = true;
+                    saveConfig(serverUrl, uuid, email, employeeName);
                     System.out.println("\n=================================================");
-                    System.out.println(" [AGENT LOGIN SUCCESSFUL] Welcome, " + employeeName + "!");
-                    System.out.println(" User Token: " + uuid);
+                    System.out.println(" 🟢 [SETUP COMPLETE] Welcome, " + employeeName + "!");
+                    System.out.println(" Account saved locally. You won't need to log in again!");
                     System.out.println("=================================================");
                 } else {
                     System.err.println("[Login Failed] " + loginRes.message + " Please try again.");
                 }
             }
+        } else {
+            System.out.println("\n🟢 [AUTO-LOGGED IN] Welcome back, " + (employeeName.isEmpty() ? "Employee" : employeeName) + "!");
+            System.out.println(" Server URL: " + serverUrl);
+            System.out.println(" User Token: " + uuid);
         }
 
-        // 3. Session Code Prompt
-        System.out.print("\nEnter Session Code (e.g. MLD123): ");
-        sessionCode = scanner.nextLine().trim().toUpperCase();
-        while (sessionCode.isEmpty()) {
-            System.out.print("Session Code cannot be empty. Enter Session Code: ");
-            sessionCode = scanner.nextLine().trim().toUpperCase();
-        }
-
-        System.out.println("\n[MLD Agent] Validating session " + sessionCode + " with server...");
-
-        // 4. Initial Join Validation
-        boolean joined = joinSession(serverUrl, sessionCode, uuid);
-        if (!joined) {
-            System.err.println("\n[MLD Agent Error] Could not join session. Ensure session is active and belongs to your organization.");
-            System.out.println("Press Enter to exit...");
-            scanner.nextLine();
-            System.exit(1);
-        }
-
-        System.out.println("=================================================");
-        System.out.println(" 🟢 [AGENT CONNECTED & ACTIVE] Monitoring session... ");
-        System.out.println(" Website Connection Status: Connected ");
+        System.out.println("\n=================================================");
+        System.out.println(" 🤖 [AGENT RUNNING IN BACKGROUND]                ");
+        System.out.println(" Monitoring automatically starts when a session  ");
+        System.out.println(" is active, and stops when the session ends.     ");
         System.out.println(" Press Ctrl + C to exit anytime. ");
         System.out.println("=================================================\n");
 
-        isRunning = true;
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+        ScheduledExecutorService backgroundScheduler = Executors.newSingleThreadScheduledExecutor();
 
-        // 5. Monitoring Loop (Runs telemetry check every 10 seconds)
-        taskHandle = scheduler.scheduleAtFixedRate(() -> {
-            if (!isRunning) return;
-
+        // 3. Automated Background Listener Loop (Runs every 5 seconds)
+        backgroundScheduler.scheduleAtFixedRate(() -> {
             try {
-                String windowTitle = ActiveWindowTracker.getActiveWindowTitle();
-                boolean webcamActive = ActiveWindowTracker.isWebcamActive();
-                int idleSeconds = 0; // Automatic window focus telemetry
+                // Check if backend has an active session for organization
+                SessionStatus status = getActiveSession(serverUrl);
+                
+                if (status.active && status.sessionCode != null && !status.sessionCode.isEmpty()) {
+                    if (!isMonitoring || !status.sessionCode.equalsIgnoreCase(currentSessionCode)) {
+                        currentSessionCode = status.sessionCode;
+                        isMonitoring = true;
+                        System.out.println("\n🟢 [ACTIVE SESSION DETECTED] Session Code: " + currentSessionCode);
+                        System.out.println("   [MLD Agent] Auto-started monitoring telemetry!");
+                    }
 
-                String payload = String.format(
-                    "{\"uuid\":\"%s\", \"sessionCode\":\"%s\", \"window\":\"%s\", \"webcam\":%b, \"idle\":%d}",
-                    escapeJson(uuid), escapeJson(sessionCode), escapeJson(windowTitle), webcamActive, idleSeconds
-                );
+                    // Collect and transmit telemetry tick
+                    sendTelemetryTick(serverUrl, currentSessionCode, uuid);
 
-                String endpoint = serverUrl + "/api/track";
-                String responseJson = postHttpRequest(endpoint, payload);
-
-                if (responseJson.contains("\"active\":false") || responseJson.contains("\"active\": false")) {
-                    System.out.println("\n=================================================");
-                    System.out.println(" [AGENT STOPPED] Session " + sessionCode + " ended by manager.");
-                    System.out.println("=================================================");
-                    shutdownAgent();
                 } else {
-                    System.out.println("[Telemetry Sent] Window: " + windowTitle + " | Camera: " + (webcamActive ? "ON" : "OFF"));
+                    if (isMonitoring) {
+                        System.out.println("\n🔴 [SESSION ENDED] Session " + currentSessionCode + " ended by manager.");
+                        System.out.println("   [MLD Agent] Monitoring paused. Standing by for next session...");
+                        isMonitoring = false;
+                        currentSessionCode = "";
+                    }
                 }
-
             } catch (Exception e) {
-                System.err.println("[Telemetry Warning] Connection retry: " + e.getMessage());
+                // Silent background retry
             }
-        }, 0, 10, TimeUnit.SECONDS);
+        }, 0, 5, TimeUnit.SECONDS);
+    }
+
+    private static void sendTelemetryTick(String baseUrl, String code, String userUuid) {
+        try {
+            String windowTitle = ActiveWindowTracker.getActiveWindowTitle();
+            boolean webcamActive = ActiveWindowTracker.isWebcamActive();
+            int idleSeconds = 0;
+
+            String payload = String.format(
+                "{\"uuid\":\"%s\", \"sessionCode\":\"%s\", \"window\":\"%s\", \"webcam\":%b, \"idle\":%d}",
+                escapeJson(userUuid), escapeJson(code), escapeJson(windowTitle), webcamActive, idleSeconds
+            );
+
+            String endpoint = baseUrl + "/api/track";
+            String responseJson = postHttpRequest(endpoint, payload);
+
+            if (responseJson.contains("\"active\":false") || responseJson.contains("\"active\": false")) {
+                isMonitoring = false;
+                currentSessionCode = "";
+                System.out.println("\n🔴 [SESSION ENDED] Monitoring paused by manager.");
+            } else {
+                System.out.println("[Telemetry Auto-Sent] Window: " + windowTitle + " | Camera: " + (webcamActive ? "ON" : "OFF"));
+            }
+        } catch (Exception e) {
+            System.err.println("[Telemetry Connection Retry] " + e.getMessage());
+        }
+    }
+
+    private static class SessionStatus {
+        boolean active;
+        String sessionCode;
+        SessionStatus(boolean active, String sessionCode) {
+            this.active = active; this.sessionCode = sessionCode;
+        }
+    }
+
+    private static SessionStatus getActiveSession(String baseUrl) {
+        try {
+            String res = getHttpRequest(baseUrl + "/api/active-session");
+            boolean active = res.contains("\"active\":true") || res.contains("\"active\": true");
+            String code = extractJsonVal(res, "sessionCode");
+            return new SessionStatus(active, code);
+        } catch (Exception e) {
+            return new SessionStatus(false, "");
+        }
     }
 
     private static class LoginResponse {
@@ -166,21 +188,41 @@ public class MldAgent {
         }
     }
 
-    private static boolean joinSession(String baseUrl, String code, String tokenUuid) {
-        try {
-            String payload = String.format("{\"sessionCode\":\"%s\", \"uuid\":\"%s\"}", escapeJson(code), escapeJson(tokenUuid));
-            String response = postHttpRequest(baseUrl + "/api/join", payload);
-            if (response.contains("\"success\":true") || response.contains("\"success\": true")) {
-                System.out.println("[MLD Agent] Join validated successfully!");
-                return true;
-            } else {
-                System.err.println("[Server Response] " + response);
-                return false;
-            }
-        } catch (Exception e) {
-            System.err.println("[Join Error] " + e.getMessage());
-            return false;
-        }
+    private static void loadSavedConfig() {
+        if (!CONFIG_FILE.exists()) return;
+        try (InputStream input = new FileInputStream(CONFIG_FILE)) {
+            Properties prop = new Properties();
+            prop.load(input);
+            serverUrl = prop.getProperty("serverUrl", "https://mld-server.onrender.com");
+            uuid = prop.getProperty("uuid", "");
+            employeeName = prop.getProperty("employeeName", "");
+        } catch (Exception ignored) {}
+    }
+
+    private static void saveConfig(String url, String userUuid, String email, String name) {
+        try (OutputStream output = new FileOutputStream(CONFIG_FILE)) {
+            Properties prop = new Properties();
+            prop.setProperty("serverUrl", url);
+            prop.setProperty("uuid", userUuid);
+            prop.setProperty("email", email);
+            prop.setProperty("employeeName", name);
+            prop.store(output, "MLD Desktop Agent Configuration");
+        } catch (Exception ignored) {}
+    }
+
+    private static String getHttpRequest(String urlString) throws Exception {
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
+
+        int status = conn.getResponseCode();
+        InputStream is = (status >= 200 && status < 400) ? conn.getInputStream() : conn.getErrorStream();
+        if (is == null) return "{}";
+
+        Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "{}";
     }
 
     private static String postHttpRequest(String urlString, String jsonBody) throws Exception {
@@ -226,12 +268,5 @@ public class MldAgent {
     private static String escapeJson(String str) {
         if (str == null) return "";
         return str.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    private static synchronized void shutdownAgent() {
-        isRunning = false;
-        if (taskHandle != null) taskHandle.cancel(false);
-        if (scheduler != null) scheduler.shutdown();
-        System.exit(0);
     }
 }
