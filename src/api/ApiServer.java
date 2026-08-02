@@ -155,16 +155,20 @@ public class ApiServer {
                 String sessionCode = extractJsonField(body, "sessionCode").trim().toUpperCase();
                 String uuid = extractJsonField(body, "uuid").trim();
 
-                boolean valid = DatabaseHelper.isValidSession(sessionCode);
-                if (valid || (Main.isMonitoringActive() && sessionCode.equalsIgnoreCase(Main.currentSessionCode))) {
-                    if (Main.isMonitoringActive()) {
-                        Main.analyzers.put(uuid, new service.AttentionAnalyzer());
-                        sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
-                    } else {
-                        sendResponse(exchange, "{\"success\": false, \"message\": \"Session is not currently active.\"}");
-                    }
+                DatabaseHelper.JoinValidationResult validation = DatabaseHelper.validateSessionOrgAccess(sessionCode, uuid);
+                if (!validation.allowed) {
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"" + validation.message + "\"}");
+                    return;
+                }
+
+                if (Main.isMonitoringActive() && sessionCode.equalsIgnoreCase(Main.currentSessionCode)) {
+                    Main.analyzers.put(uuid, new service.AttentionAnalyzer());
+                    sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
+                } else if (DatabaseHelper.isValidSession(sessionCode)) {
+                    Main.analyzers.put(uuid, new service.AttentionAnalyzer());
+                    sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
                 } else {
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Invalid session code.\"}");
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Session is not currently active.\"}");
                 }
             } catch (Exception e) {
                 e.printStackTrace();
