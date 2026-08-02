@@ -17,13 +17,53 @@ public class ActiveWindowTracker {
                 if (hwnd != null) {
                     User32.INSTANCE.GetWindowText(hwnd, windowText, 512);
                     String title = Native.toString(windowText);
-                    if (title != null && !title.isEmpty()) return title;
+                    if (title != null && !title.trim().isEmpty()) {
+                        String lower = title.toLowerCase();
+                        if (lower.contains("zoom") || lower.contains("meet") || lower.contains("teams") || lower.contains("powerpoint") || lower.contains("webex")) {
+                            return title.trim();
+                        }
+                    }
+                }
+
+                // If foreground window is generic or non-meeting, check if any meeting application is running
+                String meetingWin = scanForMeetingWindows();
+                if (meetingWin != null && !meetingWin.isEmpty()) {
+                    return meetingWin;
+                }
+
+                if (hwnd != null) {
+                    User32.INSTANCE.GetWindowText(hwnd, windowText, 512);
+                    String fgTitle = Native.toString(windowText);
+                    if (fgTitle != null && !fgTitle.trim().isEmpty()) {
+                        return fgTitle.trim();
+                    }
                 }
             }
         } catch (Throwable t) {
             // Headless or Non-Windows Environment
         }
-        return "Central Server Node";
+        return "Desktop Workspace";
+    }
+
+    private static String scanForMeetingWindows() {
+        try {
+            Process process = Runtime.getRuntime().exec("cmd /c tasklist /v /fo csv");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String lower = line.toLowerCase();
+                if (lower.contains("zoom") || lower.contains("meet") || lower.contains("teams") || lower.contains("powerpnt") || lower.contains("webex")) {
+                    String[] parts = line.split("\",\"");
+                    if (parts.length >= 9) {
+                        String winTitle = parts[8].replace("\"", "").trim();
+                        if (!winTitle.isEmpty() && !winTitle.equalsIgnoreCase("N/A")) {
+                            return winTitle;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 
     public static boolean isWebcamActive() {

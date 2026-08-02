@@ -391,6 +391,7 @@ async function loadManagerDashboard() {
             const durationSecs = emp.durationSeconds || 0;
             const durationDisplay = `${Math.floor(durationSecs / 60)}m ${durationSecs % 60}s`;
             const codeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary font-monospace">${emp.sessionCode || liveSessionCode || 'MLD123'}</span>`;
+            const activeWinDisplay = emp.activeWindow ? `<span class="fw-semibold text-primary"><i class="bi bi-window-desktop me-1"></i>${emp.activeWindow}</span>` : '<span class="text-muted">Desktop Workspace</span>';
 
             const row = `
                 <tr>
@@ -405,6 +406,7 @@ async function loadManagerDashboard() {
                             </div>
                         </div>
                     </td>
+                    <td>${activeWinDisplay}</td>
                     <td>${codeBadge}</td>
                     <td>${webcamBadge}</td>
                     <td><span class="text-muted fw-medium">${idleDisplay}</span></td>
