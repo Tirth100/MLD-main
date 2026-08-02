@@ -63,24 +63,24 @@ public class MldAgent {
                     loggedIn = true;
                     saveConfig(serverUrl, uuid, email, employeeName);
                     System.out.println("\n=================================================");
-                    System.out.println(" 🟢 [SETUP COMPLETE] Welcome, " + employeeName + "!");
-                    System.out.println(" Account saved locally. You won't need to log in again!");
+                    System.out.println(" 🎉 MLD Agent Installed & Activated Successfully!");
+                    System.out.println(" Welcome, " + employeeName + "!");
                     System.out.println("=================================================");
                 } else {
                     System.err.println("[Login Failed] " + loginRes.message + " Please try again.");
                 }
             }
         } else {
-            System.out.println("\n🟢 [AUTO-LOGGED IN] Welcome back, " + (employeeName.isEmpty() ? "Employee" : employeeName) + "!");
-            System.out.println(" Server URL: " + serverUrl);
-            System.out.println(" User Token: " + uuid);
+            System.out.println("\n=================================================");
+            System.out.println(" 🟢 MLD Agent Connected & Active");
+            System.out.println(" Welcome back, " + (employeeName.isEmpty() ? "Employee" : employeeName) + "!");
+            System.out.println("=================================================");
         }
 
         System.out.println("\n=================================================");
-        System.out.println(" 🤖 [AGENT RUNNING IN BACKGROUND]                ");
+        System.out.println(" 🤖 Agent Status: Running Silently in Background ");
         System.out.println(" Monitoring automatically starts when a session  ");
-        System.out.println(" is active, and stops when the session ends.     ");
-        System.out.println(" Press Ctrl + C to exit anytime. ");
+        System.out.println(" is joined, and stops when the session ends.     ");
         System.out.println("=================================================\n");
 
         ScheduledExecutorService backgroundScheduler = Executors.newSingleThreadScheduledExecutor();

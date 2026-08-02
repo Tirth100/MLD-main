@@ -118,26 +118,26 @@ public class ApiServer {
             }
 
             boolean isConnected = false;
-            if (!uuid.isEmpty()) {
-                String cleanUuid = uuid.toLowerCase().trim();
-                Long lastPing = lastAgentHeartbeats.get(cleanUuid);
-                if (lastPing == null) {
-                    for (Map.Entry<String, Long> entry : lastAgentHeartbeats.entrySet()) {
-                        if (entry.getKey().equalsIgnoreCase(cleanUuid)) {
-                            lastPing = entry.getValue();
-                            break;
-                        }
+            long now = System.currentTimeMillis();
+
+            // 1. Check if any background agent heartbeat received within 60 seconds
+            if (!lastAgentHeartbeats.isEmpty()) {
+                for (long ping : lastAgentHeartbeats.values()) {
+                    if ((now - ping) < 60000) {
+                        isConnected = true;
+                        break;
                     }
                 }
-                if (lastPing != null && (System.currentTimeMillis() - lastPing) < 35000) {
+            }
+
+            // 2. Check specific UUID matching
+            if (!isConnected && !uuid.isEmpty()) {
+                String cleanUuid = uuid.toLowerCase().trim();
+                Long lastPing = lastAgentHeartbeats.get(cleanUuid);
+                if (lastPing != null && (now - lastPing) < 60000) {
                     isConnected = true;
                 } else if (Main.analyzers.containsKey(cleanUuid) || Main.analyzers.containsKey(uuid)) {
                     isConnected = true;
-                }
-            } else if (!lastAgentHeartbeats.isEmpty()) {
-                long now = System.currentTimeMillis();
-                for (long ping : lastAgentHeartbeats.values()) {
-                    if ((now - ping) < 35000) { isConnected = true; break; }
                 }
             }
 
