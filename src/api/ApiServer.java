@@ -75,10 +75,10 @@ public class ApiServer {
             try {
                 java.io.File fileToServe = new java.io.File("MLD-Agent.exe");
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("run-agent.bat");
+                    fileToServe = new java.io.File("MLD-Agent.jar");
                 }
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("MLD-Agent.jar");
+                    fileToServe = new java.io.File("run-agent.bat");
                 }
                 if (fileToServe.exists()) {
                     byte[] bytes = java.nio.file.Files.readAllBytes(fileToServe.toPath());
