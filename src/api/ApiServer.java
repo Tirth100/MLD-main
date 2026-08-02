@@ -99,6 +99,8 @@ public class ApiServer {
         }
     }
 
+    private static final Map<String, Long> lastAgentHeartbeats = new ConcurrentHashMap<>();
+
     class AgentStatusHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -115,10 +117,13 @@ public class ApiServer {
             }
 
             boolean isConnected = false;
-            if (!uuid.isEmpty() && Main.analyzers.containsKey(uuid)) {
-                service.AttentionAnalyzer analyzer = Main.analyzers.get(uuid);
-                if (analyzer != null && analyzer.getTotalCount() > 0) {
+            if (!uuid.isEmpty()) {
+                Long lastPing = lastAgentHeartbeats.get(uuid);
+                if (lastPing != null && (System.currentTimeMillis() - lastPing) < 30000) {
                     isConnected = true;
+                } else if (Main.analyzers.containsKey(uuid)) {
+                    service.AttentionAnalyzer analyzer = Main.analyzers.get(uuid);
+                    if (analyzer != null && analyzer.getTotalCount() > 0) isConnected = true;
                 }
             }
 
@@ -136,6 +141,13 @@ public class ApiServer {
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
+            }
+            String query = exchange.getRequestURI().getQuery();
+            if (query != null && query.contains("uuid=")) {
+                String uuid = query.split("uuid=")[1].split("&")[0].trim();
+                if (!uuid.isEmpty()) {
+                    lastAgentHeartbeats.put(uuid, System.currentTimeMillis());
+                }
             }
             boolean active = Main.isMonitoringActive();
             String code = active ? Main.currentSessionCode : "";

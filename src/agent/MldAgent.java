@@ -89,7 +89,7 @@ public class MldAgent {
         backgroundScheduler.scheduleAtFixedRate(() -> {
             try {
                 // Check if backend has an active session for organization
-                SessionStatus status = getActiveSession(serverUrl);
+                SessionStatus status = getActiveSession(serverUrl, uuid);
                 
                 if (status.active && status.sessionCode != null && !status.sessionCode.isEmpty()) {
                     if (!isMonitoring || !status.sessionCode.equalsIgnoreCase(currentSessionCode)) {
@@ -150,9 +150,9 @@ public class MldAgent {
         }
     }
 
-    private static SessionStatus getActiveSession(String baseUrl) {
+    private static SessionStatus getActiveSession(String baseUrl, String userUuid) {
         try {
-            String res = getHttpRequest(baseUrl + "/api/active-session");
+            String res = getHttpRequest(baseUrl + "/api/active-session?uuid=" + userUuid);
             boolean active = res.contains("\"active\":true") || res.contains("\"active\": true");
             String code = extractJsonVal(res, "sessionCode");
             return new SessionStatus(active, code);
