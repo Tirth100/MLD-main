@@ -119,12 +119,25 @@ public class ApiServer {
 
             boolean isConnected = false;
             if (!uuid.isEmpty()) {
-                Long lastPing = lastAgentHeartbeats.get(uuid);
-                if (lastPing != null && (System.currentTimeMillis() - lastPing) < 30000) {
+                String cleanUuid = uuid.toLowerCase().trim();
+                Long lastPing = lastAgentHeartbeats.get(cleanUuid);
+                if (lastPing == null) {
+                    for (Map.Entry<String, Long> entry : lastAgentHeartbeats.entrySet()) {
+                        if (entry.getKey().equalsIgnoreCase(cleanUuid)) {
+                            lastPing = entry.getValue();
+                            break;
+                        }
+                    }
+                }
+                if (lastPing != null && (System.currentTimeMillis() - lastPing) < 35000) {
                     isConnected = true;
-                } else if (Main.analyzers.containsKey(uuid)) {
-                    service.AttentionAnalyzer analyzer = Main.analyzers.get(uuid);
-                    if (analyzer != null && analyzer.getTotalCount() > 0) isConnected = true;
+                } else if (Main.analyzers.containsKey(cleanUuid) || Main.analyzers.containsKey(uuid)) {
+                    isConnected = true;
+                }
+            } else if (!lastAgentHeartbeats.isEmpty()) {
+                long now = System.currentTimeMillis();
+                for (long ping : lastAgentHeartbeats.values()) {
+                    if ((now - ping) < 35000) { isConnected = true; break; }
                 }
             }
 
@@ -145,7 +158,7 @@ public class ApiServer {
             }
             String query = exchange.getRequestURI().getQuery();
             if (query != null && query.contains("uuid=")) {
-                String uuid = query.split("uuid=")[1].split("&")[0].trim();
+                String uuid = query.split("uuid=")[1].split("&")[0].trim().toLowerCase();
                 if (!uuid.isEmpty()) {
                     lastAgentHeartbeats.put(uuid, System.currentTimeMillis());
                 }
