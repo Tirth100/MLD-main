@@ -380,8 +380,9 @@ async function loadManagerDashboard() {
         if (activeMeetingsEl) activeMeetingsEl.textContent = isSessionActive ? "1" : "0";
 
         data.forEach(emp => {
-            const statusClass = emp.status === 'engaging' ? 'bg-success' : 
-                               (emp.status === 'leeching' ? 'bg-danger' : 'bg-warning');
+            const st = (emp.status || '').toLowerCase();
+            const statusClass = (st === 'engaged' || st === 'engaging' || st === 'focused') ? 'bg-success' : 
+                               (st === 'distracted' || st === 'leeching' ? 'bg-danger' : 'bg-warning');
             
             const webcamBadge = emp.webcamActive !== false ? 
                 '<span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1"><i class="bi bi-camera-video-fill me-1"></i>ON</span>' : 

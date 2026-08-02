@@ -526,11 +526,16 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "SELECT u.name FROM devices d JOIN users u ON d.user_id = u.user_id WHERE d.device_uuid = ?";
+                String sql = "SELECT u.name, u.role FROM devices d JOIN users u ON d.user_id = u.user_id WHERE d.device_uuid = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setString(1, uuid);
                     ResultSet rs = pstmt.executeQuery();
                     if (rs.next()) {
+                        String role = rs.getString("role");
+                        if ("ADMIN".equalsIgnoreCase(role) || "MANAGER".equalsIgnoreCase(role)) {
+                            conn.close();
+                            return null;
+                        }
                         String name = rs.getString("name");
                         conn.close();
                         return name;
@@ -546,7 +551,10 @@ public class DatabaseHelper {
         Integer userId = devicesToUserId.get(uuid);
         if (userId != null) {
             for (UserRecord u : usersByEmail.values()) {
-                if (u.userId == userId) return u.name;
+                if (u.userId == userId) {
+                    if ("ADMIN".equalsIgnoreCase(u.role) || "MANAGER".equalsIgnoreCase(u.role)) return null;
+                    return u.name;
+                }
             }
         }
         return "Employee (" + (uuid.length() > 6 ? uuid.substring(0, 6) : uuid) + ")";

@@ -420,10 +420,12 @@ public class ApiServer {
                     String uuid = entry.getKey();
                     service.AttentionAnalyzer analyzer = entry.getValue();
                     
+                    String empName = getEmployeeNameByUuid(uuid);
+                    if (empName == null) continue; // Skip managers/admins from employee engagement table
+
                     double score = analyzer.getTotalCount() > 0 ? analyzer.getAttentionScore() : 1.0;
                     int scorePct = (int) Math.round(score * 100);
                     String stat = new service.LeechDetector().checkLeech(score);
-                    String empName = getEmployeeNameByUuid(uuid);
                     String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace" : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
 
                     String liveJson = String.format(
