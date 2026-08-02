@@ -73,14 +73,17 @@ public class ApiServer {
                 return;
             }
             try {
-                java.io.File jarFile = new java.io.File("MLD-Agent.jar");
-                if (!jarFile.exists()) {
-                    jarFile = new java.io.File("run-agent.bat");
+                java.io.File fileToServe = new java.io.File("MLD-Agent.exe");
+                if (!fileToServe.exists()) {
+                    fileToServe = new java.io.File("run-agent.bat");
                 }
-                if (jarFile.exists()) {
-                    byte[] bytes = java.nio.file.Files.readAllBytes(jarFile.toPath());
+                if (!fileToServe.exists()) {
+                    fileToServe = new java.io.File("MLD-Agent.jar");
+                }
+                if (fileToServe.exists()) {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(fileToServe.toPath());
                     exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
-                    exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + jarFile.getName() + "\"");
+                    exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + fileToServe.getName() + "\"");
                     exchange.sendResponseHeaders(200, bytes.length);
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(bytes);
