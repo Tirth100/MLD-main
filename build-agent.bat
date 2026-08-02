@@ -15,12 +15,8 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
-echo Creating Jar Manifest...
-echo Main-Class: agent.MldAgent > bin/manifest.txt
-echo Class-Path: ../lib/jna-5.14.0.jar ../lib/jna-platform-5.14.0.jar >> bin/manifest.txt
-
-echo Packaging MLD-Agent.jar...
-jar cvfm MLD-Agent.jar bin/manifest.txt -C bin agent -C bin monitor
+echo Packaging executable MLD-Agent.jar...
+jar cvfe MLD-Agent.jar agent.MldAgent -C bin .
 
 echo.
 echo ===================================================
