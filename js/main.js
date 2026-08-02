@@ -804,11 +804,26 @@ function bindActionButtons() {
             } else {
                 timelineData.forEach((check, index) => {
                     const timeSec = index * 10;
-                    const classText = check.focused ? '<span class="text-success fw-bold">Focused</span>' : '<span class="text-danger">Distracted</span>';
+                    const winName = check.window || "Desktop Workspace";
+                    const lowerWin = winName.toLowerCase();
+                    const isMeetingOrWorkspace = check.focused || 
+                        lowerWin.includes("zoom") || 
+                        lowerWin.includes("meet") || 
+                        lowerWin.includes("teams") || 
+                        lowerWin.includes("powerpoint") || 
+                        lowerWin.includes("webex") || 
+                        lowerWin.includes("slack") || 
+                        lowerWin.includes("meeting leech detector") || 
+                        lowerWin.includes("employee dashboard") ||
+                        lowerWin.includes("manager dashboard") ||
+                        lowerWin.includes("mld") ||
+                        lowerWin.includes("meeting");
+
+                    const classText = isMeetingOrWorkspace ? '<span class="text-success fw-bold">Focused</span>' : '<span class="text-danger">Distracted</span>';
                     mb.innerHTML += `
                         <tr>
                             <td class="ps-4">${timeSec}s</td>
-                            <td><small class="text-secondary">${check.window}</small></td>
+                            <td><small class="text-secondary">${winName}</small></td>
                             <td>${classText}</td>
                         </tr>
                     `;
