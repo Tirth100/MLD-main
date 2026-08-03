@@ -25,18 +25,44 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ApiServer {
     
     private static String extractJsonField(String json, String field) {
-        if (json == null || field == null) return "";
+        if (json == null || field == null || json.isEmpty()) return "";
         try {
             String pattern = "\"" + field + "\"";
             int idx = json.indexOf(pattern);
             if (idx == -1) return "";
             int colonIdx = json.indexOf(":", idx + pattern.length());
             if (colonIdx == -1) return "";
-            int startQuote = json.indexOf("\"", colonIdx + 1);
-            if (startQuote == -1) return "";
-            int endQuote = json.indexOf("\"", startQuote + 1);
-            if (endQuote == -1) return "";
-            return json.substring(startQuote + 1, endQuote);
+            
+            String valSubstring = json.substring(colonIdx + 1).trim();
+            if (valSubstring.startsWith("\"")) {
+                StringBuilder sb = new StringBuilder();
+                boolean escaped = false;
+                for (int i = 1; i < valSubstring.length(); i++) {
+                    char c = valSubstring.charAt(i);
+                    if (escaped) {
+                        sb.append(c);
+                        escaped = false;
+                    } else if (c == '\\') {
+                        escaped = true;
+                    } else if (c == '"') {
+                        break;
+                    } else {
+                        sb.append(c);
+                    }
+                }
+                return sb.toString();
+            } else {
+                int endIdx = 0;
+                while (endIdx < valSubstring.length() && 
+                       valSubstring.charAt(endIdx) != ',' && 
+                       valSubstring.charAt(endIdx) != '}' && 
+                       valSubstring.charAt(endIdx) != ']' && 
+                       valSubstring.charAt(endIdx) != '\n' && 
+                       valSubstring.charAt(endIdx) != '\r') {
+                    endIdx++;
+                }
+                return valSubstring.substring(0, endIdx).trim();
+            }
         } catch (Exception e) {
             return "";
         }

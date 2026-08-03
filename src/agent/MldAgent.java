@@ -110,8 +110,9 @@ public class MldAgent {
                         currentSessionCode = "";
                     }
                 }
-            } catch (Exception e) {
-                // Silent background retry
+            } catch (Throwable t) {
+                // Outer exception barrier prevents ScheduledExecutorService thread termination
+                System.err.println("[MLD Agent Loop Warning] Telemetry cycle warning: " + t.getMessage());
             }
         }, 0, 5, TimeUnit.SECONDS);
     }

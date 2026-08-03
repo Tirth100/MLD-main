@@ -29,51 +29,29 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-color);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
     border-radius: 1rem;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .glass-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.08);
 }
 
-/* Buttons */
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary), #9333ea);
-    border: none;
-    transition: all 0.3s ease;
+.badge.font-monospace {
+    letter-spacing: 0.5px;
+    font-weight: 600;
 }
 
-.btn-primary:hover {
-    background: linear-gradient(135deg, var(--primary-hover), #7e22ce);
-    transform: scale(1.02);
-    box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
-}
-
-/* Inputs */
-.form-control, .form-select {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
-}
-
-.form-control:focus, .form-select:focus {
-    background-color: rgba(15, 23, 42, 0.8);
-    border-color: var(--primary);
-    box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.25);
-    color: var(--text-main);
-}
-
-.form-select option {
-    background-color: var(--dark-bg);
+.fs-7 {
+    font-size: 0.8rem;
 }
 
 /* Sidebar */
 .sidebar {
     height: 100vh;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(20px);
     border-right: 1px solid var(--border-color);
     position: fixed;
@@ -88,7 +66,8 @@ body {
     color: var(--text-muted);
     border-radius: 0.5rem;
     margin: 0.2rem 1rem;
-    padding: 0.8rem 1rem;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
     transition: all 0.2s;
     display: flex;
     align-items: center;
@@ -96,9 +75,9 @@ body {
 }
 
 .sidebar .nav-link:hover, .sidebar .nav-link.active {
-    color: var(--text-main);
-    background: rgba(124, 58, 237, 0.1);
-    border-left: 3px solid var(--primary);
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+    font-weight: 600;
 }
 
 .main-content {
@@ -109,8 +88,8 @@ body {
 
 /* Navbar */
 .top-navbar {
-    background: transparent;
-    border-bottom: 1px solid var(--border-color);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     padding: 1rem 2rem;
     display: flex;
     justify-content: space-between;
@@ -120,21 +99,24 @@ body {
 
 /* Badges & Alerts */
 .badge-soft-success {
-    background-color: rgba(16, 185, 129, 0.1);
+    background-color: rgba(16, 185, 129, 0.12);
     color: var(--success);
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    font-weight: 600;
 }
 
 .badge-soft-warning {
-    background-color: rgba(245, 158, 11, 0.1);
+    background-color: rgba(245, 158, 11, 0.12);
     color: var(--warning);
-    border: 1px solid rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    font-weight: 600;
 }
 
 .badge-soft-danger {
-    background-color: rgba(239, 68, 68, 0.1);
+    background-color: rgba(239, 68, 68, 0.12);
     color: var(--danger);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    font-weight: 600;
 }
 
 /* Tables */
@@ -144,13 +126,13 @@ body {
     --bs-table-border-color: var(--border-color);
 }
 .table > :not(caption) > * > * {
-    padding: 1rem;
+    padding: 1rem 0.75rem;
 }
 .table tbody tr {
     transition: background-color 0.2s;
 }
 .table tbody tr:hover {
-    background-color: rgba(0,0,0,0.02);
+    background-color: rgba(99, 102, 241, 0.03);
 }
 
 /* Progress Bars */
@@ -166,7 +148,7 @@ body {
 
 /* Metrics Typography */
 .metric-value {
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     font-weight: 700;
     line-height: 1;
     margin-bottom: 0.5rem;
@@ -175,8 +157,8 @@ body {
 /* Alerts List */
 .alert-item {
     border-left: 4px solid var(--danger);
-    background: rgba(239, 68, 68, 0.05);
-    padding: 1rem;
+    background: rgba(239, 68, 68, 0.04);
+    padding: 0.85rem 1rem;
     border-radius: 0 0.5rem 0.5rem 0;
     margin-bottom: 1rem;
     display: flex;

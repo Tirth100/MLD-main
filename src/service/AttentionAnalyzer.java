@@ -72,6 +72,15 @@ public class AttentionAnalyzer {
                                      
         windowTimeline.add(escapedWindow);
         focusTimeline.add(isFocused);
+
+        // Keep timeline sizes bounded (max 1,000 items) to prevent memory growth
+        if (windowTimeline.size() > 1000) {
+            windowTimeline.remove(0);
+            focusTimeline.remove(0);
+            if (focusHistory.size() > 1000) {
+                focusHistory.remove(0);
+            }
+        }
     }
 
     public double getAttentionScore() {

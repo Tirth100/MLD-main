@@ -30,7 +30,7 @@ public class Main {
             scheduler = Executors.newScheduledThreadPool(1);
             
             // Note: In distributed architecture, local active window tracking is removed.
-            // The API server will receive tracking ticks from remote DesktopClients via /api/track.
+            // The API server will receive tracking ticks from remote Desktop Agents via /api/track.
             
             System.out.println("Distributed monitoring session started for session " + sessionCode);
         }

@@ -96,11 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Load Data Routines ---
     if (document.getElementById('managerDashboard')) {
         loadManagerDashboard();
-        setInterval(loadManagerDashboard, 3000);
+        setInterval(loadManagerDashboard, 2500);
     }
     if (document.getElementById('analyticsPage')) {
         loadAnalytics();
-        setInterval(loadAnalytics, 3000);
+        setInterval(loadAnalytics, 2500);
     }
     if (document.getElementById('reportsPage')) {
         loadReports();
@@ -108,11 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (document.getElementById('alertsPage')) {
         loadAlerts();
-        setInterval(loadAlerts, 3000);
+        setInterval(loadAlerts, 2500);
     }
     if (document.getElementById('employeeDashboard')) {
         loadEmployeeDashboard();
-        setInterval(loadEmployeeDashboard, 3000);
+        setInterval(loadEmployeeDashboard, 2500);
     }
 
     // --- Stop Session Button ---
@@ -331,14 +331,18 @@ async function loadManagerDashboard() {
         // Calculate dynamic metrics
         const uniqueEmployees = new Set(data.map(emp => emp.name)).size;
         const totalMonitoredEl = document.getElementById('totalMonitoredMetricValue');
-        if (totalMonitoredEl) totalMonitoredEl.textContent = uniqueEmployees;
+        if (totalMonitoredEl && totalMonitoredEl.textContent != uniqueEmployees) {
+            totalMonitoredEl.textContent = uniqueEmployees;
+        }
 
         const avgScore = data.length > 0 ? Math.round(data.reduce((acc, emp) => acc + emp.score, 0) / data.length) : 0;
         const avgEngagementEl = document.getElementById('avgEngagementMetricValue');
-        if (avgEngagementEl) avgEngagementEl.textContent = `${avgScore}%`;
+        if (avgEngagementEl && avgEngagementEl.textContent != `${avgScore}%`) {
+            avgEngagementEl.textContent = `${avgScore}%`;
+        }
 
-        tbody.innerHTML = '';
-        data.reverse();
+        // Prepare reversed copy of data
+        const listData = [...data].reverse();
         
         // Query backend server for live active session code
         let liveSessionCode = "";
@@ -354,7 +358,7 @@ async function loadManagerDashboard() {
             }
         } catch (err) {
             const savedSessionCode = localStorage.getItem('active_session_code');
-            isSessionActive = data.some(emp => emp.isLive) || savedSessionCode != null;
+            isSessionActive = listData.some(emp => emp.isLive) || savedSessionCode != null;
             liveSessionCode = savedSessionCode || "";
         }
         
@@ -364,45 +368,49 @@ async function loadManagerDashboard() {
         const codeValue = document.getElementById('sessionCodeValue');
         
         if (isSessionActive) {
-            if (stopBtn) stopBtn.classList.remove('d-none');
-            if (startBtn) startBtn.classList.add('d-none');
+            if (stopBtn && stopBtn.classList.contains('d-none')) stopBtn.classList.remove('d-none');
+            if (startBtn && !startBtn.classList.contains('d-none')) startBtn.classList.add('d-none');
             if (codeDisplay && codeValue && liveSessionCode) {
-                codeValue.textContent = liveSessionCode;
-                codeDisplay.classList.remove('d-none');
+                if (codeValue.textContent !== liveSessionCode) codeValue.textContent = liveSessionCode;
+                if (codeDisplay.classList.contains('d-none')) codeDisplay.classList.remove('d-none');
             }
         } else {
-            if (stopBtn) stopBtn.classList.add('d-none');
-            if (startBtn) startBtn.classList.remove('d-none');
-            if (codeDisplay) codeDisplay.classList.add('d-none');
+            if (stopBtn && !stopBtn.classList.contains('d-none')) stopBtn.classList.add('d-none');
+            if (startBtn && startBtn.classList.contains('d-none')) startBtn.classList.remove('d-none');
+            if (codeDisplay && !codeDisplay.classList.contains('d-none')) codeDisplay.classList.add('d-none');
         }
         
         const activeMeetingsEl = document.getElementById('activeMeetingsMetricValue');
-        if (activeMeetingsEl) activeMeetingsEl.textContent = isSessionActive ? "1" : "0";
+        const expectedActive = isSessionActive ? "1" : "0";
+        if (activeMeetingsEl && activeMeetingsEl.textContent !== expectedActive) {
+            activeMeetingsEl.textContent = expectedActive;
+        }
 
-        data.forEach(emp => {
+        let newRowsHtml = '';
+        listData.forEach(emp => {
             const st = (emp.status || '').toLowerCase();
             const statusClass = (st === 'engaged' || st === 'engaging' || st === 'focused') ? 'bg-success' : 
                                (st === 'distracted' || st === 'leeching' ? 'bg-danger' : 'bg-warning');
             
             const webcamBadge = emp.webcamActive !== false ? 
-                '<span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1"><i class="bi bi-camera-video-fill me-1"></i>ON</span>' : 
-                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2 py-1"><i class="bi bi-camera-video-off-fill me-1"></i>OFF</span>';
+                '<span class="badge bg-success bg-opacity-10 text-success border border-success px-2.5 py-1 text-nowrap"><i class="bi bi-camera-video-fill me-1"></i>ON</span>' : 
+                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2.5 py-1 text-nowrap"><i class="bi bi-camera-video-off-fill me-1"></i>OFF</span>';
                 
             const idleDisplay = emp.idleSeconds !== undefined ? `${emp.idleSeconds}s` : '0s';
             const durationSecs = emp.durationSeconds || 0;
             const durationDisplay = `${Math.floor(durationSecs / 60)}m ${durationSecs % 60}s`;
-            const codeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary font-monospace">${emp.sessionCode || liveSessionCode || 'MLD123'}</span>`;
-            const activeWinDisplay = emp.activeWindow ? `<span class="fw-semibold text-primary"><i class="bi bi-window-desktop me-1"></i>${emp.activeWindow}</span>` : '<span class="text-muted">Desktop Workspace</span>';
+            const codeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary font-monospace px-2.5 py-1 text-nowrap fs-7">${emp.sessionCode || liveSessionCode || 'MLD123'}</span>`;
+            const activeWinDisplay = emp.activeWindow ? `<span class="fw-semibold text-primary text-nowrap"><i class="bi bi-window-desktop me-1"></i>${emp.activeWindow}</span>` : '<span class="text-muted">Desktop Workspace</span>';
 
-            const row = `
+            newRowsHtml += `
                 <tr>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="bg-primary rounded-circle text-white d-flex justify-content-center align-items-center me-3" style="width: 40px; height: 40px;">
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center text-nowrap">
+                            <div class="bg-primary rounded-circle text-white d-flex justify-content-center align-items-center me-3 flex-shrink-0" style="width: 38px; height: 38px; font-weight: 600;">
                                 ${emp.name.charAt(0)}
                             </div>
                             <div>
-                                <h6 class="mb-0 fw-bold">${emp.name}</h6>
+                                <h6 class="mb-0 fw-bold text-dark">${emp.name}</h6>
                                 <small class="text-muted">${emp.role} ${emp.isLive ? '<span class="text-primary fw-bold ms-1">(Live Session)</span>' : "(" + emp.timestamp + ")"}</small>
                             </div>
                         </div>
@@ -410,41 +418,63 @@ async function loadManagerDashboard() {
                     <td>${activeWinDisplay}</td>
                     <td>${codeBadge}</td>
                     <td>${webcamBadge}</td>
-                    <td><span class="text-muted fw-medium">${idleDisplay}</span></td>
-                    <td><span class="text-muted fw-medium">${durationDisplay}</span></td>
-                    <td>
-                        <div class="progress mt-2" style="height: 8px;">
+                    <td class="text-nowrap"><span class="text-muted fw-medium">${idleDisplay}</span></td>
+                    <td class="text-nowrap"><span class="text-muted fw-medium">${durationDisplay}</span></td>
+                    <td style="min-width: 140px;">
+                        <div class="progress mt-1" style="height: 8px;">
                             <div class="progress-bar ${statusClass}" role="progressbar" style="width: ${emp.score}%" aria-valuenow="${emp.score}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                         <small class="text-muted mt-1 d-block fw-bold">${emp.score}%</small>
                     </td>
-                    <td>
+                    <td class="text-nowrap">
                         <span class="badge badge-soft-${statusClass.replace('bg-', '')} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
                     </td>
                 </tr>
             `;
-            tbody.innerHTML += row;
         });
+
+        // Apply HTML diffing: only update DOM if HTML string has changed
+        if (tbody.innerHTML !== newRowsHtml) {
+            tbody.innerHTML = newRowsHtml;
+        }
 
         // Load recent alerts
         const alerts = await window.api.get('/alerts');
         const alertContainer = document.getElementById('alertNotificationSection');
         if(alertContainer) {
-            alertContainer.innerHTML = '';
-            alerts.forEach(alert => {
-                alertContainer.innerHTML += `
-                    <div class="alert-item">
-                        <div>
-                            <h6 class="mb-1">${alert.name}</h6>
-                            <small class="text-muted">${alert.reason}</small>
+            let newAlertsHtml = '';
+            if (!alerts || alerts.length === 0) {
+                newAlertsHtml = `
+                    <div class="text-center py-4 text-muted">
+                        <div class="bg-success bg-opacity-10 text-success rounded-circle d-inline-flex p-3 mb-2">
+                            <i class="bi bi-shield-check fs-3"></i>
                         </div>
-                        <span class="badge bg-danger rounded-pill">${alert.time}</span>
+                        <h6 class="fw-bold text-dark mb-1">All Clear</h6>
+                        <small class="text-muted">No low engagement alerts at this time.</small>
                     </div>
                 `;
-            });
-            // Update metric count
+            } else {
+                alerts.forEach(alert => {
+                    newAlertsHtml += `
+                        <div class="alert-item">
+                            <div>
+                                <h6 class="mb-1 fw-bold">${alert.name}</h6>
+                                <small class="text-muted">${alert.reason}</small>
+                            </div>
+                            <span class="badge bg-danger rounded-pill px-2.5 py-1">${alert.time}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            if (alertContainer.innerHTML !== newAlertsHtml) {
+                alertContainer.innerHTML = newAlertsHtml;
+            }
+
             const metricValue = document.getElementById('alertsMetricValue');
-            if(metricValue) metricValue.textContent = alerts.length;
+            if(metricValue && metricValue.textContent != alerts.length) {
+                metricValue.textContent = alerts.length;
+            }
             
             const navBadges = document.querySelectorAll('#navAlertBadge');
             navBadges.forEach(b => {
@@ -455,8 +485,8 @@ async function loadManagerDashboard() {
         }
         
         // Render Latest Meeting Summary (MapReduce format)
-        if (data.length > 0) {
-            const latestMeeting = data[0]; // data is already reversed, so index 0 is the newest
+        if (listData.length > 0) {
+            const latestMeeting = listData[0];
             const summaryContainer = document.getElementById('latestMeetingSummarySection');
             const scoreBadge = document.getElementById('latestMeetingScoreBadge');
             
@@ -464,20 +494,16 @@ async function loadManagerDashboard() {
                 scoreBadge.textContent = `${latestMeeting.score}% Engagement`;
                 scoreBadge.className = `badge ms-2 ${latestMeeting.score >= 50 ? 'bg-success' : 'bg-danger'}`;
                 
-                // MapReduce Algorithm
                 const frequencies = {};
                 latestMeeting.timeline.forEach(item => {
                     const win = item.window || "Unknown Window";
                     frequencies[win] = (frequencies[win] || 0) + 1;
                 });
                 
-                // Sort by frequency descending
                 const sortedApps = Object.entries(frequencies).sort((a, b) => b[1] - a[1]);
                 
                 let html = '<div class="d-flex flex-wrap gap-3 mt-2">';
                 sortedApps.forEach(([app, count]) => {
-                    // Display format: App Name - Count
-                    // Clean up app name for display if it's too long
                     const shortName = app.length > 40 ? app.substring(0, 40) + '...' : app;
                     html += `
                         <div class="border border-secondary rounded px-3 py-2 bg-light shadow-sm">
@@ -488,10 +514,9 @@ async function loadManagerDashboard() {
                 });
                 html += '</div>';
                 
-                if(sortedApps.length === 0) {
-                    summaryContainer.innerHTML = '<div class="text-muted text-center py-4">No window activity recorded yet.</div>';
-                } else {
-                    summaryContainer.innerHTML = html;
+                const targetSummaryHtml = sortedApps.length === 0 ? '<div class="text-muted text-center py-4">No window activity recorded yet.</div>' : html;
+                if (summaryContainer.innerHTML !== targetSummaryHtml) {
+                    summaryContainer.innerHTML = targetSummaryHtml;
                 }
             }
         }
@@ -499,7 +524,9 @@ async function loadManagerDashboard() {
     } catch (e) {
         console.error("Failed to load dashboard data", e);
         const tbody = document.getElementById('engagementTableBody');
-        if(tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view live data.</td></tr>';
+        if(tbody && !tbody.innerHTML.includes("Backend server offline")) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view live data.</td></tr>';
+        }
     }
 }
 
@@ -510,84 +537,97 @@ async function loadAnalytics() {
         // Window Focus Pie Chart
         const ctxPie = document.getElementById('focusPieChart');
         if(ctxPie) {
-            if(activeCharts.pie) activeCharts.pie.destroy();
             let pData = data.windowFocus;
-            if(pData[0] === 0 && pData[1] === 0 && pData[2] === 0) pData = [0, 0, 1]; // Draw minimal background if totally empty
-            activeCharts.pie = new Chart(ctxPie, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Focused', 'Blurred', 'Background/Hidden'],
-                    datasets: [{
-                        data: pData,
-                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { color: '#1e293b' } }, animation: {duration: 0} }
-                }
-            });
+            if(pData[0] === 0 && pData[1] === 0 && pData[2] === 0) pData = [0, 0, 1];
+            if (activeCharts.pie) {
+                activeCharts.pie.data.datasets[0].data = pData;
+                activeCharts.pie.update('none');
+            } else {
+                activeCharts.pie = new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Focused', 'Blurred', 'Background/Hidden'],
+                        datasets: [{
+                            data: pData,
+                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { color: '#1e293b' } }, animation: {duration: 0} }
+                    }
+                });
+            }
         }
 
         // Chat Bar Chart
         const ctxBar = document.getElementById('chatBarChart');
         if(ctxBar) {
-            if(activeCharts.bar) activeCharts.bar.destroy();
-            activeCharts.bar = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: ['10m', '20m', '30m', '40m', '50m', '60m'],
-                    datasets: [{
-                        label: 'Messages Sent',
-                        data: data.chatActivity,
-                        backgroundColor: '#0ea5e9',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {duration: 0},
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } },
-                        x: { grid: { display: false }, ticks: { color: '#1e293b' } }
+            if (activeCharts.bar) {
+                activeCharts.bar.data.datasets[0].data = data.chatActivity;
+                activeCharts.bar.update('none');
+            } else {
+                activeCharts.bar = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: ['10m', '20m', '30m', '40m', '50m', '60m'],
+                        datasets: [{
+                            label: 'Messages Sent',
+                            data: data.chatActivity,
+                            backgroundColor: '#0ea5e9',
+                            borderRadius: 4
+                        }]
                     },
-                    plugins: { legend: { display: false } }
-                }
-            });
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {duration: 0},
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } },
+                            x: { grid: { display: false }, ticks: { color: '#1e293b' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
         }
 
         // Speaking Line Chart
         const ctxLine = document.getElementById('speakingLineChart');
         if(ctxLine) {
-            if(activeCharts.line) activeCharts.line.destroy();
-            activeCharts.line = new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: data.speakingTime,
-                    datasets: [{
-                        label: 'Speaking Duration (s)',
-                        data: data.speakingData,
-                        borderColor: '#7c3aed',
-                        backgroundColor: 'rgba(124, 58, 237, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {duration: 0},
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } },
-                        x: { grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } }
+            if (activeCharts.line) {
+                activeCharts.line.data.labels = data.speakingTime;
+                activeCharts.line.data.datasets[0].data = data.speakingData;
+                activeCharts.line.update('none');
+            } else {
+                activeCharts.line = new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: data.speakingTime,
+                        datasets: [{
+                            label: 'Speaking Duration (s)',
+                            data: data.speakingData,
+                            borderColor: '#7c3aed',
+                            backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
                     },
-                    plugins: { legend: { display: false } }
-                }
-            });
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {duration: 0},
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } },
+                            x: { grid: { color: 'rgba(0,0,0,0.1)' }, ticks: { color: '#1e293b' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
         }
 
     } catch(e) {
@@ -601,16 +641,15 @@ async function loadReports() {
         const tbody = document.getElementById('reportsTableBody');
         if(!tbody) return;
         
-        tbody.innerHTML = '';
-        data.reverse();
-        data.forEach(emp => {
+        let newRowsHtml = '';
+        const listData = [...data].reverse();
+        listData.forEach(emp => {
             const statusClass = emp.status === 'engaging' ? 'success' : 
-                              (emp.status === 'leeching' ? 'danger' : 'warning');
+                               (emp.status === 'leeching' ? 'danger' : 'warning');
             
-            // Safely embed timeline data using JSON stringified attribute
             const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
             
-            tbody.innerHTML += `
+            newRowsHtml += `
                 <tr>
                     <td>${emp.name}</td>
                     <td>${emp.role}</td>
@@ -627,26 +666,30 @@ async function loadReports() {
             `;
         });
         
-        // Re-bind Action Modal Triggers (since DOM was refreshed)
-        bindActionButtons();
-        bindDeleteButtons();
+        if (tbody.innerHTML !== newRowsHtml) {
+            tbody.innerHTML = newRowsHtml;
+            bindActionButtons();
+            bindDeleteButtons();
+        }
 
-        // Export CSV Logic
+        // Export Logic
         const exportBtn = document.getElementById('exportCsvBtn');
-        if (exportBtn) {
+        if (exportBtn && !exportBtn.dataset.bound) {
+            exportBtn.dataset.bound = "true";
             exportBtn.addEventListener('click', () => {
-                const link = document.createElement("a");
-                link.setAttribute("href", "http://localhost:3000/api/export");
-                link.setAttribute("download", "engagement_report.csv");
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                if (window.exportToGoogleSheets) {
+                    window.exportToGoogleSheets();
+                } else {
+                    alert("Export module not loaded.");
+                }
             });
         }
     } catch(e) {
         console.error("Failed to load reports", e);
         const tbody = document.getElementById('reportsTableBody');
-        if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view reports.</td></tr>';
+        if(tbody && !tbody.innerHTML.includes("Backend server offline")) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view reports.</td></tr>';
+        }
     }
 }
 
@@ -656,9 +699,9 @@ async function loadAlerts() {
         const container = document.getElementById('alertsListContainer');
         if(!container) return;
 
-        container.innerHTML = '';
+        let newAlertsHtml = '';
         data.forEach(alert => {
-            container.innerHTML += `
+            newAlertsHtml += `
                 <div class="col-md-6 mb-4 alert-card">
                     <div class="card glass-card h-100 border-start border-danger border-4">
                         <div class="card-body">
@@ -676,6 +719,22 @@ async function loadAlerts() {
                 </div>
             `;
         });
+
+        if (container.innerHTML !== newAlertsHtml) {
+            container.innerHTML = newAlertsHtml;
+            const dismissBtns = container.querySelectorAll('.dismiss-btn');
+            dismissBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const card = this.closest('.alert-card');
+                    if (card) {
+                        card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                });
+            });
+        }
 
         // Update nav badges
         const navBadges = document.querySelectorAll('#navAlertBadge');
@@ -749,20 +808,20 @@ async function loadEmployeeDashboard() {
         const engagementData = await window.api.get('/engagement');
         const tbody = document.getElementById('employeeHistoryTableBody');
         if(tbody) {
-            tbody.innerHTML = '';
-            // Only show history for specific employee to prevent data leakage
-            const myHistory = engagementData.filter(emp => emp.name === 'Employee123');
-            myHistory.reverse();
+            const username = localStorage.getItem('username');
+            const myHistory = engagementData.filter(emp => !username || emp.name === username);
+            const listData = [...myHistory].reverse();
             
-            if(myHistory.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No history records found.</td></tr>';
+            let newRowsHtml = '';
+            if(listData.length === 0) {
+                newRowsHtml = '<tr><td colspan="5" class="text-center text-muted py-4">No history records found.</td></tr>';
             } else {
-                myHistory.forEach(emp => {
+                listData.forEach(emp => {
                     const statusClass = emp.status === 'engaging' ? 'success' : 
                                       (emp.status === 'leeching' ? 'danger' : 'warning');
                     const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
                     
-                    tbody.innerHTML += `
+                    newRowsHtml += `
                         <tr>
                             <td><span class="ps-3">${emp.name}</span></td>
                             <td>${emp.role}</td>
@@ -773,10 +832,12 @@ async function loadEmployeeDashboard() {
                     `;
                 });
             }
+
+            if (tbody.innerHTML !== newRowsHtml) {
+                tbody.innerHTML = newRowsHtml;
+                bindActionButtons();
+            }
         }
-        
-        // Re-bind Action Modal Triggers (since DOM was refreshed)
-        bindActionButtons();
 
     } catch(e) {
         console.error("Failed to load employee stats", e);

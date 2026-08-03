@@ -4,8 +4,10 @@ const getApiBaseUrl = () => {
     const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('file:');
     
     if (saved) {
-        if (isLocal) return saved;
-        if (!saved.includes('localhost') && !saved.includes('127.0.0.1')) return saved;
+        if (isLocal) return saved.endsWith('/') ? saved.slice(0, -1) : saved;
+        if (!saved.includes('localhost') && !saved.includes('127.0.0.1')) {
+            return saved.endsWith('/') ? saved.slice(0, -1) : saved;
+        }
     }
     
     if (isLocal) {
@@ -14,7 +16,6 @@ const getApiBaseUrl = () => {
     return 'https://mld-server.onrender.com/api';
 };
 
-const API_BASE_URL = getApiBaseUrl();
 const USE_MOCK_DATA = false;
 
 const mockData = {
@@ -29,10 +30,10 @@ const mockData = {
         { id: 2, name: 'Diana Prince', reason: 'No speaking or chat activity', time: '25 mins ago' }
     ],
     analytics: {
-        windowFocus: [65, 25, 10], // focused, blurred, background
-        chatActivity: [12, 19, 3, 5, 2, 3], // messages per 10 mins
-        speakingTime: [0, 5, 10, 15, 20, 25, 30], // mock labels
-        speakingData: [10, 25, 40, 20, 60, 50, 80] // mock data
+        windowFocus: [65, 25, 10],
+        chatActivity: [12, 19, 3, 5, 2, 3],
+        speakingTime: [0, 5, 10, 15, 20, 25, 30],
+        speakingData: [10, 25, 40, 20, 60, 50, 80]
     },
     employeeStats: {
         score: 45,
@@ -43,72 +44,92 @@ const mockData = {
     }
 };
 
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (err) {
+        clearTimeout(id);
+        throw err;
+    }
+};
+
 const api = {
     async get(endpoint) {
         if (USE_MOCK_DATA) {
             return new Promise((resolve) => {
                 setTimeout(() => {
-                    // Route mock requests
                     if (endpoint.includes('engagement')) resolve(mockData.employeeEngagement);
                     else if (endpoint.includes('alerts')) resolve(mockData.alerts);
                     else if (endpoint.includes('analytics')) resolve(mockData.analytics);
                     else if (endpoint.includes('employee-stats')) resolve(mockData.employeeStats);
                     else resolve([]);
-                }, 500); // simulate network delay
+                }, 300);
             });
         }
 
         try {
+            const baseUrl = getApiBaseUrl();
             const token = localStorage.getItem('uuid_token');
             const headers = { 'Cache-Control': 'no-store', 'Bypass-Tunnel-Reminder': 'true' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { headers }, 8000);
             const text = await response.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
                 console.error('Non-JSON response from backend:', text);
-                throw new Error('Backend server returned non-JSON data. Ensure server is active.');
+                return { success: false, message: 'Backend server returned non-JSON response.' };
             }
         } catch (error) {
-            console.error('API Error:', error);
+            console.error('API Get Error:', error);
+            if (error.name === 'AbortError') {
+                return { success: false, message: 'Request timed out. Please check backend server status.' };
+            }
             throw error;
         }
     },
     async delete(endpoint) {
-        if (USE_MOCK_DATA) return Promise.resolve({});
+        if (USE_MOCK_DATA) return Promise.resolve(true);
         try {
+            const baseUrl = getApiBaseUrl();
             const headers = { 'Bypass-Tunnel-Reminder': 'true' };
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'DELETE', headers });
-            if (!response.ok) throw new Error('Network response was not ok');
-            return true;
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { method: 'DELETE', headers }, 8000);
+            return response.ok;
         } catch (error) {
             console.error('API Delete Error:', error);
-            throw error;
+            return false;
         }
     },
     async post(endpoint, data = {}) {
-        if (USE_MOCK_DATA) return Promise.resolve({});
+        if (USE_MOCK_DATA) return Promise.resolve({ success: true });
         try {
+            const baseUrl = getApiBaseUrl();
             const token = localStorage.getItem('uuid_token');
-            const headers = { 'Content-Type': 'application/json' };
+            const headers = { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(data)
-            });
+            }, 8000);
             const text = await response.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
                 console.error('Non-JSON response from backend:', text);
-                throw new Error('Backend server returned non-JSON data. Ensure server is active.');
+                return { success: false, message: 'Backend server returned non-JSON response.' };
             }
         } catch (error) {
             console.error('API Post Error:', error);
+            if (error.name === 'AbortError') {
+                return { success: false, message: 'Request timed out. Please check backend server status.' };
+            }
             throw error;
         }
     }

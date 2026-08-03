@@ -36,6 +36,7 @@ public class DatabaseHelper {
     }
     
     private static boolean postgresAvailable = false;
+    private static boolean isDbChecked = false;
 
     // --- In-Memory Fallback Storage ---
     public static class UserRecord {
@@ -69,7 +70,11 @@ public class DatabaseHelper {
     private static int nextUserId = 1;
 
     public static Connection connect() {
+        if (isDbChecked && !postgresAvailable) {
+            return null;
+        }
         try {
+            DriverManager.setLoginTimeout(1);
             String rawUrl = System.getenv("DATABASE_URL");
             Connection conn;
             if (rawUrl != null && !rawUrl.isEmpty()) {
@@ -109,10 +114,14 @@ public class DatabaseHelper {
                 conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME, USER, PASSWORD);
             }
             postgresAvailable = true;
+            isDbChecked = true;
             return conn;
         } catch (SQLException e) {
-            System.err.println("[Database Connection Warning] PostgreSQL connection failed: " + e.getMessage() + ". Using fallback mode.");
+            if (!isDbChecked) {
+                System.err.println("[Database Connection Warning] PostgreSQL connection failed: " + e.getMessage() + ". Using fallback mode.");
+            }
             postgresAvailable = false;
+            isDbChecked = true;
             return null;
         }
     }
@@ -269,7 +278,7 @@ public class DatabaseHelper {
                     if (rs.next()) {
                         String existingCode = rs.getString("org_code");
                         conn.close();
-                        return new OrgSignupResult(true, existingCode != null ? existingCode : orgCode, "Email already registered.");
+                        return new OrgSignupResult(false, null, "Email address is already registered. Please login or use a different email.");
                     }
                 }
 
@@ -301,10 +310,7 @@ public class DatabaseHelper {
 
         // Fallback Org Signup
         if (usersByEmail.containsKey(email)) {
-            UserRecord existing = usersByEmail.get(email);
-            OrgRecord org = orgsById.get(existing.orgId);
-            String code = org != null ? org.orgCode : orgCode;
-            return new OrgSignupResult(true, code, "Email already registered. Organization code retrieved.");
+            return new OrgSignupResult(false, null, "Email address is already registered. Please login or use a different email.");
         }
 
         OrgRecord newOrg = new OrgRecord(nextOrgId++, orgName, orgCode);
@@ -341,7 +347,7 @@ public class DatabaseHelper {
                             ResultSet rsCheck = checkStmt.executeQuery();
                             if (rsCheck.next()) {
                                 conn.close();
-                                return new EmpSignupResult(true, "Account already exists! Please log in.");
+                                return new EmpSignupResult(false, "Account already exists with this email! Please log in.");
                             }
                         }
                         String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
@@ -372,7 +378,7 @@ public class DatabaseHelper {
         }
 
         if (usersByEmail.containsKey(email)) {
-            return new EmpSignupResult(true, "Account already exists! Please log in.");
+            return new EmpSignupResult(false, "Account already exists with this email! Please log in.");
         }
 
         UserRecord newEmp = new UserRecord(nextUserId++, name, email, password, "EMPLOYEE", org.orgId);
