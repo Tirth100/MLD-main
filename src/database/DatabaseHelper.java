@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -63,6 +64,7 @@ public class DatabaseHelper {
     private static final Map<String, OrgRecord> orgsByCode = new ConcurrentHashMap<>();
     private static final Map<Integer, OrgRecord> orgsById = new ConcurrentHashMap<>();
     private static final Map<String, UserRecord> usersByEmail = new ConcurrentHashMap<>();
+    private static final Map<Integer, UserRecord> usersById = new ConcurrentHashMap<>();
     private static final Map<String, Integer> devicesToUserId = new ConcurrentHashMap<>();
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
     
@@ -587,6 +589,394 @@ public class DatabaseHelper {
                 try { conn.close(); } catch (Exception ignored) {}
             }
         }
+    }
+    public static class NotifRecord {
+        public int userId;
+        public String message;
+        public long timestamp;
+        public NotifRecord(int userId, String message, long timestamp) {
+            this.userId = userId; this.message = message; this.timestamp = timestamp;
+        }
+    }
+    private static List<NotifRecord> notifs = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static String getRecentNotifications(String token) {
+        int userId = getUserIdFromToken(token);
+        if (userId == -1) return "[]";
+        
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT message, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 10";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, userId);
+                ResultSet rs = ps.executeQuery();
+                StringBuilder json = new StringBuilder("[");
+                while(rs.next()) {
+                    if(json.length() > 1) json.append(",");
+                    json.append("{\"message\":\"").append(rs.getString("message")).append("\"}");
+                }
+                json.append("]");
+                conn.close();
+                return json.toString();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        
+        // Fallback
+        StringBuilder json = new StringBuilder("[");
+        for (NotifRecord n : notifs) {
+            if (n.userId == userId) {
+                if(json.length() > 1) json.append(",");
+                json.append("{\"message\":\"").append(n.message.replace("\"", "\\\"")).append("\"}");
+            }
+        }
+        json.append("]");
+        return json.toString();
+    }
+
+    public static String getEmployeesByManagerToken(String token) {
+        int orgId = getOrgIdFromToken(token);
+        if (orgId == -1) return "[]";
+        
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT user_id, name, email FROM users WHERE org_id = ? AND role = 'EMPLOYEE'";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, orgId);
+                ResultSet rs = ps.executeQuery();
+                StringBuilder json = new StringBuilder("[");
+                while (rs.next()) {
+                    if (json.length() > 1) json.append(",");
+                    json.append("{\"id\":").append(rs.getInt("user_id"))
+                        .append(",\"name\":\"").append(rs.getString("name"))
+                        .append("\",\"email\":\"").append(rs.getString("email")).append("\"}");
+                }
+                json.append("]");
+                conn.close();
+                return json.toString();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        
+        // Fallback
+        StringBuilder json = new StringBuilder("[");
+        for (UserRecord u : usersById.values()) {
+            if (u.orgId == orgId && "EMPLOYEE".equals(u.role)) {
+                if (json.length() > 1) json.append(",");
+                json.append("{\"id\":").append(u.userId)
+                    .append(",\"name\":\"").append(u.name)
+                    .append("\",\"email\":\"").append(u.email).append("\"}");
+            }
+        }
+        json.append("]");
+        return json.toString();
+    }
+
+    public static boolean removeEmployee(String token, int empId) {
+        int orgId = getOrgIdFromToken(token);
+        if (orgId == -1) return false;
+        
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "DELETE FROM users WHERE user_id = ? AND org_id = ? AND role = 'EMPLOYEE'";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, empId);
+                ps.setInt(2, orgId);
+                int rows = ps.executeUpdate();
+                conn.close();
+                return rows > 0;
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        
+        // Fallback
+        UserRecord emp = usersById.get(empId);
+        if (emp != null && emp.orgId == orgId && "EMPLOYEE".equals(emp.role)) {
+            usersById.remove(empId);
+            usersByEmail.remove(emp.email);
+            return true;
+        }
+        return false;
+    }
+
+    public static String getManagerProfile(String token) {
+        int userId = getUserIdFromToken(token);
+        if (userId == -1) return "{}";
+        
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT u.name, u.email, o.org_name, o.org_code FROM users u JOIN organizations o ON u.org_id = o.org_id WHERE u.user_id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, userId);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    String json = "{\"name\":\"" + rs.getString("name") + "\",\"email\":\"" + rs.getString("email") 
+                        + "\",\"orgName\":\"" + rs.getString("org_name") + "\",\"orgCode\":\"" + rs.getString("org_code") + "\"}";
+                    conn.close();
+                    return json;
+                }
+                conn.close();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        
+        // Fallback
+        UserRecord manager = usersById.get(userId);
+        if (manager != null) {
+            OrgRecord org = orgsById.get(manager.orgId);
+            if (org != null) {
+                return "{\"name\":\"" + manager.name + "\",\"email\":\"" + manager.email + "\",\"orgName\":\"" + org.orgName + "\",\"orgCode\":\"" + org.orgCode + "\"}";
+            }
+        }
+        return "{}";
+    }
+
+    public static boolean resetPassword(String token, String newPass) {
+        int userId = getUserIdFromToken(token);
+        if (userId == -1) return false;
+        
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "UPDATE users SET password = ? WHERE user_id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, newPass);
+                ps.setInt(2, userId);
+                int rows = ps.executeUpdate();
+                conn.close();
+                return rows > 0;
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        
+        // Fallback
+        UserRecord user = usersById.get(userId);
+        if (user != null) {
+            user.password = newPass;
+            return true;
+        }
+        return false;
+    }
+
+    private static int getUserIdFromToken(String token) {
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT user_id FROM devices WHERE device_uuid = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, token);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    int uid = rs.getInt("user_id");
+                    conn.close();
+                    return uid;
+                }
+                conn.close();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        // Fallback
+        Integer uid = devicesToUserId.get(token);
+        return uid != null ? uid : -1;
+    }
+
+    private static int getOrgIdFromToken(String token) {
+        int uid = getUserIdFromToken(token);
+        if (uid == -1) return -1;
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT org_id FROM users WHERE user_id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, uid);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    int orgId = rs.getInt("org_id");
+                    conn.close();
+                    return orgId;
+                }
+                conn.close();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        // Fallback
+        UserRecord user = usersById.get(uid);
+        return user != null ? user.orgId : -1;
+    }
+
+    public static String loginWithGoogle(String email) {
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))";
+                PreparedStatement pstmt = conn.prepareStatement(sql);
+                pstmt.setString(1, email != null ? email.trim() : "");
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    String role = rs.getString("role");
+                    int userId = rs.getInt("user_id");
+                    String name = rs.getString("name");
+                    String uuid = UUID.randomUUID().toString();
+                    try {
+                        String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
+                        PreparedStatement dStmt = conn.prepareStatement(insertDevice);
+                        dStmt.setString(1, uuid);
+                        dStmt.setInt(2, userId);
+                        dStmt.executeUpdate();
+                    } catch (Exception devErr) {}
+                    conn.close();
+                    return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + role + "\", \"name\": \"" + name + "\"}";
+                }
+                conn.close();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+        
+        // Fallback Store Login
+        UserRecord user = usersByEmail.get(email);
+        if (user != null) {
+            String uuid = UUID.randomUUID().toString();
+            devicesToUserId.put(uuid, user.userId);
+            return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + user.role + "\", \"name\": \"" + user.name + "\"}";
+        }
+        return null;
+    }
+
+    public static String signupOrgWithGoogle(String email, String name, String orgName) {
+        String orgCode = "ORG" + (1000 + new java.util.Random().nextInt(9000));
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String checkSql = "SELECT u.user_id FROM users u WHERE u.email = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+                checkStmt.setString(1, email);
+                ResultSet rs = checkStmt.executeQuery();
+                if (rs.next()) {
+                    conn.close();
+                    return null;
+                }
+                String insertOrg = "INSERT INTO organizations(org_name, org_code) VALUES (?, ?)";
+                PreparedStatement pstmt = conn.prepareStatement(insertOrg, java.sql.Statement.RETURN_GENERATED_KEYS);
+                pstmt.setString(1, orgName);
+                pstmt.setString(2, orgCode);
+                pstmt.executeUpdate();
+                ResultSet generatedKeys = pstmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    int orgId = generatedKeys.getInt(1);
+                    String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
+                    PreparedStatement pstmtUser = conn.prepareStatement(insertSql);
+                    pstmtUser.setString(1, name);
+                    pstmtUser.setString(2, email);
+                    pstmtUser.setString(3, "GOOGLE_AUTH");
+                    pstmtUser.setString(4, "ADMIN");
+                    pstmtUser.setInt(5, orgId);
+                    pstmtUser.executeUpdate();
+                }
+                conn.close();
+                return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+        
+        // Fallback Org Signup
+        if (usersByEmail.containsKey(email)) {
+            return null;
+        }
+        OrgRecord newOrg = new OrgRecord(nextOrgId++, orgName, orgCode);
+        orgsByCode.put(orgCode, newOrg);
+        orgsById.put(newOrg.orgId, newOrg);
+        UserRecord newAdmin = new UserRecord(nextUserId++, name, email, "GOOGLE_AUTH", "ADMIN", newOrg.orgId);
+        usersByEmail.put(email, newAdmin);
+        return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
+    }
+
+    public static String signupEmpWithGoogle(String email, String name, String orgCode) {
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String selectOrg = "SELECT org_id FROM organizations WHERE org_code = ?";
+                PreparedStatement pstmtOrg = conn.prepareStatement(selectOrg);
+                pstmtOrg.setString(1, orgCode);
+                ResultSet rsOrg = pstmtOrg.executeQuery();
+                if (!rsOrg.next()) {
+                    conn.close();
+                    return null;
+                }
+                int orgId = rsOrg.getInt("org_id");
+                
+                String checkSql = "SELECT user_id FROM users WHERE email = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+                checkStmt.setString(1, email);
+                if (checkStmt.executeQuery().next()) {
+                    conn.close();
+                    return null;
+                }
+                
+                String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
+                PreparedStatement uStmt = conn.prepareStatement(insertSql, java.sql.Statement.RETURN_GENERATED_KEYS);
+                uStmt.setString(1, name);
+                uStmt.setString(2, email);
+                uStmt.setString(3, "GOOGLE_AUTH");
+                uStmt.setString(4, "EMPLOYEE");
+                uStmt.setInt(5, orgId);
+                uStmt.executeUpdate();
+                ResultSet uRs = uStmt.getGeneratedKeys();
+                if (uRs.next()) {
+                    int newUserId = uRs.getInt(1);
+                    try {
+                        String getManagerSql = "SELECT user_id FROM users WHERE org_id = ? AND role = 'ADMIN'";
+                        PreparedStatement getManagerStmt = conn.prepareStatement(getManagerSql);
+                        getManagerStmt.setInt(1, orgId);
+                        ResultSet manRs = getManagerStmt.executeQuery();
+                        while(manRs.next()) {
+                            int managerId = manRs.getInt("user_id");
+                            String insertNotif = "INSERT INTO notifications (user_id, message) VALUES (?, ?)";
+                            PreparedStatement notifStmt = conn.prepareStatement(insertNotif);
+                            notifStmt.setInt(1, managerId);
+                            notifStmt.setString(2, "New employee " + name + " joined via Google.");
+                            notifStmt.executeUpdate();
+                        }
+                    } catch (Exception ignore) {}
+                }
+                conn.close();
+                return "{\"success\": true}";
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+        
+        // Fallback Employee Google Signup
+        if (usersByEmail.containsKey(email)) {
+            return null; // Already exists
+        }
+        OrgRecord org = orgsByCode.get(orgCode.toUpperCase());
+        if (org == null) return null; // Invalid code
+
+        UserRecord newUser = new UserRecord(nextUserId++, name, email, "GOOGLE_AUTH", "EMPLOYEE", org.orgId);
+        usersByEmail.put(email, newUser);
+        usersById.put(newUser.userId, newUser);
+        
+        // Notify manager
+        for (UserRecord u : usersById.values()) {
+            if (u.orgId == org.orgId && "ADMIN".equals(u.role)) {
+                NotifRecord n = new NotifRecord(u.userId, "New employee " + name + " joined via Google.", System.currentTimeMillis());
+                notifs.add(n);
+            }
+        }
+        return "{\"success\": true}";
     }
 }
 

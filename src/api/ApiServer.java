@@ -88,7 +88,14 @@ public class ApiServer {
         server.createContext("/api/signup-emp", new EmpSignupHandler());
         server.createContext("/api/track", new TrackHandler());
         server.createContext("/api/active-session", new ActiveSessionHandler());
-
+        server.createContext("/api/employees", new EmployeesHandler());
+        server.createContext("/api/employees/remove", new RemoveEmployeeHandler());
+        server.createContext("/api/profile", new ProfileHandler());
+        server.createContext("/api/reset-password", new ResetPasswordHandler());
+        server.createContext("/api/notifications", new NotificationsHandler());
+        server.createContext("/api/google-login", new GoogleLoginHandler());
+        server.createContext("/api/google-signup-org", new GoogleOrgSignupHandler());
+        server.createContext("/api/google-signup-emp", new GoogleEmpSignupHandler());
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
         System.out.println("API Server started on port 3000!");
@@ -716,4 +723,235 @@ public class ApiServer {
             os.close();
         }
     }
-}
+    
+    private String extractToken(HttpExchange exchange) {
+        String auth = exchange.getRequestHeaders().getFirst("Authorization");
+        if (auth != null && auth.startsWith("Bearer ")) {
+            return auth.substring(7).trim();
+        }
+        return "";
+    }
+
+    class EmployeesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            String json = DatabaseHelper.getEmployeesByManagerToken(token);
+            sendResponse(exchange, json);
+        }
+    }
+
+    class RemoveEmployeeHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            if ("POST".equals(exchange.getRequestMethod())) {
+                String token = extractToken(exchange);
+                try {
+                    InputStream is = exchange.getRequestBody();
+                    String body = new String(is.readAllBytes());
+                    String idStr = extractJsonField(body, "id");
+                    if (idStr.isEmpty()) idStr = "0";
+                    boolean success = DatabaseHelper.removeEmployee(token, Integer.parseInt(idStr));
+                    sendResponse(exchange, "{\"success\": " + success + "}");
+                } catch (Exception e) {
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"" + e.getMessage() + "\"}");
+                }
+            }
+        }
+    }
+
+    class ProfileHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            String json = DatabaseHelper.getManagerProfile(token);
+            sendResponse(exchange, json);
+        }
+    }
+
+    class ResetPasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            if ("POST".equals(exchange.getRequestMethod())) {
+                String token = extractToken(exchange);
+                try {
+                    InputStream is = exchange.getRequestBody();
+                    String body = new String(is.readAllBytes());
+                    String newPass = extractJsonField(body, "newPassword");
+                    boolean success = DatabaseHelper.resetPassword(token, newPass);
+                    sendResponse(exchange, "{\"success\": " + success + "}");
+                } catch (Exception e) {
+                    sendResponse(exchange, "{\"success\": false}");
+                }
+            }
+        }
+    }
+
+    class NotificationsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            String json = DatabaseHelper.getRecentNotifications(token);
+            sendResponse(exchange, json);
+        }
+    }
+
+    public static String[] decodeGoogleJwt(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return null;
+            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+            String email = "";
+            String name = "";
+            String[] kv = payloadJson.split(",");
+            for (String pair : kv) {
+                if (pair.contains("\"email\"")) {
+                    email = pair.split(":")[1].replace("\"", "").trim();
+                }
+                if (pair.contains("\"name\"")) {
+                    name = pair.split(":")[1].replace("\"", "").trim();
+                }
+            }
+            if (!email.isEmpty() && !name.isEmpty()) return new String[]{email, name};
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    class GoogleLoginHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try {
+                    InputStream is = exchange.getRequestBody();
+                    String body = new String(is.readAllBytes());
+                    String token = extractJsonField(body, "token");
+                    String[] decoded = decodeGoogleJwt(token);
+                    if (decoded != null) {
+                        String email = decoded[0];
+                        String jsonResponse = DatabaseHelper.loginWithGoogle(email);
+                        if (jsonResponse != null) {
+                            sendResponse(exchange, jsonResponse);
+                            return;
+                        }
+                    }
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"User not found. Please register first.\"}");
+                } catch (Exception e) {
+                    sendResponse(exchange, "{\"success\": false}");
+                }
+            }
+        }
+    }
+
+    class GoogleOrgSignupHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try {
+                    InputStream is = exchange.getRequestBody();
+                    String body = new String(is.readAllBytes());
+                    String token = extractJsonField(body, "token");
+                    String orgName = extractJsonField(body, "orgName");
+                    String[] decoded = decodeGoogleJwt(token);
+                    if (decoded != null) {
+                        String email = decoded[0];
+                        String name = decoded[1];
+                        String jsonResponse = DatabaseHelper.signupOrgWithGoogle(email, name, orgName);
+                        if (jsonResponse != null) {
+                            sendResponse(exchange, jsonResponse);
+                            return;
+                        }
+                    }
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Failed to register organization. Email might be in use.\"}");
+                } catch (Exception e) {
+                    sendResponse(exchange, "{\"success\": false}");
+                }
+            }
+        }
+    }
+
+    class GoogleEmpSignupHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                addCorsHeaders(exchange);
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try {
+                    InputStream is = exchange.getRequestBody();
+                    String body = new String(is.readAllBytes());
+                    String token = extractJsonField(body, "token");
+                    String orgCode = extractJsonField(body, "orgCode");
+                    String[] decoded = decodeGoogleJwt(token);
+                    if (decoded != null) {
+                        String email = decoded[0];
+                        String name = decoded[1];
+                        String jsonResponse = DatabaseHelper.signupEmpWithGoogle(email, name, orgCode);
+                        if (jsonResponse != null) {
+                            sendResponse(exchange, jsonResponse);
+                            return;
+                        }
+                    }
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Invalid org code or email already in use.\"}");
+                } catch (Exception e) {
+                    sendResponse(exchange, "{\"success\": false}");
+                }
+            }
+        }
+    }
+    }
+

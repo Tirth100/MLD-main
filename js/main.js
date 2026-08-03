@@ -5,84 +5,72 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Login Logic ---
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
-            
-            try {
-                const response = await window.api.post('/login', { email: email, password: pass });
-                if (response.success) {
-                    localStorage.setItem('uuid_token', response.token);
-                    localStorage.setItem('username', response.name);
-                    if (response.role === 'ADMIN' || response.role === 'manager') {
-                        window.location.href = 'pages/manager-dashboard.html';
-                    } else {
-                        window.location.href = 'pages/employee-dashboard.html';
-                    }
+    // --- Google Auth Callbacks ---
+    window.handleGoogleLogin = async (response) => {
+        try {
+            const res = await window.api.post('/google-login', { token: response.credential });
+            if (res.success) {
+                localStorage.setItem('uuid_token', res.token);
+                localStorage.setItem('username', res.name);
+                if (res.role === 'ADMIN' || res.role === 'manager') {
+                    window.location.href = 'pages/manager-dashboard.html';
                 } else {
-                    alert(response.message || 'Invalid email or password.');
+                    window.location.href = 'pages/employee-dashboard.html';
                 }
-            } catch (err) {
-                alert('Login failed. Ensure backend server is running.');
+            } else {
+                alert(res.message || 'Login failed or user not found. Please register first.');
             }
-        });
-    }
+        } catch (err) {
+            alert('Login failed. Ensure backend server is running.');
+        }
+    };
 
-    // --- Org Signup Logic ---
-    const orgSignupForm = document.getElementById('orgSignupForm');
-    if (orgSignupForm) {
-        orgSignupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const orgName = document.getElementById('orgName').value;
-            const managerName = document.getElementById('managerName').value;
-            const email = document.getElementById('orgEmail').value;
-            const pass = document.getElementById('orgPassword').value;
-            
-            try {
-                const response = await window.api.post('/signup-org', { orgName, managerName, email, password: pass });
-                if (response.success) {
-                    orgSignupForm.classList.add('d-none');
-                    const successDiv = document.getElementById('orgSuccessMessage');
-                    if (successDiv) successDiv.classList.remove('d-none');
-                    const codeEl = document.getElementById('displayOrgCode');
-                    if (codeEl) codeEl.innerText = response.orgCode;
-                    if (response.message) alert(response.message);
-                } else {
-                    alert(response.message || 'Signup failed.');
-                }
-            } catch (err) {
-                alert('Signup network error: ' + (err.message || 'Unable to reach backend server.'));
+    window.handleGoogleOrgSignup = async (response) => {
+        const orgName = document.getElementById('orgName').value;
+        if (!orgName) {
+            alert('Please enter an Organization Name before signing up.');
+            return;
+        }
+        try {
+            const res = await window.api.post('/google-signup-org', { 
+                token: response.credential, 
+                orgName: orgName 
+            });
+            if (res.success) {
+                document.getElementById('orgSignupForm').classList.add('d-none');
+                const successDiv = document.getElementById('orgSuccessMessage');
+                if (successDiv) successDiv.classList.remove('d-none');
+                const codeEl = document.getElementById('displayOrgCode');
+                if (codeEl) codeEl.innerText = res.orgCode;
+            } else {
+                alert(res.message || 'Organization registration failed.');
             }
-        });
-    }
+        } catch (err) {
+            alert('Signup network error.');
+        }
+    };
 
-    // --- Employee Signup Logic ---
-    const empSignupForm = document.getElementById('empSignupForm');
-    if (empSignupForm) {
-        empSignupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('empName').value;
-            const email = document.getElementById('empEmail').value;
-            const pass = document.getElementById('empPassword').value;
-            const orgCode = document.getElementById('orgCodeInput').value;
-            
-            try {
-                const response = await window.api.post('/signup-emp', { name, email, password: pass, orgCode });
-                if (response.success) {
-                    alert(response.message || 'Successfully joined the organization! Please login.');
-                    window.location.href = 'index.html';
-                } else {
-                    alert(response.message || 'Signup failed.');
-                }
-            } catch (err) {
-                alert('Signup network error: ' + (err.message || 'Unable to reach backend server.'));
+    window.handleGoogleEmpSignup = async (response) => {
+        const orgCode = document.getElementById('orgCodeInput').value;
+        if (!orgCode) {
+            alert('Please enter an Organization Code before signing up.');
+            return;
+        }
+        try {
+            const res = await window.api.post('/google-signup-emp', { 
+                token: response.credential, 
+                orgCode: orgCode 
+            });
+            if (res.success) {
+                alert('Successfully joined the organization! Redirecting to login...');
+                window.location.href = 'index.html';
+            } else {
+                alert(res.message || 'Failed to join organization. Check the org code.');
             }
-        });
-    }
+        } catch (err) {
+            alert('Signup network error.');
+        }
+    };
 
     // --- Sidebar active state toggle ---
     const currentPath = window.location.pathname;
@@ -113,6 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('employeeDashboard')) {
         loadEmployeeDashboard();
         setInterval(loadEmployeeDashboard, 2500);
+    }
+    
+    // --- Manager Modals & Notifications ---
+    if (document.getElementById('profileModal')) {
+        initManagerModals();
+        setInterval(loadManagerNotifications, 10000);
+        loadManagerNotifications();
     }
 
     // --- Stop Session Button ---
@@ -434,7 +429,11 @@ async function loadManagerDashboard() {
         });
 
         // Apply HTML diffing: only update DOM if HTML string has changed
-        if (tbody.innerHTML !== newRowsHtml) {
+        if (typeof morphdom !== 'undefined') {
+            const tempTbody = document.createElement('tbody');
+            tempTbody.innerHTML = newRowsHtml;
+            morphdom(tbody, tempTbody, { childrenOnly: true });
+        } else if (tbody.innerHTML !== newRowsHtml) {
             tbody.innerHTML = newRowsHtml;
         }
 
@@ -921,3 +920,137 @@ function bindDeleteButtons() {
         });
     });
 }
+
+// --- Manager Modals & Notifications Logic ---
+
+async function initManagerModals() {
+    const profileModal = document.getElementById('profileModal');
+    if (profileModal) {
+        profileModal.addEventListener('show.bs.modal', async () => {
+            try {
+                const data = await window.api.get('/profile');
+                document.getElementById('profileName').innerText = data.name || 'Unknown Manager';
+                document.getElementById('profileRole').innerText = data.role || 'MANAGER';
+                document.getElementById('profileOrgCode').innerText = data.orgCode || '----';
+                const img = document.getElementById('profileModalImg');
+                if (img && data.name) {
+                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=7c3aed&color=fff&size=80`;
+                }
+                const headerImg = document.getElementById('managerProfileImg');
+                if (headerImg && data.name) {
+                    headerImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=7c3aed&color=fff`;
+                }
+            } catch (e) {
+                console.error('Failed to load profile details');
+            }
+        });
+    }
+
+    const manageEmployeesModal = document.getElementById('manageEmployeesModal');
+    if (manageEmployeesModal) {
+        manageEmployeesModal.addEventListener('show.bs.modal', async () => {
+            await loadEmployeesList();
+        });
+    }
+}
+
+async function loadEmployeesList() {
+    const tbody = document.getElementById('employeesListBody');
+    if (!tbody) return;
+    
+    try {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Loading...</td></tr>';
+        const employees = await window.api.get('/employees');
+        
+        if (!employees || employees.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No employees found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = employees.map(emp => `
+            <tr>
+                <td class="ps-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=e2e8f0&color=475569" class="rounded-circle" width="32" height="32">
+                        <span class="fw-medium">${emp.name}</span>
+                    </div>
+                </td>
+                <td class="text-muted">${emp.email}</td>
+                <td class="text-muted">${new Date(emp.joinedAt).toLocaleDateString()}</td>
+                <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-outline-danger remove-emp-btn" data-id="${emp.id}" data-name="${emp.name}">
+                        <i class="bi bi-person-x"></i> Remove
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        // Bind remove buttons
+        document.querySelectorAll('.remove-emp-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                if (confirm(`Are you sure you want to completely remove ${name} from your organization?`)) {
+                    try {
+                        const res = await window.api.post('/employees/remove', { id: id });
+                        if (res.success) {
+                            alert(`${name} has been removed.`);
+                            loadEmployeesList(); // refresh
+                        } else {
+                            alert(`Failed to remove employee: ${res.message || 'Unknown error'}`);
+                        }
+                    } catch(e) {
+                        alert('Network error while attempting to remove employee.');
+                    }
+                }
+            });
+        });
+
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Failed to load employees.</td></tr>';
+    }
+}
+
+async function loadManagerNotifications() {
+    const list = document.getElementById('notifList');
+    const badge = document.getElementById('notifBadge');
+    if (!list || !badge) return;
+
+    try {
+        const notifs = await window.api.get('/notifications');
+        const count = notifs ? notifs.length : 0;
+        
+        if (count > 0) {
+            badge.classList.remove('d-none');
+            // Remove previous dynamic items
+            list.querySelectorAll('.dynamic-notif').forEach(n => n.remove());
+            
+            const noNotif = document.getElementById('noNotifItem');
+            if (noNotif) noNotif.classList.add('d-none');
+
+            // Append new items
+            notifs.forEach(n => {
+                const li = document.createElement('li');
+                li.className = 'dynamic-notif';
+                li.innerHTML = `
+                    <a class="dropdown-item py-2 border-bottom" href="#">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-person-check-fill text-success"></i>
+                            <span class="text-wrap small" style="max-width: 250px;">${n.message}</span>
+                        </div>
+                        <div class="text-muted mt-1" style="font-size: 0.75rem;">${new Date(n.time).toLocaleString()}</div>
+                    </a>
+                `;
+                list.appendChild(li);
+            });
+        } else {
+            badge.classList.add('d-none');
+            const noNotif = document.getElementById('noNotifItem');
+            if (noNotif) noNotif.classList.remove('d-none');
+            list.querySelectorAll('.dynamic-notif').forEach(n => n.remove());
+        }
+    } catch (e) {
+        console.error('Failed to load notifications');
+    }
+}
+
