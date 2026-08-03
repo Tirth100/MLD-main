@@ -78,11 +78,46 @@
                         <li id="noNotifItem"><a class="dropdown-item text-muted text-center" href="#">No new notifications</a></li>
                     </ul>
                 </div>
-                
-                <!-- Profile Button -->
-                <button class="btn btn-link p-0 border-0" data-bs-toggle="modal" data-bs-target="#profileModal" title="Manager Profile">
-                    <img id="managerProfileImg" src="https://ui-avatars.com/api/?name=Admin&background=7c3aed&color=fff" alt="Profile" class="rounded-circle shadow-sm" width="40" height="40">
-                </button>
+                <div class="dropdown ms-2">
+                    <button class="btn btn-link p-0 border-0 shadow-sm rounded-circle" data-bs-toggle="dropdown" aria-expanded="false" title="Manager Profile">
+                        <img id="managerProfileImg" src="https://ui-avatars.com/api/?name=Admin&background=7c3aed&color=fff" alt="Profile" class="rounded-circle" width="40" height="40">
+                    </button>
+                    <!-- Google-style Profile Dropdown Menu -->
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2" id="profileDropdown" style="width: 340px; padding: 0; overflow: hidden;">
+                        <div class="text-center p-4 bg-light border-bottom">
+                            <img id="profileModalImg" src="https://ui-avatars.com/api/?name=Admin&background=7c3aed&color=fff&size=80" alt="Profile" class="rounded-circle shadow-sm mb-3 border border-3 border-white">
+                            <h5 class="fw-bold mb-1" id="profileName">Loading...</h5>
+                            <p class="text-primary fw-medium small tracking-widest mb-0" id="profileRole">MANAGER</p>
+                        </div>
+                        
+                        <div class="p-3 bg-white">
+                            <!-- Organization Code -->
+                            <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 mb-3 border">
+                                <div>
+                                    <h6 class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 0.7rem;">Org Code</h6>
+                                    <span class="fw-bold tracking-widest text-dark" id="profileOrgCode">----</span>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm rounded-pill px-3" style="font-size: 0.75rem;" onclick="navigator.clipboard.writeText(document.getElementById('profileOrgCode').innerText); alert('Copied!')">
+                                    <i class="bi bi-clipboard me-1"></i>Copy
+                                </button>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <button class="dropdown-item py-2 px-3 rounded-2 mb-1 fw-medium" data-bs-toggle="modal" data-bs-target="#manageEmployeesModal">
+                                <i class="bi bi-people-fill text-primary me-3 fs-5 align-middle"></i>Manage Employees
+                            </button>
+                            <button class="dropdown-item py-2 px-3 rounded-2 fw-medium" onclick="alert('Settings module coming soon!')">
+                                <i class="bi bi-gear-fill text-muted me-3 fs-5 align-middle"></i>Account Settings
+                            </button>
+                        </div>
+                        
+                        <div class="p-2 border-top bg-light">
+                            <a href="../index.html" class="dropdown-item py-2 px-3 rounded-2 text-danger fw-medium d-flex justify-content-center align-items-center">
+                                <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -215,40 +250,7 @@
         </div>
     </main>
 
-    <!-- Manager Profile Modal -->
-    <div class="modal fade" id="profileModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-white border-0 shadow">
-                <div class="modal-header border-bottom">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-person-circle me-2 text-primary"></i>Manager Profile</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center mb-4">
-                        <img id="profileModalImg" src="https://ui-avatars.com/api/?name=Admin&background=7c3aed&color=fff&size=80" alt="Profile" class="rounded-circle shadow-sm mb-3">
-                        <h4 class="fw-bold mb-0" id="profileName">Loading...</h4>
-                        <p class="text-muted" id="profileRole">Manager</p>
-                    </div>
-                    
-                    <div class="card bg-light border-0 mb-3">
-                        <div class="card-body d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1 text-muted small text-uppercase fw-bold">Organization Code</h6>
-                                <h4 class="mb-0 fw-bold tracking-widest text-primary" id="profileOrgCode">----</h4>
-                            </div>
-                            <button class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('profileOrgCode').innerText); alert('Copied to clipboard!')">Copy</button>
-                        </div>
-                    </div>
 
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#manageEmployeesModal" data-bs-dismiss="modal">
-                            <i class="bi bi-people me-2"></i>View & Manage Employees
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Manage Employees Modal -->
     <div class="modal fade" id="manageEmployeesModal" tabindex="-1" aria-hidden="true">

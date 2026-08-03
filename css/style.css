@@ -88,6 +88,8 @@ body {
 
 /* Navbar */
 .top-navbar {
+    position: relative;
+    z-index: 1050; /* Ensure dropdowns appear above glass cards */
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     padding: 1rem 2rem;
@@ -179,4 +181,143 @@ body {
         margin-left: 0;
         padding: 1rem;
     }
+}
+
+/* =========================================
+   PREMIUM AUTHENTICATION LAYOUT (Redesign)
+   ========================================= */
+
+.auth-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--dark-bg);
+}
+
+.auth-brand-panel {
+    flex: 1.2;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4rem;
+    color: white;
+}
+
+/* Floating animated orbs for the brand panel */
+.auth-glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: floatOrb 10s infinite alternate ease-in-out;
+}
+
+.orb-1 {
+    width: 400px;
+    height: 400px;
+    background: var(--primary);
+    top: -100px;
+    left: -100px;
+}
+
+.orb-2 {
+    width: 300px;
+    height: 300px;
+    background: var(--secondary);
+    bottom: -50px;
+    right: -100px;
+    animation-delay: -5s;
+}
+
+@keyframes floatOrb {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(50px, 50px) scale(1.1); }
+}
+
+.auth-brand-content {
+    position: relative;
+    z-index: 10;
+    max-width: 500px;
+}
+
+.auth-brand-icon {
+    font-size: 3.5rem;
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.4));
+}
+
+.auth-tagline {
+    font-size: 1.25rem;
+    color: #94a3b8;
+    line-height: 1.7;
+    margin-top: 1.5rem;
+}
+
+.auth-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    box-shadow: -10px 0 30px rgba(0,0,0,0.03);
+}
+
+.auth-form-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 3rem;
+    background: white;
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0,0,0,0.05);
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeUp {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.auth-input {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.85rem 1.2rem;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.auth-input:focus {
+    background: white;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.auth-btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    color: white;
+    padding: 0.85rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    border: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%;
+}
+
+.auth-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.25);
+    color: white;
+}
+
+@media (max-width: 992px) {
+    .auth-layout { flex-direction: column; }
+    .auth-brand-panel { padding: 3rem 2rem; flex: auto; text-align: center; }
+    .auth-brand-content { margin: 0 auto; }
+    .auth-form-panel { padding: 2rem 1rem; }
 }

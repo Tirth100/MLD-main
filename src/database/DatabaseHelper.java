@@ -321,8 +321,9 @@ public class DatabaseHelper {
 
         UserRecord newAdmin = new UserRecord(nextUserId++, managerName, email, password, "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
-
-        return new OrgSignupResult(true, orgCode, "Organization registered successfully.");
+        usersById.put(newAdmin.userId, newAdmin);
+        
+        return new OrgSignupResult(true, orgCode, "Organization registered successfully. Manager account created.");
     }
 
     public static class EmpSignupResult {
@@ -900,6 +901,7 @@ public class DatabaseHelper {
         orgsById.put(newOrg.orgId, newOrg);
         UserRecord newAdmin = new UserRecord(nextUserId++, name, email, "GOOGLE_AUTH", "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
+        usersById.put(newAdmin.userId, newAdmin);
         return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
     }
 

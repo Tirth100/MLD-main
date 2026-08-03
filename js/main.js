@@ -82,6 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Load Data Routines ---
+    if (document.getElementById('managerDashboard') || document.getElementById('employeeDashboard')) {
+        loadUserProfile();
+    }
+    
     if (document.getElementById('managerDashboard')) {
         loadManagerDashboard();
         setInterval(loadManagerDashboard, 2500);
@@ -104,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // --- Manager Modals & Notifications ---
-    if (document.getElementById('profileModal')) {
+    if (document.getElementById('profileDropdown')) {
         initManagerModals();
         setInterval(loadManagerNotifications, 10000);
         loadManagerNotifications();
@@ -635,6 +639,7 @@ async function loadAnalytics() {
 }
 
 async function loadReports() {
+    if (document.hidden) return; // BOOST: Pause polling when tab is inactive
     try {
         const data = await window.api.get('/engagement');
         const tbody = document.getElementById('reportsTableBody');
@@ -923,29 +928,39 @@ function bindDeleteButtons() {
 
 // --- Manager Modals & Notifications Logic ---
 
-async function initManagerModals() {
-    const profileModal = document.getElementById('profileModal');
-    if (profileModal) {
-        profileModal.addEventListener('show.bs.modal', async () => {
-            try {
-                const data = await window.api.get('/profile');
-                document.getElementById('profileName').innerText = data.name || 'Unknown Manager';
-                document.getElementById('profileRole').innerText = data.role || 'MANAGER';
-                document.getElementById('profileOrgCode').innerText = data.orgCode || '----';
-                const img = document.getElementById('profileModalImg');
-                if (img && data.name) {
-                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=7c3aed&color=fff&size=80`;
-                }
-                const headerImg = document.getElementById('managerProfileImg');
-                if (headerImg && data.name) {
-                    headerImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=7c3aed&color=fff`;
-                }
-            } catch (e) {
-                console.error('Failed to load profile details');
-            }
-        });
+async function loadUserProfile() {
+    try {
+        const data = await window.api.get('/profile');
+        if (!data || !data.name) return;
+        
+        // Manager Dropdown Elements
+        const nameEl = document.getElementById('profileName');
+        if (nameEl) nameEl.innerText = data.name;
+        
+        const roleEl = document.getElementById('profileRole');
+        if (roleEl) roleEl.innerText = data.role || (data.email ? data.email : 'USER');
+        
+        const orgCodeEl = document.getElementById('profileOrgCode');
+        if (orgCodeEl) orgCodeEl.innerText = data.orgCode || '----';
+        
+        const imgModal = document.getElementById('profileModalImg');
+        if (imgModal) imgModal.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=7c3aed&color=fff&size=80`;
+        
+        const imgNav = document.getElementById('managerProfileImg');
+        if (imgNav) imgNav.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=7c3aed&color=fff`;
+        
+        // Employee Dashboard Elements
+        const empNameEl = document.getElementById('employeeProfileName');
+        if (empNameEl) empNameEl.innerText = data.name;
+        const empImg = document.getElementById('employeeProfileImg');
+        if (empImg) empImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=0ea5e9&color=fff`;
+        
+    } catch (e) {
+        console.error('Failed to load profile details', e);
     }
+}
 
+async function initManagerModals() {
     const manageEmployeesModal = document.getElementById('manageEmployeesModal');
     if (manageEmployeesModal) {
         manageEmployeesModal.addEventListener('show.bs.modal', async () => {

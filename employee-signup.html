@@ -11,52 +11,64 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="login-body">
-    <div class="container d-flex justify-content-center align-items-center min-vh-100">
-        <div class="col-md-6 col-lg-5">
-            <div class="card glass-card">
-                <div class="card-body p-5">
-                    <div class="text-center mb-4">
-                        <h3 class="fw-bold mb-1">Employee Signup</h3>
-                        <p class="text-muted">Join your organization's workspace</p>
-                    </div>
+<body class="auth-layout">
+    
+    <!-- Left Brand Panel -->
+    <div class="auth-brand-panel">
+        <div class="auth-glow-orb orb-1" style="background: var(--secondary);"></div>
+        <div class="auth-glow-orb orb-2" style="background: var(--primary);"></div>
+        
+        <div class="auth-brand-content">
+            <div class="auth-brand-icon">
+                <i class="bi bi-people-fill text-secondary"></i>
+            </div>
+            <h1 class="fw-bold display-5 mb-3">Join Your Team</h1>
+            <p class="auth-tagline">
+                Connect your MLD agent to your organization's workspace. Your engagement, focus, and participation metrics will be automatically securely synced.
+            </p>
+        </div>
+    </div>
 
-                    <form id="empSignupForm" onsubmit="event.preventDefault();">
-                        <div class="mb-4">
-                            <label for="orgCodeInput" class="form-label">Organization Code</label>
-                            <input type="text" class="form-control fw-bold text-center" id="orgCodeInput" placeholder="e.g. ORG1234" required>
-                            <div class="form-text">Ask your manager for the Org Code.</div>
-                        </div>
-                        
-                        <div id="g_id_onload"
-                             data-client_id="875383442505-ed88ee414calm9tf9rga4s8foi8fj1j1.apps.googleusercontent.com"
-                             data-context="signup"
-                             data-ux_mode="popup"
-                             data-callback="handleGoogleEmpSignup"
-                             data-auto_prompt="false">
-                        </div>
-                        <div class="d-flex justify-content-center mb-3">
-                            <div class="g_id_signin"
-                                 data-type="standard"
-                                 data-shape="rectangular"
-                                 data-theme="outline"
-                                 data-text="signup_with"
-                                 data-size="large"
-                                 data-logo_alignment="left">
-                            </div>
-                        </div>
-                    </form>
-                    
-                    <div class="text-center mt-3">
-                        <a href="index.html" class="text-decoration-none small text-muted">Back to Login</a>
+    <!-- Right Form Panel -->
+    <div class="auth-form-panel">
+        <div class="auth-form-card text-center">
+            <h3 class="fw-bold mb-1">Employee Signup</h3>
+            <p class="text-muted mb-4">Join your organization's workspace</p>
+
+            <form id="empSignupForm" onsubmit="event.preventDefault();">
+                <div class="mb-4 text-start">
+                    <label for="orgCodeInput" class="form-label fw-semibold text-muted small mb-1">ORGANIZATION CODE</label>
+                    <input type="text" class="form-control auth-input fw-bold text-center text-primary" id="orgCodeInput" placeholder="e.g. ORG1234" style="letter-spacing: 2px; font-size: 1.1rem;" required>
+                    <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> Ask your manager for the Org Code.</div>
+                </div>
+                
+                <div id="g_id_onload"
+                     data-client_id="875383442505-ed88ee414calm9tf9rga4s8foi8fj1j1.apps.googleusercontent.com"
+                     data-context="signup"
+                     data-ux_mode="popup"
+                     data-callback="handleGoogleEmpSignup"
+                     data-auto_prompt="false">
+                </div>
+                <div class="d-flex justify-content-center mb-3">
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-shape="rectangular"
+                         data-theme="outline"
+                         data-text="signup_with"
+                         data-size="large"
+                         data-logo_alignment="left">
                     </div>
                 </div>
+            </form>
+            
+            <div class="mt-4 pt-3 border-top">
+                <a href="index.html" class="btn btn-link text-decoration-none w-100 text-muted">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Login
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- Custom JS -->
