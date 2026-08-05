@@ -286,11 +286,16 @@ public class DatabaseHelper {
         }
 
         // Fallback Store Login
-        UserRecord user = usersByEmail.get(email);
-        if (user != null && user.password.equals(password)) {
-            String uuid = UUID.randomUUID().toString();
-            devicesToUserId.put(uuid, user.userId);
-            return new LoginResult(true, uuid, user.role, user.name, "Login successful");
+        String cleanEmail = email != null ? email.trim() : "";
+        String cleanPass = password != null ? password.trim() : "";
+
+        for (UserRecord user : usersByEmail.values()) {
+            if (user.email != null && user.email.trim().equalsIgnoreCase(cleanEmail) &&
+                user.password != null && user.password.trim().equals(cleanPass)) {
+                String uuid = UUID.randomUUID().toString();
+                devicesToUserId.put(uuid, user.userId);
+                return new LoginResult(true, uuid, user.role, user.name, "Login successful");
+            }
         }
         return new LoginResult(false, null, null, null, "Invalid email or password.");
     }

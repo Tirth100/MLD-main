@@ -570,8 +570,8 @@ public class ApiServer {
     class LoginHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
@@ -600,8 +600,8 @@ public class ApiServer {
     class OrgSignupHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
@@ -632,8 +632,8 @@ public class ApiServer {
     class EmpSignupHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
