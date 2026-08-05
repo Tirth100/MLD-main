@@ -18,8 +18,11 @@ if %ERRORLEVEL% NEQ 0 (
 echo Packaging executable MLD-Agent.jar...
 jar cvfe MLD-Agent.jar agent.MldAgent -C bin .
 
+echo Packaging MLD-Agent.zip distribution...
+powershell -Command "Compress-Archive -Path 'MLD-Agent.jar', 'start-mld-agent.bat', 'stop-mld-agent.bat', 'start-mld-agent.ps1', 'stop-mld-agent.ps1', 'run-silent-agent.vbs' -DestinationPath 'MLD-Agent.zip' -Force"
+
 echo.
 echo ===================================================
-echo [SUCCESS] MLD-Agent.jar built successfully!
+echo [SUCCESS] MLD-Agent.jar & MLD-Agent.zip built successfully!
 echo ===================================================
 pause
