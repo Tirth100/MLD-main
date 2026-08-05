@@ -1,19 +1,15 @@
 const getApiBaseUrl = () => {
     const saved = localStorage.getItem('mld_server_url');
-    const origin = window.location.origin;
-    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('file:');
-    
-    if (saved) {
-        if (isLocal) return saved.endsWith('/') ? saved.slice(0, -1) : saved;
-        if (!saved.includes('localhost') && !saved.includes('127.0.0.1')) {
-            return saved.endsWith('/') ? saved.slice(0, -1) : saved;
-        }
+    if (saved && saved.trim() !== '') {
+        return saved.endsWith('/') ? saved.slice(0, -1) : saved;
     }
     
-    if (isLocal) {
+    const origin = window.location.origin;
+    if (!origin || origin === 'null' || origin.startsWith('file:') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
         return 'http://localhost:3000/api';
     }
-    return 'https://mld-server.onrender.com/api';
+    
+    return origin.endsWith('/') ? origin.slice(0, -1) + '/api' : origin + '/api';
 };
 
 const USE_MOCK_DATA = false;
