@@ -9,6 +9,11 @@ const getApiBaseUrl = () => {
         return 'http://localhost:3000/api';
     }
     
+    // When hosted on Render (e.g. mld-main.onrender.com), route API calls to central backend server
+    if (origin.includes('onrender.com')) {
+        return 'https://mld-server.onrender.com/api';
+    }
+    
     return origin.endsWith('/') ? origin.slice(0, -1) + '/api' : origin + '/api';
 };
 
@@ -40,7 +45,7 @@ const mockData = {
     }
 };
 
-const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 25000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -73,18 +78,21 @@ const api = {
             const headers = { 'Cache-Control': 'no-store', 'Bypass-Tunnel-Reminder': 'true' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { headers }, 8000);
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { headers }, 25000);
             const text = await response.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
                 console.error('Non-JSON response from backend:', text);
+                if (!text || text.trim() === '') {
+                    return { success: false, message: 'Backend server returned an empty response. The server may still be spinning up, please try again in a few seconds.' };
+                }
                 return { success: false, message: 'Backend server returned non-JSON response.' };
             }
         } catch (error) {
             console.error('API Get Error:', error);
             if (error.name === 'AbortError') {
-                return { success: false, message: 'Request timed out. Please check backend server status.' };
+                return { success: false, message: 'Request timed out while waiting for backend server to respond. Please try again.' };
             }
             throw error;
         }
@@ -94,7 +102,7 @@ const api = {
         try {
             const baseUrl = getApiBaseUrl();
             const headers = { 'Bypass-Tunnel-Reminder': 'true' };
-            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { method: 'DELETE', headers }, 8000);
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { method: 'DELETE', headers }, 25000);
             return response.ok;
         } catch (error) {
             console.error('API Delete Error:', error);
@@ -113,18 +121,21 @@ const api = {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(data)
-            }, 8000);
+            }, 25000);
             const text = await response.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
                 console.error('Non-JSON response from backend:', text);
+                if (!text || text.trim() === '') {
+                    return { success: false, message: 'Backend server returned an empty response. The server may still be spinning up, please try again in a few seconds.' };
+                }
                 return { success: false, message: 'Backend server returned non-JSON response.' };
             }
         } catch (error) {
             console.error('API Post Error:', error);
             if (error.name === 'AbortError') {
-                return { success: false, message: 'Request timed out. Please check backend server status.' };
+                return { success: false, message: 'Request timed out while waiting for backend server to respond. Please try again.' };
             }
             throw error;
         }

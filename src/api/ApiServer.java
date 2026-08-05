@@ -69,7 +69,15 @@ public class ApiServer {
     }
 
     public void startServer() throws IOException {
-        HttpServer server = HttpServer.create(new InetSocketAddress(3000), 0);
+        int port = 3000;
+        String portEnv = System.getenv("PORT");
+        if (portEnv != null && !portEnv.isEmpty()) {
+            try {
+                port = Integer.parseInt(portEnv);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         
         server.createContext("/", new RootHandler());
         server.createContext("/download/mld-agent", new DownloadAgentHandler());
@@ -98,18 +106,46 @@ public class ApiServer {
         server.createContext("/api/google-signup-emp", new GoogleEmpSignupHandler());
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
-        System.out.println("API Server started on port 3000!");
+        System.out.println("API Server started on port " + port + "!");
     }
 
     class RootHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
+            
+            String path = exchange.getRequestURI().getPath();
+            if (path == null || path.equals("/")) {
+                path = "/index.html";
+            }
+            
+            java.io.File file = new java.io.File("." + path);
+            if (!file.exists()) {
+                file = new java.io.File(path.substring(1));
+            }
+            
+            if (file.exists() && !file.isDirectory()) {
+                byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+                String contentType = "text/html";
+                if (path.endsWith(".css")) contentType = "text/css";
+                else if (path.endsWith(".js")) contentType = "application/javascript";
+                else if (path.endsWith(".svg")) contentType = "image/svg+xml";
+                else if (path.endsWith(".png")) contentType = "image/png";
+                else if (path.endsWith(".json")) contentType = "application/json";
+                
+                exchange.getResponseHeaders().set("Content-Type", contentType);
+                exchange.sendResponseHeaders(200, bytes.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(bytes);
+                }
+                return;
+            }
+
             sendResponse(exchange, "{\"status\": \"online\", \"service\": \"Meeting Leech Detector Central Server\", \"version\": \"1.0.0\"}");
         }
     }
