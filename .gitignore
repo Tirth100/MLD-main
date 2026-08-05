@@ -3,6 +3,7 @@
 *.tmp
 .system_generated/
 scratch/
+.env
 
 # Compiled Java class files
 *.class

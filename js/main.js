@@ -72,6 +72,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- Email & Password Auth Handlers ---
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            
+            try {
+                const response = await window.api.post('/login', { email: email, password: pass });
+                if (response && response.success) {
+                    localStorage.setItem('uuid_token', response.token);
+                    localStorage.setItem('username', response.name);
+                    localStorage.setItem('user_role', response.role);
+                    if (response.role === 'ADMIN' || response.role === 'manager') {
+                        window.location.href = 'pages/manager-dashboard.html';
+                    } else {
+                        window.location.href = 'pages/employee-dashboard.html';
+                    }
+                } else {
+                    alert(response.message || 'Invalid email or password.');
+                }
+            } catch (err) {
+                alert('Login failed. Ensure backend server is running.');
+            }
+        });
+    }
+
+    const orgSignupForm = document.getElementById('orgSignupForm');
+    if (orgSignupForm) {
+        orgSignupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const orgName = document.getElementById('orgName').value;
+            const managerName = document.getElementById('managerName').value;
+            const email = document.getElementById('orgEmail').value;
+            const pass = document.getElementById('orgPassword').value;
+            
+            try {
+                const response = await window.api.post('/signup-org', { orgName, managerName, email, password: pass });
+                if (response && response.success) {
+                    orgSignupForm.classList.add('d-none');
+                    const divider = orgSignupForm.nextElementSibling;
+                    if (divider && divider.classList.contains('my-3')) divider.classList.add('d-none');
+                    const googleDiv = document.getElementById('g_id_onload');
+                    if (googleDiv && googleDiv.nextElementSibling) googleDiv.nextElementSibling.classList.add('d-none');
+                    
+                    const successDiv = document.getElementById('orgSuccessMessage');
+                    if (successDiv) successDiv.classList.remove('d-none');
+                    const codeEl = document.getElementById('displayOrgCode');
+                    if (codeEl) codeEl.innerText = response.orgCode;
+                } else {
+                    alert(response.message || 'Registration failed.');
+                }
+            } catch (err) {
+                alert('Signup network error.');
+            }
+        });
+    }
+
+    const empSignupForm = document.getElementById('empSignupForm');
+    if (empSignupForm) {
+        empSignupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const orgCode = document.getElementById('orgCodeInput').value;
+            const empName = document.getElementById('empName').value;
+            const email = document.getElementById('empEmail').value;
+            const pass = document.getElementById('empPassword').value;
+            
+            try {
+                const response = await window.api.post('/signup-emp', { orgCode, name: empName, email, password: pass });
+                if (response && response.success) {
+                    alert('Successfully joined organization! Redirecting to login...');
+                    window.location.href = 'index.html';
+                } else {
+                    alert(response.message || 'Failed to join organization. Check the org code.');
+                }
+            } catch (err) {
+                alert('Signup network error.');
+            }
+        });
+    }
+
     // --- Sidebar active state toggle ---
     const currentPath = window.location.pathname;
     const navLinks = document.querySelectorAll('.sidebar .nav-link');

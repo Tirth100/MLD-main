@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,21 +11,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
+
 <body class="auth-layout">
-    
+
     <!-- Left Brand Panel -->
     <div class="auth-brand-panel">
         <div class="auth-glow-orb orb-1"></div>
         <div class="auth-glow-orb orb-2"></div>
-        
+
         <div class="auth-brand-content">
             <div class="auth-brand-icon">
                 <i class="bi bi-radar"></i>
             </div>
             <h1 class="fw-bold display-5 mb-3">Meeting Leech Detector</h1>
             <p class="auth-tagline">
-                AI-powered telemetry and analytics to measure true meeting engagement. Identify active contributors, track focus metrics, and eliminate wasted time.
+                AI-powered telemetry and analytics to measure true meeting engagement. Identify active contributors,
+                track focus metrics, and eliminate wasted time.
             </p>
         </div>
     </div>
@@ -33,30 +37,66 @@
     <div class="auth-form-panel">
         <div class="auth-form-card text-center">
             <h3 class="fw-bold mb-1">Welcome Back</h3>
-            <p class="text-muted mb-4">Sign in to your account</p>
+            <!-- Standard Email & Password Login Form -->
+            <form id="loginForm" class="text-start mb-3">
+                <div class="mb-3">
+                    <label for="email" class="form-label fw-semibold text-muted small mb-1">EMAIL ADDRESS</label>
+                    <input type="email" class="form-control auth-input" id="email" placeholder="name@company.com" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label fw-semibold text-muted small mb-1">PASSWORD</label>
+                    <input type="password" class="form-control auth-input" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-2">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+                </button>
+            </form>
+
+            <div class="d-flex align-items-center my-3">
+                <hr class="flex-grow-1 text-muted opacity-25">
+                <span class="px-2 text-muted extra-small text-uppercase fw-semibold" style="font-size: 0.75rem;">OR CONTINUE WITH</span>
+                <hr class="flex-grow-1 text-muted opacity-25">
+            </div>
+
+            <!-- Google Sign-In -->
+            <div id="originWarning" class="alert alert-warning text-start small mb-3 d-none" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                <strong>Google Sign-In Warning:</strong> <span id="originWarningText">Google Sign-In requires running on
+                    a web server (e.g. <code>http://localhost:8000</code>) and adding the origin to Authorized
+                    JavaScript Origins in Google Cloud Console.</span>
+            </div>
 
             <div id="g_id_onload"
-                 data-client_id="875383442505-ed88ee414calm9tf9rga4s8foi8fj1j1.apps.googleusercontent.com"
-                 data-context="signin"
-                 data-ux_mode="popup"
-                 data-callback="handleGoogleLogin"
-                 data-auto_prompt="false">
+                data-client_id="875383442505-ed88ee414calm9tf9rga4s8foi8fj1j1.apps.googleusercontent.com"
+                data-context="signin" data-ux_mode="popup" data-callback="handleGoogleLogin" data-auto_prompt="false">
             </div>
-            
-            <div class="d-flex justify-content-center mb-5 mt-4">
-                <div class="g_id_signin"
-                     data-type="standard"
-                     data-shape="rectangular"
-                     data-theme="outline"
-                     data-text="sign_in_with"
-                     data-size="large"
-                     data-logo_alignment="left">
+
+            <div class="d-flex justify-content-center mb-3 mt-2">
+                <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                    data-text="sign_in_with" data-size="large" data-logo_alignment="left">
                 </div>
             </div>
-            
-            <div class="mt-4 pt-3 border-top">
+
+            <!-- Dev / Testing Bypass Section -->
+            <div class="card bg-light border-0 p-3 mb-3 rounded-3 text-start">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-bug-fill text-warning me-2 fs-5"></i>
+                    <span class="fw-bold small text-dark">Testing / Demo Mode</span>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="button" onclick="bypassLogin('ADMIN')" class="btn btn-sm btn-outline-primary fw-medium">
+                        <i class="bi bi-speedometer2 me-1"></i> Demo Manager Dashboard
+                    </button>
+                    <button type="button" onclick="bypassLogin('EMPLOYEE')" class="btn btn-sm btn-outline-secondary fw-medium">
+                        <i class="bi bi-person-badge me-1"></i> Demo Employee Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-top">
                 <p class="text-muted small mb-2">Don't have an account?</p>
-                <a href="organization-signup.html" class="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your Organization</a>
+                <a href="organization-signup.html" class="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your
+                    Organization</a>
                 <a href="employee-signup.html" class="btn btn-link text-decoration-none w-100">Join as an Employee</a>
             </div>
         </div>
@@ -66,19 +106,28 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/api.js"></script>
     <script>
+        if (window.location.protocol === 'file:') {
+            const warningEl = document.getElementById('originWarning');
+            if (warningEl) {
+                warningEl.classList.remove('d-none');
+                document.getElementById('originWarningText').innerText = "Opened via file:// protocol. Google Sign-In requires serving pages through a web server (e.g. http://localhost:8000).";
+            }
+        }
+
         function handleGoogleLogin(response) {
             window.api.post('/google-login', { token: response.credential })
-            .then(data => {
-                if(data && data.success) {
-                    if(data.role === 'ADMIN') window.location.href = 'pages/manager-dashboard.html';
-                    else window.location.href = 'pages/employee-dashboard.html';
-                } else alert(data.message || 'Login failed.');
-            })
-            .catch(err => {
-                alert('Connection error. Is the backend running?');
-                console.error(err);
-            });
+                .then(data => {
+                    if (data && data.success) {
+                        if (data.role === 'ADMIN') window.location.href = 'pages/manager-dashboard.html';
+                        else window.location.href = 'pages/employee-dashboard.html';
+                    } else alert(data.message || 'Login failed.');
+                })
+                .catch(err => {
+                    alert('Connection error. Is the backend running?');
+                    console.error(err);
+                });
         }
     </script>
 </body>
+
 </html>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,21 +11,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
+
 <body class="auth-layout">
-    
+
     <!-- Left Brand Panel -->
     <div class="auth-brand-panel">
         <div class="auth-glow-orb orb-1" style="background: var(--secondary);"></div>
         <div class="auth-glow-orb orb-2" style="background: var(--primary);"></div>
-        
+
         <div class="auth-brand-content">
             <div class="auth-brand-icon">
                 <i class="bi bi-people-fill text-secondary"></i>
             </div>
             <h1 class="fw-bold display-5 mb-3">Join Your Team</h1>
             <p class="auth-tagline">
-                Connect your MLD agent to your organization's workspace. Your engagement, focus, and participation metrics will be automatically securely synced.
+                Connect your MLD agent to your organization's workspace. Your engagement, focus, and participation
+                metrics will be automatically securely synced.
             </p>
         </div>
     </div>
@@ -35,32 +39,63 @@
             <h3 class="fw-bold mb-1">Employee Signup</h3>
             <p class="text-muted mb-4">Join your organization's workspace</p>
 
-            <form id="empSignupForm" onsubmit="event.preventDefault();">
-                <div class="mb-4 text-start">
+            <form id="empSignupForm" class="text-start">
+                <div class="mb-3">
                     <label for="orgCodeInput" class="form-label fw-semibold text-muted small mb-1">ORGANIZATION CODE</label>
-                    <input type="text" class="form-control auth-input fw-bold text-center text-primary" id="orgCodeInput" placeholder="e.g. ORG1234" style="letter-spacing: 2px; font-size: 1.1rem;" required>
-                    <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> Ask your manager for the Org Code.</div>
+                    <input type="text" class="form-control auth-input fw-bold text-center text-primary"
+                        id="orgCodeInput" placeholder="e.g. ORG1234" style="letter-spacing: 2px; font-size: 1.1rem;"
+                        required>
+                    <div class="form-text mt-1"><i class="bi bi-info-circle me-1"></i> Ask your manager for the Org Code.</div>
                 </div>
-                
-                <div id="g_id_onload"
-                     data-client_id="875383442505-ed88ee414calm9tf9rga4s8foi8fj1j1.apps.googleusercontent.com"
-                     data-context="signup"
-                     data-ux_mode="popup"
-                     data-callback="handleGoogleEmpSignup"
-                     data-auto_prompt="false">
+
+                <div class="mb-3">
+                    <label for="empName" class="form-label fw-semibold text-muted small mb-1">FULL NAME</label>
+                    <input type="text" class="form-control auth-input" id="empName" placeholder="e.g. John Smith" required>
                 </div>
-                <div class="d-flex justify-content-center mb-3">
-                    <div class="g_id_signin"
-                         data-type="standard"
-                         data-shape="rectangular"
-                         data-theme="outline"
-                         data-text="signup_with"
-                         data-size="large"
-                         data-logo_alignment="left">
-                    </div>
+
+                <div class="mb-3">
+                    <label for="empEmail" class="form-label fw-semibold text-muted small mb-1">WORK EMAIL</label>
+                    <input type="email" class="form-control auth-input" id="empEmail" placeholder="john@company.com" required>
                 </div>
+
+                <div class="mb-3">
+                    <label for="empPassword" class="form-label fw-semibold text-muted small mb-1">PASSWORD</label>
+                    <input type="password" class="form-control auth-input" id="empPassword" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-3">
+                    <i class="bi bi-person-plus me-1"></i> Join Organization
+                </button>
             </form>
-            
+
+            <div class="d-flex align-items-center my-3">
+                <hr class="flex-grow-1 text-muted opacity-25">
+                <span class="px-2 text-muted extra-small text-uppercase fw-semibold" style="font-size: 0.75rem;">OR JOIN WITH GOOGLE</span>
+                <hr class="flex-grow-1 text-muted opacity-25">
+            </div>
+
+            <div id="g_id_onload"
+                data-client_id="875383442505-ed88ee414calm9tf9rga4s8foi8fj1j1.apps.googleusercontent.com"
+                data-context="signup" data-ux_mode="popup" data-callback="handleGoogleEmpSignup"
+                data-auto_prompt="false">
+            </div>
+            <div class="d-flex justify-content-center mb-3">
+                <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                    data-text="signup_with" data-size="large" data-logo_alignment="left">
+                </div>
+            </div>
+
+            <!-- Dev / Testing Bypass Section -->
+            <div class="card bg-light border-0 p-3 mb-3 rounded-3 text-start">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-bug-fill text-warning me-2 fs-5"></i>
+                    <span class="fw-bold small text-dark">Testing / Demo Mode</span>
+                </div>
+                <button type="button" onclick="bypassEmpSignup()" class="btn btn-sm btn-outline-secondary w-100 fw-medium">
+                    <i class="bi bi-person-badge me-1"></i> Continue to Employee Dashboard (Demo)
+                </button>
+            </div>
+
             <div class="mt-4 pt-3 border-top">
                 <a href="index.html" class="btn btn-link text-decoration-none w-100 text-muted">
                     <i class="bi bi-arrow-left me-1"></i> Back to Login
@@ -75,4 +110,5 @@
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>
+
 </html>
