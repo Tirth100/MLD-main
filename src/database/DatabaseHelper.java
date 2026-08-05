@@ -196,6 +196,42 @@ public class DatabaseHelper {
         } finally {
             try { conn.close(); } catch (Exception ignored) {}
         }
+
+        seedDefaultAccounts();
+    }
+
+    private static void seedDefaultAccounts() {
+        // Seed In-Memory fallback accounts
+        OrgRecord demoOrg = new OrgRecord(1, "Demo Organization", "ORG1000");
+        orgsByCode.putIfAbsent("ORG1000", demoOrg);
+        orgsById.putIfAbsent(1, demoOrg);
+
+        usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com", "admin123", "ADMIN", 1));
+        usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com", "emp123", "EMPLOYEE", 1));
+
+        // Seed PostgreSQL if available
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String checkOrg = "SELECT COUNT(*) FROM organizations";
+                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(checkOrg)) {
+                    if (rs.next() && rs.getInt(1) == 0) {
+                        String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
+                        st.executeUpdate(insOrg);
+                        
+                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', 'admin123', 'ADMIN', 1)";
+                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', 'emp123', 'EMPLOYEE', 1)";
+                        st.executeUpdate(insAdmin);
+                        st.executeUpdate(insEmp);
+                        System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[Database Seed Note] " + e.getMessage());
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
     }
 
     // --- High Level DAO Methods supporting both PostgreSQL & In-Memory Fallback ---
