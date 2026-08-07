@@ -583,8 +583,9 @@ public class DatabaseHelper {
                     if (rs.next()) {
                         String role = rs.getString("role");
                         if ("ADMIN".equalsIgnoreCase(role) || "MANAGER".equalsIgnoreCase(role)) {
+                            String name = rs.getString("name");
                             conn.close();
-                            return null;
+                            return name + " (" + role + ")";
                         }
                         String name = rs.getString("name");
                         conn.close();
@@ -832,7 +833,7 @@ public class DatabaseHelper {
         return uid != null ? uid : -1;
     }
 
-    private static int getOrgIdFromToken(String token) {
+    public static int getOrgIdFromToken(String token) {
         int uid = getUserIdFromToken(token);
         if (uid == -1) return -1;
         Connection conn = connect();

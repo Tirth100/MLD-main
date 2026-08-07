@@ -959,12 +959,7 @@ function bindActionButtons() {
                         lowerWin.includes("teams") || 
                         lowerWin.includes("powerpoint") || 
                         lowerWin.includes("webex") || 
-                        lowerWin.includes("slack") || 
-                        lowerWin.includes("meeting leech detector") || 
-                        lowerWin.includes("employee dashboard") ||
-                        lowerWin.includes("manager dashboard") ||
-                        lowerWin.includes("mld") ||
-                        lowerWin.includes("meeting");
+                        lowerWin.includes("slack");
 
                     const classText = isMeetingOrWorkspace ? '<span class="text-success fw-bold">Focused</span>' : '<span class="text-danger">Distracted</span>';
                     mb.innerHTML += `

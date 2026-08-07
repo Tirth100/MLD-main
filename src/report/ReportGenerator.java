@@ -73,13 +73,14 @@ public class ReportGenerator {
         }
     }
 
-    public static String getAllReportsAsJsonArray() {
+    public static String getAllReportsAsJsonArray(int orgId) {
         Connection conn = DatabaseHelper.connect();
         if (conn != null) {
             StringBuilder jsonArray = new StringBuilder("[");
-            String sql = "SELECT e.*, u.name as user_name FROM engagement_logs e LEFT JOIN devices d ON e.device_uuid = d.device_uuid LEFT JOIN users u ON d.user_id = u.user_id ORDER BY e.timestamp DESC";
-            try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
+            String sql = "SELECT e.*, u.name as user_name FROM engagement_logs e LEFT JOIN devices d ON e.device_uuid = d.device_uuid LEFT JOIN users u ON d.user_id = u.user_id WHERE u.org_id = ? ORDER BY e.timestamp DESC";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setInt(1, orgId);
+                try (ResultSet rs = pstmt.executeQuery()) {
                 
                 boolean first = true;
                 while (rs.next()) {
@@ -107,6 +108,7 @@ public class ReportGenerator {
                 jsonArray.append("]");
                 conn.close();
                 return jsonArray.toString();
+                }
             } catch (SQLException e) {
                 try { conn.close(); } catch (Exception ignored) {}
             }

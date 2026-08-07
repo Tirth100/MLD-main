@@ -479,9 +479,17 @@ public class ApiServer {
                 return;
             }
 
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (orgId == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                return;
+            }
+
             // Retrieve actual JSON Array generated strictly from local file storage removing all placeholders
             StringBuilder combinedJson = new StringBuilder("[");
-            String localReports = ReportGenerator.getAllReportsAsJsonArray();
+            String localReports = ReportGenerator.getAllReportsAsJsonArray(orgId);
             if (localReports.length() > 2) {
                 combinedJson.append(localReports.substring(1, localReports.length() - 1));
             }
@@ -490,6 +498,8 @@ public class ApiServer {
             if (Main.isMonitoringActive()) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
+                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
+                    
                     service.AttentionAnalyzer analyzer = entry.getValue();
                     
                     String empName = getEmployeeNameByUuid(uuid);
@@ -518,6 +528,14 @@ public class ApiServer {
     class AlertsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (orgId == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                return;
+            }
+
             // Strict < 0.5 threshold logic
             StringBuilder combinedJson = new StringBuilder("[");
             boolean hasLocal = false;
@@ -525,6 +543,8 @@ public class ApiServer {
             if (Main.isMonitoringActive()) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
+                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
+                    
                     service.AttentionAnalyzer analyzer = entry.getValue();
                     if (analyzer.getTotalCount() > 0) {
                         double score = analyzer.getAttentionScore();
@@ -546,12 +566,24 @@ public class ApiServer {
     class AnalyticsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (orgId == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                return;
+            }
+
             int focused = 0;
             int total = 0;
             java.util.List<Integer> history = new java.util.ArrayList<>();
             
             if (Main.isMonitoringActive()) {
-                for (service.AttentionAnalyzer analyzer : Main.analyzers.values()) {
+                for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
+                    String uuid = entry.getKey();
+                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
+                    
+                    service.AttentionAnalyzer analyzer = entry.getValue();
                     focused += analyzer.getFocusedCount();
                     total += analyzer.getTotalCount();
                     if (history.isEmpty() && !analyzer.getFocusHistory().isEmpty()) {
@@ -582,14 +614,16 @@ public class ApiServer {
     class EmployeeStatsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            
             double sumScore = 0;
             int count = 0;
-            if (Main.isMonitoringActive()) {
-                for (service.AttentionAnalyzer analyzer : Main.analyzers.values()) {
-                    if (analyzer.getTotalCount() > 0) {
-                        sumScore += analyzer.getAttentionScore();
-                        count++;
-                    }
+            if (Main.isMonitoringActive() && !token.isEmpty()) {
+                service.AttentionAnalyzer analyzer = Main.analyzers.get(token.toLowerCase());
+                if (analyzer != null && analyzer.getTotalCount() > 0) {
+                    sumScore += analyzer.getAttentionScore();
+                    count++;
                 }
             }
             int score = count > 0 ? (int)Math.round((sumScore / count) * 100) : 0;
@@ -710,6 +744,13 @@ public class ApiServer {
                 return;
             }
             addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (orgId == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                return;
+            }
+
             exchange.getResponseHeaders().add("Content-Type", "text/csv");
             exchange.getResponseHeaders().add("Content-Disposition", "attachment; filename=\"report.csv\"");
             
@@ -719,11 +760,12 @@ public class ApiServer {
                 URL url = new URL("http://localhost:3000/api/engagement");
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
                 con.setRequestMethod("GET");
+                con.setRequestProperty("Authorization", "Bearer " + token);
                 if (con.getResponseCode() == 200) {
                     jsonArray = new String(con.getInputStream().readAllBytes());
                 }
             } catch (Exception e) {
-                jsonArray = ReportGenerator.getAllReportsAsJsonArray();
+                jsonArray = ReportGenerator.getAllReportsAsJsonArray(orgId);
             }
             
             // Generate basic CSV dynamically (Hack method: splitting JSON without Jackson for speed since it's raw format)
