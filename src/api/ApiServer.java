@@ -158,9 +158,9 @@ public class ApiServer {
                 return;
             }
             try {
-                java.io.File fileToServe = new java.io.File("MLD-Agent.zip");
+                java.io.File fileToServe = new java.io.File("MLD-Agent.exe");
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("MLD-Agent.exe");
+                    fileToServe = new java.io.File("MLD-Agent.zip");
                 }
                 if (!fileToServe.exists()) {
                     fileToServe = new java.io.File("MLD-Agent.jar");
