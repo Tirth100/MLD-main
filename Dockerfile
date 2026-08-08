@@ -5,7 +5,6 @@ WORKDIR /app
 COPY lib ./lib
 COPY src ./src
 COPY start-mld-agent.bat ./start-mld-agent.bat
-COPY MLD-Agent.exe ./MLD-Agent.exe
 COPY MLD-Agent.zip ./MLD-Agent.zip
 
 # Compile Java source files and build MLD-Agent.jar inside container
