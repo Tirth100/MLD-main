@@ -15,11 +15,25 @@ try {
         Write-Host "Java is not installed on this system!" -ForegroundColor Yellow
         Write-Host "Downloading a portable Java Runtime (JRE)... This will only happen once." -ForegroundColor Cyan
         
-        $jreUrl = "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse?project=jdk"
+        $infoUrl = "https://api.adoptium.net/v3/assets/latest/21/hotspot?os=windows&architecture=x64&image_type=jre&project=jdk"
+        $info = Invoke-RestMethod -Uri $infoUrl -ErrorAction Stop
+        $expectedHash = $info[0].binary.package.checksum
+        $jreUrl = $info[0].binary.package.link
+
         $zipPath = "$ScriptDir\jre.zip"
         $jreDir = "$ScriptDir\jre"
         
         Invoke-WebRequest -Uri $jreUrl -OutFile $zipPath
+        
+        Write-Host "Verifying JRE download integrity..." -ForegroundColor Cyan
+        $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash
+        if ($actualHash.ToLower() -ne $expectedHash.ToLower()) {
+            Write-Error "JRE download integrity check failed. Expected: $expectedHash, Got: $actualHash"
+            Remove-Item $zipPath -Force
+            Pause
+            exit 1
+        }
+
         Write-Host "Extracting JRE (this may take a moment)..." -ForegroundColor Cyan
         if (Test-Path $jreDir) { Remove-Item -Recurse -Force $jreDir }
         Expand-Archive -Path $zipPath -DestinationPath $jreDir -Force

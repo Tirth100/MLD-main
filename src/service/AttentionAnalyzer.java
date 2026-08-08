@@ -31,17 +31,10 @@ public class AttentionAnalyzer {
         // Comprehensive case-insensitive matching for valid meeting applications & authorized workspaces
         String lowerWin = window.toLowerCase();
         if (lowerWin.contains("google meet")
-         || lowerWin.contains("meet.google.com")
          || lowerWin.contains("zoom")
          || lowerWin.contains("teams")
-         || lowerWin.contains("microsoft teams")
          || lowerWin.contains("powerpoint")
-         || lowerWin.contains("webex")
-         || lowerWin.contains("slack")
-         || lowerWin.contains("chrome")
-         || lowerWin.contains("edge")
-         || lowerWin.contains("firefox")
-         || lowerWin.contains("brave")) 
+         || lowerWin.contains("webex")) 
         {
             // Must not be idle to be counted as focused
             if (idleSeconds < 8) {

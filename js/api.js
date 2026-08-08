@@ -21,10 +21,10 @@ const USE_MOCK_DATA = false;
 
 const mockData = {
     employeeEngagement: [
-        { id: 1, name: 'Alice Smith', role: 'Developer', score: 92, status: 'engaging' },
-        { id: 2, name: 'Bob Jones', role: 'Designer', score: 45, status: 'leeching' },
-        { id: 3, name: 'Charlie Brown', role: 'Product', score: 78, status: 'neutral' },
-        { id: 4, name: 'Diana Prince', role: 'Marketing', score: 30, status: 'leeching' }
+        { id: 1, name: 'Alice Smith', role: 'Developer', score: 95, status: 'engaged' },
+        { id: 2, name: 'Bob Jones', role: 'Designer', score: 45, status: 'low engagement' },
+        { id: 3, name: 'Charlie Brown', role: 'Product', score: 80, status: 'focused' },
+        { id: 4, name: 'Diana Prince', role: 'Marketing', score: 30, status: 'low engagement' }
     ],
     alerts: [
         { id: 1, name: 'Bob Jones', reason: 'Window out of focus for 15 mins', time: '10 mins ago' },

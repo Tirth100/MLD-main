@@ -40,8 +40,9 @@ public class MldAgent {
             System.out.print("\nEnter Central Server URL [default: https://mld-server.onrender.com]: ");
             String customUrl = scanner.nextLine().trim();
             if (!customUrl.isEmpty()) {
-                if (!customUrl.startsWith("http://") && !customUrl.startsWith("https://")) {
-                    customUrl = "https://" + customUrl;
+                if (!customUrl.startsWith("https://") && !customUrl.contains("localhost")) {
+                    System.err.println("Refusing to start: server URL must use HTTPS.");
+                    System.exit(1);
                 }
                 if (customUrl.endsWith("/")) customUrl = customUrl.substring(0, customUrl.length() - 1);
                 serverUrl = customUrl;
@@ -52,8 +53,17 @@ public class MldAgent {
                 System.out.println("\n--- One-Time Employee Login ---");
                 System.out.print("Enter Employee Email: ");
                 String email = scanner.nextLine().trim();
-                System.out.print("Enter Password: ");
-                String password = scanner.nextLine().trim();
+                
+                String password = "";
+                java.io.Console console = System.console();
+                if (console != null) {
+                    char[] pwdChars = console.readPassword("Enter Password: ");
+                    password = new String(pwdChars);
+                    java.util.Arrays.fill(pwdChars, ' ');
+                } else {
+                    System.out.print("Enter Password: ");
+                    password = scanner.nextLine().trim();
+                }
 
                 System.out.println("[MLD Agent] Authenticating with server...");
                 LoginResponse loginRes = agentLogin(serverUrl, email, password);
@@ -121,15 +131,18 @@ public class MldAgent {
         try {
             String windowTitle = ActiveWindowTracker.getActiveWindowTitle();
             boolean webcamActive = ActiveWindowTracker.isWebcamActive();
-            int idleSeconds = 0;
+            int idleSeconds = ActiveWindowTracker.getIdleSeconds();
 
-            String payload = String.format(
-                "{\"uuid\":\"%s\", \"sessionCode\":\"%s\", \"window\":\"%s\", \"webcam\":%b, \"idle\":%d}",
-                escapeJson(userUuid), escapeJson(code), escapeJson(windowTitle), webcamActive, idleSeconds
-            );
+            String payload = new JsonObjectBuilder()
+                .put("uuid", userUuid)
+                .put("sessionCode", code)
+                .put("window", windowTitle)
+                .put("webcam", webcamActive)
+                .put("idle", idleSeconds)
+                .build();
 
             String endpoint = baseUrl + "/api/track";
-            String responseJson = postHttpRequest(endpoint, payload);
+            String responseJson = postHttpRequest(endpoint, payload, userUuid);
 
             if (responseJson.contains("\"active\":false") || responseJson.contains("\"active\": false")) {
                 isMonitoring = false;
@@ -174,8 +187,11 @@ public class MldAgent {
 
     private static LoginResponse agentLogin(String baseUrl, String email, String password) {
         try {
-            String payload = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", escapeJson(email), escapeJson(password));
-            String response = postHttpRequest(baseUrl + "/api/login", payload);
+            String payload = new JsonObjectBuilder()
+                .put("email", email)
+                .put("password", password)
+                .build();
+            String response = postHttpRequest(baseUrl + "/api/login", payload, null);
             if (response.contains("\"success\":true") || response.contains("\"success\": true")) {
                 String token = extractJsonVal(response, "token");
                 String name = extractJsonVal(response, "name");
@@ -208,6 +224,11 @@ public class MldAgent {
             prop.setProperty("email", email);
             prop.setProperty("employeeName", name);
             prop.store(output, "MLD Desktop Agent Configuration");
+            
+            CONFIG_FILE.setReadable(false, false);
+            CONFIG_FILE.setReadable(true, true);
+            CONFIG_FILE.setWritable(false, false);
+            CONFIG_FILE.setWritable(true, true);
         } catch (Exception ignored) {}
     }
 
@@ -226,11 +247,14 @@ public class MldAgent {
         return s.hasNext() ? s.next() : "{}";
     }
 
-    private static String postHttpRequest(String urlString, String jsonBody) throws Exception {
+    private static String postHttpRequest(String urlString, String jsonBody, String authToken) throws Exception {
         URL url = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        if (authToken != null && !authToken.isEmpty()) {
+            conn.setRequestProperty("Authorization", "Bearer " + authToken);
+        }
         conn.setConnectTimeout(8000);
         conn.setReadTimeout(8000);
         conn.setDoOutput(true);
@@ -269,5 +293,27 @@ public class MldAgent {
     private static String escapeJson(String str) {
         if (str == null) return "";
         return str.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+    
+    public static class JsonObjectBuilder {
+        private StringBuilder sb = new StringBuilder("{");
+        public JsonObjectBuilder put(String key, String value) {
+            if (sb.length() > 1) sb.append(", ");
+            sb.append("\"").append(key).append("\":\"").append(escapeJson(value)).append("\"");
+            return this;
+        }
+        public JsonObjectBuilder put(String key, boolean value) {
+            if (sb.length() > 1) sb.append(", ");
+            sb.append("\"").append(key).append("\":").append(value);
+            return this;
+        }
+        public JsonObjectBuilder put(String key, int value) {
+            if (sb.length() > 1) sb.append(", ");
+            sb.append("\"").append(key).append("\":").append(value);
+            return this;
+        }
+        public String build() {
+            return sb.append("}").toString();
+        }
     }
 }

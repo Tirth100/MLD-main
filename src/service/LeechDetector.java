@@ -8,7 +8,7 @@ public class LeechDetector {
         } else if (attentionScore >= 0.40) {
             return "Focused";
         } else {
-            return "Distracted";
+            return "Low Engagement";
         }
     }
 }

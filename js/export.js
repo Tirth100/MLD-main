@@ -97,7 +97,7 @@ window.exportToGoogleSheets = async function() {
                 
                 if (statusCell && statusCell.v) {
                     const statusVal = statusCell.v.toLowerCase();
-                    if (statusVal === 'leeching' || statusVal === 'distracted') {
+                    if (statusVal === 'low engagement') {
                         rowColor = "FFFFC7CE"; // Light Red
                         fontColor = "FF9C0006"; // Dark Red Text
                     } else if (statusVal === 'engaging' || statusVal === 'focused') {

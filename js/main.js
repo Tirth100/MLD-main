@@ -470,8 +470,7 @@ async function loadManagerDashboard() {
         let newRowsHtml = '';
         listData.forEach(emp => {
             const st = (emp.status || '').toLowerCase();
-            const statusClass = (st === 'engaged' || st === 'engaging' || st === 'focused') ? 'bg-success' : 
-                               (st === 'distracted' || st === 'leeching' ? 'bg-danger' : 'bg-warning');
+            const bgClass = st === 'engaged' ? 'bg-success' : (st === 'low engagement' ? 'bg-danger' : 'bg-warning');
             
             const webcamBadge = emp.webcamActive !== false ? 
                 '<span class="badge bg-success bg-opacity-10 text-success border border-success px-2.5 py-1 text-nowrap"><i class="bi bi-camera-video-fill me-1"></i>ON</span>' : 
@@ -503,12 +502,12 @@ async function loadManagerDashboard() {
                     <td class="text-nowrap"><span class="text-muted fw-medium">${durationDisplay}</span></td>
                     <td style="min-width: 140px;">
                         <div class="progress mt-1" style="height: 8px;">
-                            <div class="progress-bar ${statusClass}" role="progressbar" style="width: ${emp.score}%" aria-valuenow="${emp.score}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar ${bgClass}" role="progressbar" style="width: ${emp.score}%" aria-valuenow="${emp.score}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                         <small class="text-muted mt-1 d-block fw-bold">${emp.score}%</small>
                     </td>
                     <td class="text-nowrap">
-                        <span class="badge badge-soft-${statusClass.replace('bg-', '')} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
+                        <span class="badge badge-soft-${bgClass.replace('bg-', '')} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
                     </td>
                 </tr>
             `;
@@ -730,8 +729,7 @@ async function loadReports() {
         let newRowsHtml = '';
         const listData = [...data].reverse();
         listData.forEach(emp => {
-            const statusClass = emp.status === 'engaging' ? 'success' : 
-                               (emp.status === 'leeching' ? 'danger' : 'warning');
+            const bgClass = emp.status === 'engaged' ? 'success' : (emp.status === 'low engagement' ? 'danger' : 'warning');
             
             const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
             
@@ -741,7 +739,7 @@ async function loadReports() {
                     <td>${emp.role}</td>
                     <td>${emp.score}%</td>
                     <td>
-                        <span class="badge badge-soft-${statusClass} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
+                        <span class="badge badge-soft-${bgClass} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span>
                     </td>
                     <td><small class="text-muted">${emp.timestamp || 'N/A'}</small></td>
                     <td>
@@ -903,8 +901,7 @@ async function loadEmployeeDashboard() {
                 newRowsHtml = '<tr><td colspan="5" class="text-center text-muted py-4">No history records found.</td></tr>';
             } else {
                 listData.forEach(emp => {
-                    const statusClass = emp.status === 'engaging' ? 'success' : 
-                                      (emp.status === 'leeching' ? 'danger' : 'warning');
+                    const badgeClass = emp.status === 'engaged' ? 'success' : (emp.status === 'low engagement' ? 'danger' : 'warning');
                     const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
                     
                     newRowsHtml += `

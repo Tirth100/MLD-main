@@ -1,0 +1,122 @@
+<h1>Meeting Leech Detector (MLD) - Complete Project Summary</h1>
+<h2>1. Project Overview</h2>
+<p><strong>Meeting Leech Detector (MLD)</strong> is an AI-powered telemetry and analytics platform designed to measure true meeting engagement. Its goal is to identify active contributors, track focus metrics, and eliminate wasted time during remote or hybrid meetings. It provides a comprehensive solution for organizations to monitor if employees are actively engaged in meetings (e.g., using Zoom, Microsoft Teams, WebEx) by tracking their active desktop windows and webcam usage.</p>
+<h2>2. System Architecture</h2>
+<p>The platform is built using a dual-tier architecture:</p>
+<ul>
+<li><strong>Backend Server:</strong> A custom-built Java HTTP Server that handles REST API requests, database interactions, and telemetry collection.</li>
+<li><strong>Desktop Agent:</strong> A lightweight Java application (<code>MLD-Agent.jar</code>) running on employee devices to quietly capture telemetry data and stream it to the backend.</li>
+<li><strong>Frontend Web Application:</strong> A responsive HTML/JS/CSS portal styled with Bootstrap 5, allowing managers and employees to interact with the system.</li>
+</ul>
+<h2>3. Detailed Component &amp; File Breakdown</h2>
+<h3>3.1 Backend (Java <code>src/</code>)</h3>
+<p>The backend is a pure Java implementation that handles HTTP requests directly without relying on heavy frameworks like Spring Boot.</p>
+<ul>
+<li><p><strong><code>src/api/ApiServer.java</code></strong></p>
+<ul>
+<li>Acts as the main web server using <code>com.sun.net.httpserver.HttpServer</code>.</li>
+<li>Handles all routing and REST API endpoints.</li>
+<li><strong>Endpoints include:</strong><ul>
+<li><code>/login</code>, <code>/google-login</code>: Authentication.</li>
+<li><code>/google-signup-org</code>, <code>/google-signup-emp</code>: Registration.</li>
+<li><code>/api/start</code>, <code>/api/stop</code>: Manager endpoints to start or stop a meeting session.</li>
+<li><code>/api/join</code>, <code>/api/leave</code>: Employee endpoints to join or leave a session.</li>
+<li><code>/api/track</code>: Receives live telemetry ticks from the desktop agent.</li>
+<li><code>/api/analytics</code>, <code>/api/engagement</code>: Provide aggregated data for manager dashboards.</li>
+<li><code>/api/export</code>: Exports data as CSV.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong><code>src/database/DatabaseHelper.java</code></strong></p>
+<ul>
+<li>Handles data persistence.</li>
+<li><strong>PostgreSQL Support:</strong> Connects to a PostgreSQL database if <code>DATABASE_URL</code> or environment variables are provided.</li>
+<li><strong>In-Memory Fallback:</strong> If PostgreSQL is unavailable, it gracefully falls back to high-performance <code>ConcurrentHashMap</code> in-memory structures for storing Users, Organizations, Devices, Sessions, and Telemetry.</li>
+<li><strong>Tables/Entities:</strong> <code>organizations</code>, <code>users</code>, <code>devices</code>, <code>sessions</code>, <code>telemetry</code> (records window title, webcam state, engagement score), and <code>notifications</code>.</li>
+</ul>
+</li>
+</ul>
+<h3>3.2 Desktop Agent (Java <code>src/agent/</code> &amp; <code>src/monitor/</code>)</h3>
+<p>The agent is downloaded by employees and runs in the background.</p>
+<ul>
+<li><strong><code>src/agent/MldAgent.java</code></strong><ul>
+<li>The entry point for the desktop client.</li>
+<li>Prompts the user to log in or uses a saved configuration token (<code>.mld_agent.properties</code>).</li>
+<li>Runs a continuous background loop (using <code>ScheduledExecutorService</code>) every 5 seconds to poll the server for an active session.</li>
+<li>When an active session is detected, it collects telemetry (window title, webcam status) and sends a tick payload to <code>/api/track</code>.</li>
+</ul>
+</li>
+<li><strong><code>src/monitor/ActiveWindowTracker.java</code></strong><ul>
+<li>Uses JNA (Java Native Access) to interface with the Windows OS.</li>
+<li><strong><code>getActiveWindowTitle()</code>:</strong> Identifies the title of the foreground window to see if the user is focused on a meeting app (Zoom, Teams, WebEx) or doing something else.</li>
+<li><strong><code>isWebcamActive()</code>:</strong> Checks the Windows Registry (<code>HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam</code>) to verify if the camera is currently in use.</li>
+</ul>
+</li>
+</ul>
+<h3>3.3 Frontend Web Application</h3>
+<p>The frontend is a static web app communicating with the Java backend via REST API.</p>
+<ul>
+<li><p><strong>HTML Pages (Root &amp; <code>pages/</code>)</strong></p>
+<ul>
+<li><strong><code>index.html</code>:</strong> The login portal for both managers and employees. Supports email/password and Google OAuth Sign-In.</li>
+<li><strong><code>organization-signup.html</code>:</strong> Registration page for new companies/managers.</li>
+<li><strong><code>employee-signup.html</code>:</strong> Registration page for employees to join an existing organization using an Org Code.</li>
+<li><strong><code>pages/manager-dashboard.html</code>:</strong> The admin panel. Managers can generate a &quot;Session Code&quot; to start a meeting, view live engagement metrics, and receive alerts.</li>
+<li><strong><code>pages/employee-dashboard.html</code>:</strong> The employee view. They can enter a session code to join a meeting. It also provides instructions and downloads for the Desktop Agent.</li>
+<li><strong><code>pages/analytics.html</code>, <code>pages/reports.html</code>, <code>pages/alerts.html</code>:</strong> Secondary manager views for deep-dive historical data, CSV exports, and rule-based alerts (e.g., someone minimizing the meeting).</li>
+</ul>
+</li>
+<li><p><strong>JavaScript (<code>js/</code>)</strong></p>
+<ul>
+<li><strong><code>js/api.js</code>:</strong> A wrapper utility for <code>fetch</code> API. Automatically handles authentication headers (bearer tokens) and JSON parsing.</li>
+<li><strong><code>js/main.js</code>:</strong> The core UI logic. Contains handlers for Google Auth, form submissions, DOM manipulation (showing/hiding UI elements), and rendering real-time graphs using Chart.js on the dashboard.</li>
+<li><strong><code>js/export.js</code>:</strong> Likely handles the logic for downloading CSV reports from the dashboard.</li>
+</ul>
+</li>
+<li><p><strong>CSS (<code>css/</code>)</strong></p>
+<ul>
+<li>Custom styling overriding and extending Bootstrap 5. Employs modern UI trends like glassmorphism (<code>.glass-card</code>), glowing orbs for backgrounds, and responsive layouts.</li>
+</ul>
+</li>
+</ul>
+<h3>3.4 Build &amp; Execution Scripts</h3>
+<p>The root directory contains several utility scripts for managing the lifecycle of the application:</p>
+<ul>
+<li><strong><code>run.bat</code> / <code>build-agent.bat</code>:</strong> Windows batch scripts to compile the Java code and package the <code>MLD-Agent.jar</code>.</li>
+<li><strong><code>start-mld-agent.bat</code> / <code>.ps1</code>:</strong> Scripts provided to employees to easily launch the Java agent in the background.</li>
+<li><strong><code>stop-mld-agent.bat</code> / <code>.ps1</code>:</strong> Scripts to gracefully terminate the agent.</li>
+<li><strong><code>run-silent-agent.vbs</code>:</strong> A VBScript to run the agent completely hidden without a command prompt window.</li>
+<li><strong><code>check_db.bat</code>:</strong> A utility script to verify database connectivity.</li>
+<li><strong><code>Dockerfile</code>:</strong> Contains the configuration to containerize and deploy the Java backend to cloud services (like Render, AWS, or Heroku).</li>
+</ul>
+<h2>4. Workflows</h2>
+<h3>4.1 Onboarding</h3>
+<ol>
+<li>A Manager creates an organization via <code>organization-signup.html</code> and receives an <strong>Org Code</strong>.</li>
+<li>Employees register via <code>employee-signup.html</code> using the <strong>Org Code</strong> to link their accounts.</li>
+<li>Employees log in and download the <code>MLD-Agent.jar</code> via the Employee Dashboard.</li>
+</ol>
+<h3>4.2 Meeting Session Execution</h3>
+<ol>
+<li>The Manager logs into the dashboard and clicks <strong>&quot;Start Meeting Session&quot;</strong>. The system generates a unique <strong>Session Code</strong> (e.g., <code>MLD123</code>).</li>
+<li>Employees enter <code>MLD123</code> into their Employee Dashboard to mark themselves as present.</li>
+<li>The background <strong>Desktop Agent</strong> on employee machines detects the active session and automatically begins polling.</li>
+<li>Every 5 seconds, the agent checks if the user&#39;s foreground window is the meeting app (e.g., Zoom) and if the webcam is on.</li>
+<li>Telemetry is sent to the backend. The Manager&#39;s Dashboard automatically updates with live charts showing the organization&#39;s overall engagement percentage, active participants, and flags employees who are tabbed out.</li>
+<li>The Manager stops the session, and the Desktop Agents automatically return to standby mode, ceasing telemetry collection.</li>
+</ol>
+<h2>5. Summary</h2>
+<p>The MLD project is a full-stack, enterprise-grade telemetry solution. It leverages low-level OS APIs via Java to silently collect behavioral metrics and presents them through a polished, real-time web dashboard. It is designed to be highly scalable with PostgreSQL, yet portable with its in-memory fallback, making it robust for tracking meeting efficiency.</p>
+<h2>6. Key Development Challenges &amp; Solutions</h2>
+<p>Throughout the development of MLD, several technical hurdles were encountered and resolved:</p>
+<ul>
+<li><strong>The &quot;Java Not Installed&quot; Problem (Auto-JRE Download):</strong> The <code>MLD-Agent.jar</code> requires Java to run. To prevent setup failures for employees without Java, the <code>start-mld-agent.ps1</code> script was rewritten to include an <strong>auto-JRE downloader</strong>. It automatically fetches a portable Java Runtime from Eclipse Adoptium, extracts it, and runs the agent seamlessly.</li>
+<li><strong>Messy Background Execution &amp; Launching:</strong> Running the Java agent via the command line left annoying console windows open. A suite of launcher scripts (<code>.bat</code>, <code>.ps1</code>, <code>.vbs</code>) was created to start the agent entirely hidden in the background, along with scripts to gracefully kill the process when the meeting ends.</li>
+<li><strong>File Distribution &amp; Missing Scripts:</strong> Employees downloading the agent often missed the helpful startup scripts. The build process (<code>build-agent.bat</code>) was updated to bundle everything into an <code>MLD-Agent.zip</code> distribution package, which is now automatically served by the backend.</li>
+<li><strong>Data Mixing Across Organizations (Multi-Tenancy):</strong> Initially, the analytics backend was pulling telemetry data across the entire database. The <code>ReportGenerator</code> was patched to enforce strict multi-tenant data isolation using SQL queries bound to <code>orgId</code>.</li>
+</ul>
+<h2>7. Open Discussion / Questions for Professor</h2>
+<p><strong>Topic for feedback:</strong> Alternatives to a Downloadable Desktop Agent</p>
+<p>Currently, the solution relies on employees downloading and running a background desktop agent to track active windows and webcam states. This successfully captures side-activities and engagement for remote workers globally, but requiring a manual download can create friction during onboarding.</p>
+<p><strong>Question for Professor:</strong> <em>While maintaining the ability to capture OS-level window states and side-activities, what could be alternative proposed solutions or architectural approaches instead of forcing employees to download and run a local agent? Are there other modern methods (e.g., progressive web apps, browser extensions, or enterprise MDM policies) that could achieve this same level of telemetry without a manual download?</em></p>

@@ -3,10 +3,16 @@ package monitor;
 import com.sun.jna.Native;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.User32;
+import com.sun.jna.platform.win32.Kernel32;
+import com.sun.jna.platform.win32.WinUser.LASTINPUTINFO;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 public class ActiveWindowTracker {
+
+    public static final String[] MEETING_APP_KEYWORDS = {
+        "zoom", "meet", "teams", "powerpoint", "webex", "powerpnt"
+    };
 
     private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
     private static long lastTasklistScanTime = 0;
@@ -22,8 +28,10 @@ public class ActiveWindowTracker {
                     String title = Native.toString(windowText);
                     if (title != null && !title.trim().isEmpty()) {
                         String lower = title.toLowerCase();
-                        if (lower.contains("zoom") || lower.contains("meet") || lower.contains("teams") || lower.contains("powerpoint") || lower.contains("webex")) {
-                            return title.trim();
+                        for (String keyword : MEETING_APP_KEYWORDS) {
+                            if (lower.contains(keyword)) {
+                                return title.trim();
+                            }
                         }
                     }
                 }
@@ -63,7 +71,14 @@ public class ActiveWindowTracker {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String lower = line.toLowerCase();
-                    if (lower.contains("zoom") || lower.contains("meet") || lower.contains("teams") || lower.contains("powerpnt") || lower.contains("webex")) {
+                    boolean isMeeting = false;
+                    for (String keyword : MEETING_APP_KEYWORDS) {
+                        if (lower.contains(keyword)) {
+                            isMeeting = true;
+                            break;
+                        }
+                    }
+                    if (isMeeting) {
                         String[] parts = line.split("\",\"");
                         if (parts.length >= 9) {
                             String winTitle = parts[8].replace("\"", "").trim();
@@ -96,5 +111,21 @@ public class ActiveWindowTracker {
             // Headless or Non-Windows Environment
         }
         return false;
+    }
+
+    public static int getIdleSeconds() {
+        try {
+            if (IS_WINDOWS) {
+                LASTINPUTINFO lastInputInfo = new LASTINPUTINFO();
+                lastInputInfo.cbSize = lastInputInfo.size();
+                User32.INSTANCE.GetLastInputInfo(lastInputInfo);
+                int lastInputTick = lastInputInfo.dwTime;
+                int currentTick = Kernel32.INSTANCE.GetTickCount();
+                return (currentTick - lastInputTick) / 1000;
+            }
+        } catch (Throwable t) {
+            // JNA error or non-Windows
+        }
+        return 0;
     }
 }
