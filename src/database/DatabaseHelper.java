@@ -18,7 +18,7 @@ public class DatabaseHelper {
     private static final String PORT = System.getenv("DB_PORT") != null ? System.getenv("DB_PORT") : "5432";
     private static final String DB_NAME = System.getenv("DB_NAME") != null ? System.getenv("DB_NAME") : "MLD_DB";
     private static final String USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "postgres";
-    private static final String PASSWORD = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "1505";
+    private static final String PASSWORD = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
     
     private static String getJdbcUrl() {
         String dbUrl = System.getenv("DATABASE_URL");

@@ -4,15 +4,32 @@ Set-Location -Path $ScriptDir
 
 $javaExe = "javaw.exe"
 
-# 1. Check if Java is available globally
+# 1. Check if Java is available globally and is at least version 17
+$javaIsGood = $false
+$javaVersion = 0
 try {
     $null = Get-Command javaw.exe -ErrorAction Stop
+    $v = (java -version 2>&1)[0]
+    if ($v -match '"(?:1\.)?(\d+)') {
+        $javaVersion = [int]$matches[1]
+        if ($javaVersion -ge 17) {
+            $javaIsGood = $true
+        }
+    }
 } catch {
-    # 2. Java not found globally. Check for local portable JRE.
+    # Not found or error
+}
+
+if (-not $javaIsGood) {
+    # 2. Valid Java >= 17 not found globally. Check for local portable JRE.
     $localJrePath = Get-ChildItem -Path "$ScriptDir\jre\*\bin\javaw.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
     
     if (-not $localJrePath) {
-        Write-Host "Java is not installed on this system!" -ForegroundColor Yellow
+        if ($javaVersion -gt 0) {
+            Write-Host "Found Java $javaVersion, but Java 17 or higher is required." -ForegroundColor Yellow
+        } else {
+            Write-Host "Java is not installed on this system!" -ForegroundColor Yellow
+        }
         Write-Host "Downloading a portable Java Runtime (JRE)... This will only happen once." -ForegroundColor Cyan
         
         $infoUrl = "https://api.adoptium.net/v3/assets/latest/21/hotspot?os=windows&architecture=x64&image_type=jre&project=jdk"

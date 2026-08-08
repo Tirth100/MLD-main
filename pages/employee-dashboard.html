@@ -63,45 +63,11 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                             <h5 class="fw-bold mb-0 text-success">
-                                <i class="bi bi-cpu-fill me-2"></i>MLD Desktop Agent Activated for Session <span id="joinedCodeText" class="badge bg-success">MLD123</span>
+                                <i class="bi bi-check-circle-fill me-2"></i>Successfully Joined Session <span id="joinedCodeText" class="badge bg-success">MLD123</span>
                             </h5>
                             <button class="btn btn-sm btn-outline-danger" id="btnLeaveSession">
                                 <i class="bi bi-box-arrow-right me-1"></i>Leave Session
                             </button>
-                        </div>
-                        <div class="row g-3 align-items-center">
-                            <!-- Desktop View -->
-                            <div id="desktopAgentUI" class="row g-3 w-100 m-0 p-0">
-                                <div class="col-md-7">
-                                    <p class="text-muted mb-2">Run <strong>start-mld-agent.bat</strong> or <strong>MLD-Agent.jar</strong> on your computer to monitor meeting telemetry across any network.</p>
-                                    <div class="bg-light p-3 rounded text-start border">
-                                        <small class="text-muted d-block">1. Double-click <strong>start-mld-agent.bat</strong> or run <code>java -jar MLD-Agent.jar</code></small>
-                                        <input type="text" class="form-control font-monospace text-primary fw-bold" id="agentTokenDisplay" readonly>
-                                        <button class="btn btn-outline-secondary" id="btnCopyToken" type="button">
-                                            <i class="bi bi-clipboard me-1"></i>Copy Token
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-5 text-end">
-                                    <div class="p-3 bg-light rounded border text-start">
-                                        <small class="fw-bold d-block text-dark mb-1"><i class="bi bi-terminal me-1"></i>Agent Launch Steps:</small>
-                                        <small class="text-muted d-block">1. Open <strong>run-agent.bat</strong> or <code>java -jar MLD-Agent.jar</code></small>
-                                        <small class="text-muted d-block">2. Paste your User Token shown on left</small>
-                                        <small class="text-muted d-block">3. Telemetry streams live to cloud database</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Mobile View -->
-                            <div id="mobileAgentUI" class="col-12 d-none">
-                                <div class="p-4 bg-light rounded border text-center">
-                                    <i class="bi bi-phone text-primary mb-2 d-block" style="font-size: 2rem;"></i>
-                                    <h6 class="fw-bold text-dark mb-2">Mobile Device Detected</h6>
-                                    <p class="text-muted small mb-3">Join the session via the Mobile Web Agent to start telemetry recording from your phone browser.</p>
-                                    <a href="mobile-agent.html" class="btn btn-primary shadow-sm w-100 py-2"><i class="bi bi-phone-vibrate me-2"></i>Launch Mobile Web Agent</a>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

@@ -9,18 +9,17 @@ public class MainCheckDb {
     public static void main(String[] args) {
         String dbUrl = System.getenv("DATABASE_URL");
         if (dbUrl == null || dbUrl.isEmpty()) {
-            dbUrl = "jdbc:postgresql://dpg-d9mufflaeets73ar3ddg-a.singapore-postgres.render.com/mld_db?sslmode=require";
-        } else if (dbUrl.startsWith("postgres://")) {
+            System.err.println("FATAL: DATABASE_URL environment variable is not set. Exiting.");
+            System.exit(1);
+        }
+        if (dbUrl.startsWith("postgres://")) {
             dbUrl = dbUrl.replace("postgres://", "jdbc:postgresql://");
         } else if (dbUrl.startsWith("postgresql://")) {
             dbUrl = dbUrl.replace("postgresql://", "jdbc:postgresql://");
         }
-
-        String user = "mld_db_user";
-        String pass = "vh63l8zl1s1zq7H71Qeom2O3TU8anxQL";
         
         try {
-            Connection conn = DriverManager.getConnection(dbUrl, user, pass);
+            Connection conn = DriverManager.getConnection(dbUrl);
             System.out.println("--- CONNECTED TO RENDER CLOUD DATABASE ---");
             
             Statement stmt = conn.createStatement();
