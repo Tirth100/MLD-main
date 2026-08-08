@@ -720,6 +720,10 @@ public class DatabaseHelper {
     }
 
     public static boolean removeEmployee(String token, int empId) {
+        String callerRole = getUserRoleFromToken(token);
+        if (!"ADMIN".equalsIgnoreCase(callerRole) && !"MANAGER".equalsIgnoreCase(callerRole)) {
+            return false;
+        }
         int orgId = getOrgIdFromToken(token);
         if (orgId == -1) return false;
         
@@ -856,6 +860,30 @@ public class DatabaseHelper {
         // Fallback
         UserRecord user = usersById.get(uid);
         return user != null ? user.orgId : -1;
+    }
+
+    public static String getUserRoleFromToken(String token) {
+        int uid = getUserIdFromToken(token);
+        if (uid == -1) return null;
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT role FROM users WHERE user_id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, uid);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    String role = rs.getString("role");
+                    conn.close();
+                    return role;
+                }
+                conn.close();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        UserRecord user = usersById.get(uid);
+        return user != null ? user.role : null;
     }
 
     public static String loginWithGoogle(String email) {

@@ -3,6 +3,16 @@
  * Frontend logic, DOM manipulation, and Chart.js initialization
  */
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Google Auth Callbacks ---
@@ -962,7 +972,7 @@ function bindActionButtons() {
                     mb.innerHTML += `
                         <tr>
                             <td class="ps-4">${timeSec}s</td>
-                            <td><small class="text-secondary">${winName}</small></td>
+                            <td><small class="text-secondary">${escapeHtml(winName)}</small></td>
                             <td>${classText}</td>
                         </tr>
                     `;
@@ -1061,13 +1071,13 @@ async function loadEmployeesList() {
                 <td class="ps-4">
                     <div class="d-flex align-items-center gap-3">
                         <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=e2e8f0&color=475569" class="rounded-circle" width="32" height="32">
-                        <span class="fw-medium">${emp.name}</span>
+                        <span class="fw-medium">${escapeHtml(emp.name)}</span>
                     </div>
                 </td>
-                <td class="text-muted">${emp.email}</td>
+                <td class="text-muted">${escapeHtml(emp.email)}</td>
                 <td class="text-muted">${new Date(emp.joinedAt).toLocaleDateString()}</td>
                 <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-danger remove-emp-btn" data-id="${emp.id}" data-name="${emp.name}">
+                    <button class="btn btn-sm btn-outline-danger remove-emp-btn" data-id="${emp.id}" data-name="${escapeHtml(emp.name)}">
                         <i class="bi bi-person-x"></i> Remove
                     </button>
                 </td>

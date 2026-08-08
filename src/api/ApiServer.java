@@ -124,12 +124,10 @@ public class ApiServer {
                 path = "/index.html";
             }
             
-            java.io.File file = new java.io.File("." + path);
-            if (!file.exists()) {
-                file = new java.io.File(path.substring(1));
-            }
+            java.io.File baseDir = new java.io.File(".").getCanonicalFile();
+            java.io.File file = new java.io.File(baseDir, path).getCanonicalFile();
             
-            if (file.exists() && !file.isDirectory()) {
+            if (file.exists() && !file.isDirectory() && file.getPath().startsWith(baseDir.getPath())) {
                 byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
                 String contentType = "text/html";
                 if (path.endsWith(".css")) contentType = "text/css";
@@ -277,6 +275,13 @@ public class ApiServer {
                 addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
+                return;
+            }
+            addCorsHeaders(exchange);
+            String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (orgId == -1) {
+                sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized session stop request.\"}");
                 return;
             }
             try {
@@ -913,26 +918,28 @@ public class ApiServer {
     }
 
     public static String[] decodeGoogleJwt(String token) {
+        if (token == null || token.trim().isEmpty()) return null;
         try {
-            String[] parts = token.split("\\.");
-            if (parts.length != 3) return null;
-            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
-            String email = "";
-            String name = "";
-            String[] kv = payloadJson.split(",");
-            for (String pair : kv) {
-                if (pair.contains("\"email\"")) {
-                    email = pair.split(":")[1].replace("\"", "").trim();
-                }
-                if (pair.contains("\"name\"")) {
-                    name = pair.split(":")[1].replace("\"", "").trim();
+            java.net.URL url = new java.net.URL("https://oauth2.googleapis.com/tokeninfo?id_token=" + token.trim());
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            if (conn.getResponseCode() == 200) {
+                try (InputStream is = conn.getInputStream()) {
+                    String json = new String(is.readAllBytes());
+                    String email = extractJsonField(json, "email");
+                    String name = extractJsonField(json, "name");
+                    if (name == null || name.isEmpty()) name = email;
+                    if (email != null && !email.isEmpty()) {
+                        return new String[]{email, name};
+                    }
                 }
             }
-            if (!email.isEmpty() && !name.isEmpty()) return new String[]{email, name};
-            return null;
         } catch (Exception e) {
-            return null;
+            System.err.println("[Google Auth Verification Error] " + e.getMessage());
         }
+        return null;
     }
 
     class GoogleLoginHandler implements HttpHandler {

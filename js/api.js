@@ -101,7 +101,9 @@ const api = {
         if (USE_MOCK_DATA) return Promise.resolve(true);
         try {
             const baseUrl = getApiBaseUrl();
+            const token = localStorage.getItem('uuid_token');
             const headers = { 'Bypass-Tunnel-Reminder': 'true' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
             const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { method: 'DELETE', headers }, 25000);
             return response.ok;
         } catch (error) {

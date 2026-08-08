@@ -12,35 +12,67 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class Main {
 
-    // Map to hold AttentionAnalyzers for each connected remote employee
-    public static Map<String, AttentionAnalyzer> analyzers = new ConcurrentHashMap<>();
+    public static class SessionState {
+        public String sessionCode;
+        public Map<String, AttentionAnalyzer> analyzers = new ConcurrentHashMap<>();
+        public ScheduledExecutorService scheduler;
+
+        public SessionState(String sessionCode) {
+            this.sessionCode = sessionCode;
+            this.scheduler = Executors.newScheduledThreadPool(1);
+        }
+    }
+
+    public static Map<Integer, SessionState> orgSessions = new ConcurrentHashMap<>();
     
-    private static ScheduledExecutorService scheduler;
+    // Legacy support for single-tenant / global access
+    public static Map<String, AttentionAnalyzer> analyzers = new ConcurrentHashMap<>();
     public static String currentSessionCode = "";
 
+    public static boolean isMonitoringActive() {
+        return isMonitoringActive(1);
+    }
+
+    public static boolean isMonitoringActive(int orgId) {
+        SessionState state = orgSessions.get(orgId);
+        return state != null && state.scheduler != null && !state.scheduler.isShutdown();
+    }
+
     public static void startMonitoring(String sessionCode) {
-        if (scheduler == null || scheduler.isShutdown()) {
+        startMonitoring(1, sessionCode);
+    }
+
+    public static void startMonitoring(int orgId, String sessionCode) {
+        SessionState state = orgSessions.get(orgId);
+        if (state == null || state.scheduler.isShutdown()) {
+            state = new SessionState(sessionCode);
+            orgSessions.put(orgId, state);
+            
             currentSessionCode = sessionCode;
-            analyzers.clear(); // Clear old clients
+            analyzers = state.analyzers;
             
-            scheduler = Executors.newScheduledThreadPool(1);
-            
-            // Note: In distributed architecture, local active window tracking is removed.
-            // The API server will receive tracking ticks from remote Desktop Agents via /api/track.
-            
-            System.out.println("Distributed monitoring session started for session " + sessionCode);
+            System.out.println("Distributed monitoring session started for Org " + orgId + " with session " + sessionCode);
         }
     }
 
     public static void stopMonitoring() {
-        System.out.println("\nMonitoring session stopped! Saving all client reports...");
+        stopMonitoring(1);
+    }
+
+    public static void stopMonitoring(int orgId) {
+        SessionState state = orgSessions.remove(orgId);
+        if (state == null) {
+            System.out.println("No active monitoring session found for Org " + orgId);
+            return;
+        }
+
+        System.out.println("\nMonitoring session stopped for Org " + orgId + "! Saving all client reports...");
         
-        if (analyzers != null) {
-            for (Map.Entry<String, AttentionAnalyzer> entry : analyzers.entrySet()) {
+        if (state.analyzers != null) {
+            for (Map.Entry<String, AttentionAnalyzer> entry : state.analyzers.entrySet()) {
                 try {
                     String clientUuid = entry.getKey();
                     AttentionAnalyzer clientAnalyzer = entry.getValue();
@@ -48,7 +80,7 @@ public class Main {
                     double finalScore = clientAnalyzer.getAttentionScore();
                     String status = new LeechDetector().checkLeech(finalScore);
                     
-                    Report sessionReport = new Report(clientUuid, currentSessionCode, clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
+                    Report sessionReport = new Report(clientUuid, state.sessionCode, clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
                             clientAnalyzer.isWebcamActive(),
                             finalScore, status, clientAnalyzer.getWindowTimeline(), clientAnalyzer.getFocusTimeline());
                     report.ReportGenerator.saveReport(sessionReport);
@@ -58,37 +90,33 @@ public class Main {
                     System.err.println("Error saving client report: " + e.getMessage());
                 }
             }
+            state.analyzers.clear();
+        }
+        
+        if (state.scheduler != null && !state.scheduler.isShutdown()) {
+            state.scheduler.shutdown();
+        }
+        
+        if (orgId == 1) {
+            currentSessionCode = "";
             analyzers.clear();
         }
-        
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            scheduler = null;
-        }
-        
-        currentSessionCode = "";
-        System.out.println("All sessions saved and monitoring reset.");
-    }
-
-    public static boolean isMonitoringActive() {
-        return currentSessionCode != null && !currentSessionCode.isEmpty();
+        System.out.println("Org " + orgId + " session saved and monitoring reset.");
     }
 
     public static void main(String[] args) {
+        System.out.println("==================================================");
+        System.out.println("      MEETING LEECH DETECTOR (MLD) - SERVER       ");
+        System.out.println("==================================================");
 
-        System.out.println("Starting Meeting Leech Detector Backend...");
-
-        // Initialize SQLite Database
         DatabaseHelper.initializeDatabase();
 
-        // Start API Server
         try {
-            ApiServer server = new ApiServer();
-            server.startServer();
+            ApiServer apiServer = new ApiServer();
+            apiServer.startServer();
         } catch (IOException e) {
-            System.err.println("Failed to start API Server: " + e.getMessage());
+            System.err.println("Fatal Error: Could not start API server on port 3000.");
+            e.printStackTrace();
         }
-
-        // Server started, waiting for manual start from dashboard
     }
 }
