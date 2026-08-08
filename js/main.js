@@ -406,6 +406,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // Check if live tracking should resume on reload
+    const storedSession = localStorage.getItem('active_session_code');
+    const storedToken = localStorage.getItem('uuid_token');
+    
+    if (storedSession && storedToken) {
+        startAutomaticTracking(storedSession, storedToken);
+    }
 });
 
 // Global tracking for Charts so they can be securely destroyed during live polling
@@ -493,7 +500,7 @@ async function loadManagerDashboard() {
             const activeWinDisplay = emp.activeWindow ? `<span class="fw-semibold text-primary text-nowrap"><i class="bi bi-window-desktop me-1"></i>${emp.activeWindow}</span>` : '<span class="text-muted">Desktop Workspace</span>';
 
             newRowsHtml += `
-                <tr>
+                <tr id="mgr-emp-row-${emp.id || Math.random()}">
                     <td class="ps-4">
                         <div class="d-flex align-items-center text-nowrap">
                             <div class="bg-primary rounded-circle text-white d-flex justify-content-center align-items-center me-3 flex-shrink-0" style="width: 38px; height: 38px; font-weight: 600;">
@@ -871,6 +878,23 @@ async function loadEmployeeDashboard() {
                     clearInterval(autoTrackerInterval);
                     autoTrackerInterval = null;
                 }
+                const joinBtn = document.getElementById('btnJoinSession');
+                const codeText = document.getElementById('joinedCodeText');
+                if (joinBtn && joinBtn.parentElement) joinBtn.parentElement.classList.remove('d-none');
+                if (codeText && codeText.parentElement) codeText.parentElement.classList.add('d-none');
+            } else if (data.meetingStatus.includes("Active")) {
+                statusEl.className = "text-success fw-bold";
+                const joinBtn = document.getElementById('btnJoinSession');
+                const codeText = document.getElementById('joinedCodeText');
+                if (joinBtn && joinBtn.parentElement) joinBtn.parentElement.classList.add('d-none');
+                if (codeText && codeText.parentElement) {
+                    codeText.parentElement.classList.remove('d-none');
+                    const match = data.meetingStatus.match(/\((.*?)\)/);
+                    if (match && match[1]) {
+                        codeText.innerText = match[1];
+                        localStorage.setItem('active_session_code', match[1]);
+                    }
+                }
             }
         }
 
@@ -915,7 +939,7 @@ async function loadEmployeeDashboard() {
                     const safeTimelineStr = encodeURIComponent(JSON.stringify(emp.timeline || []));
                     
                     newRowsHtml += `
-                        <tr>
+                        <tr id="emp-hist-row-${emp.id || emp.timestamp || 'unknown'}">
                             <td><span class="ps-3">${emp.name}</span></td>
                             <td>${emp.role}</td>
                             <td><span class="fw-bold">${emp.score}%</span></td>
