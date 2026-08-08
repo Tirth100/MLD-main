@@ -1,3 +1,0 @@
-@echo off
-echo Starting MLD Agent...
-powershell -ExecutionPolicy Bypass -File "%~dp0start-mld-agent.ps1"

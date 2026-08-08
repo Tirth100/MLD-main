@@ -190,6 +190,8 @@ public class DatabaseHelper {
             stmt.execute(createDevicesTable);
             stmt.execute(createSessionsTable);
             stmt.execute(createEngagementLogsTable);
+            // Add last_heartbeat column if it doesn't exist (safe migration)
+            stmt.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMP;");
             System.out.println("[Database] PostgreSQL tables initialized and ready for user registration.");
         } catch (SQLException e) {
             System.err.println("PostgreSQL initialization failed: " + e.getMessage());
@@ -198,6 +200,40 @@ public class DatabaseHelper {
         }
 
         seedDefaultAccounts();
+    }
+
+    /** Persist agent heartbeat to DB so connection status survives server restarts. */
+    public static void updateAgentHeartbeat(String deviceUuid) {
+        if (deviceUuid == null || deviceUuid.isEmpty()) return;
+        Connection conn = connect();
+        if (conn == null) return;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE devices SET last_heartbeat = NOW() WHERE device_uuid = ?")) {
+            ps.setString(1, deviceUuid.toLowerCase().trim());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("[Heartbeat DB Error] " + e.getMessage());
+        } finally {
+            try { conn.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    /** Returns epoch ms of last heartbeat for this device UUID, or -1 if never. */
+    public static long getAgentLastHeartbeat(String deviceUuid) {
+        if (deviceUuid == null || deviceUuid.isEmpty()) return -1;
+        Connection conn = connect();
+        if (conn == null) return -1;
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT EXTRACT(EPOCH FROM last_heartbeat) * 1000 AS ms FROM devices WHERE device_uuid = ? AND last_heartbeat IS NOT NULL")) {
+            ps.setString(1, deviceUuid.toLowerCase().trim());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong("ms");
+        } catch (SQLException e) {
+            System.err.println("[Heartbeat Query Error] " + e.getMessage());
+        } finally {
+            try { conn.close(); } catch (Exception ignored) {}
+        }
+        return -1;
     }
 
     private static void seedDefaultAccounts() {

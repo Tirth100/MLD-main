@@ -82,6 +82,7 @@ public class ApiServer {
         server.createContext("/", new RootHandler());
         server.createContext("/download/mld-agent", new DownloadAgentHandler());
         server.createContext("/api/agent-status", new AgentStatusHandler());
+        server.createContext("/api/heartbeat", new HeartbeatHandler());
         server.createContext("/api/engagement", new EngagementHandler());
         server.createContext("/api/alerts", new AlertsHandler());
         server.createContext("/api/analytics", new AnalyticsHandler());
@@ -204,31 +205,75 @@ public class ApiServer {
 
             boolean isConnected = false;
             long now = System.currentTimeMillis();
+            long twoMinutes = 2 * 60 * 1000L;
 
-            // 1. Check if any background agent heartbeat received within 60 seconds
-            if (!lastAgentHeartbeats.isEmpty()) {
-                for (long ping : lastAgentHeartbeats.values()) {
-                    if ((now - ping) < 60000) {
+            if (!uuid.isEmpty()) {
+                // 1. Check in-memory heartbeat first (fast path)
+                String cleanUuid = uuid.toLowerCase().trim();
+                Long lastPing = lastAgentHeartbeats.get(cleanUuid);
+                if (lastPing != null && (now - lastPing) < twoMinutes) {
+                    isConnected = true;
+                }
+
+                // 2. Check DB heartbeat (survives Render restarts)
+                if (!isConnected) {
+                    long dbPing = database.DatabaseHelper.getAgentLastHeartbeat(cleanUuid);
+                    if (dbPing > 0 && (now - dbPing) < twoMinutes) {
                         isConnected = true;
-                        break;
+                        // Restore into in-memory cache
+                        lastAgentHeartbeats.put(cleanUuid, dbPing);
+                    }
+                }
+
+                // 3. Also check if analyzer is active (legacy support)
+                if (!isConnected) {
+                    if (Main.analyzers.containsKey(cleanUuid) || Main.analyzers.containsKey(uuid)) {
+                        isConnected = true;
                     }
                 }
             }
 
-            // 2. Check specific UUID matching
-            if (!isConnected && !uuid.isEmpty()) {
-                String cleanUuid = uuid.toLowerCase().trim();
-                Long lastPing = lastAgentHeartbeats.get(cleanUuid);
-                if (lastPing != null && (now - lastPing) < 60000) {
-                    isConnected = true;
-                } else if (Main.analyzers.containsKey(cleanUuid) || Main.analyzers.containsKey(uuid)) {
-                    isConnected = true;
-                }
-            }
-
-            String json = String.format("{\"connected\": %b, \"status\": \"%s\", \"uuid\": \"%s\"}", 
+            String json = String.format("{\"connected\": %b, \"status\": \"%s\", \"uuid\": \"%s\"}",
                 isConnected, isConnected ? "Connected" : "Offline", uuid);
             sendResponse(exchange, json);
+        }
+    }
+
+    class HeartbeatHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+            try {
+                java.io.InputStream is = exchange.getRequestBody();
+                java.util.Scanner s = new java.util.Scanner(is, java.nio.charset.StandardCharsets.UTF_8).useDelimiter("\\A");
+                String body = s.hasNext() ? s.next() : "{}";
+                // Extract uuid from JSON body: {"uuid":"..."}
+                String uuid = "";
+                int idx = body.indexOf("\"uuid\":");
+                if (idx >= 0) {
+                    int q1 = body.indexOf('"', idx + 7);
+                    int q2 = body.indexOf('"', q1 + 1);
+                    if (q1 >= 0 && q2 > q1) uuid = body.substring(q1 + 1, q2);
+                }
+                if (!uuid.isEmpty()) {
+                    String cleanUuid = uuid.toLowerCase().trim();
+                    lastAgentHeartbeats.put(cleanUuid, System.currentTimeMillis());
+                    database.DatabaseHelper.updateAgentHeartbeat(cleanUuid);
+                }
+                sendResponse(exchange, "{\"ok\": true}");
+            } catch (Exception e) {
+                sendResponse(exchange, "{\"ok\": false}");
+            }
         }
     }
 
@@ -252,13 +297,15 @@ public class ApiServer {
             
             boolean active = false;
             String code = "";
-            if (Main.isMonitoringActive()) {
+            String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                 if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
                     active = true;
                     code = activeJoinedSessions.get(userUuid);
                 } else if (userUuid.isEmpty()) {
                     active = true;
-                    code = Main.currentSessionCode;
+                    code = Main.orgSessions.get(orgId).sessionCode;
                 }
             }
             sendResponse(exchange, "{\"active\": " + active + ", \"sessionCode\": \"" + code + "\"}");
@@ -282,8 +329,8 @@ public class ApiServer {
                 return;
             }
             try {
-                Main.stopMonitoring();
-                activeJoinedSessions.clear();
+                Main.stopMonitoring(orgId);
+                activeJoinedSessions.entrySet().removeIf(entry -> DatabaseHelper.getOrgIdFromToken(entry.getKey()) == orgId);
                 sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped.\"}");
             } catch (Exception e) {
                 System.err.println("Stop error: " + e.getMessage());
@@ -326,12 +373,15 @@ public class ApiServer {
                 return;
             }
             try {
-                java.io.InputStream is = exchange.getRequestBody();
-                String body = new String(is.readAllBytes());
-                String token = extractJsonField(body, "token");
+                String token = extractToken(exchange);
+                int orgId = DatabaseHelper.getOrgIdFromToken(token);
+                if (orgId == -1) {
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized session start request.\"}");
+                    return;
+                }
                 
                 String sessionCode = DatabaseHelper.createSession(token);
-                Main.startMonitoring(sessionCode);
+                Main.startMonitoring(orgId, sessionCode);
                 sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Session started successfully with code " + sessionCode + "\"}");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -362,11 +412,7 @@ public class ApiServer {
                     return;
                 }
 
-                if (Main.isMonitoringActive() && sessionCode.equalsIgnoreCase(Main.currentSessionCode)) {
-                    activeJoinedSessions.put(uuid.toLowerCase(), sessionCode);
-                    Main.analyzers.put(uuid.toLowerCase(), new service.AttentionAnalyzer());
-                    sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
-                } else if (DatabaseHelper.isValidSession(sessionCode)) {
+                if (DatabaseHelper.isValidSession(sessionCode)) {
                     activeJoinedSessions.put(uuid.toLowerCase(), sessionCode);
                     Main.analyzers.put(uuid.toLowerCase(), new service.AttentionAnalyzer());
                     sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
@@ -411,16 +457,22 @@ public class ApiServer {
                         lastAgentHeartbeats.put(uuid.toLowerCase(), System.currentTimeMillis());
                     }
 
-                    if (Main.isMonitoringActive()) {
+                    int orgId = DatabaseHelper.getOrgIdFromToken(uuid);
+                    if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                         String cleanUuid = uuid.toLowerCase();
                         service.AttentionAnalyzer analyzer = Main.analyzers.get(cleanUuid);
-                        if (analyzer == null) analyzer = Main.analyzers.get(uuid);
                         if (analyzer == null) {
                             analyzer = new service.AttentionAnalyzer();
                             Main.analyzers.put(cleanUuid.isEmpty() ? uuid : cleanUuid, analyzer);
                         }
                         analyzer.analyzeWindow(window, webcam, idle);
-                        DatabaseHelper.saveEngagementLog(sessionCode.isEmpty() ? Main.currentSessionCode : sessionCode, uuid, analyzer.getAttentionScore(), new service.LeechDetector().checkLeech(analyzer.getAttentionScore()), analyzer.getTotalCount(), analyzer.getFocusedCount(), webcam, "");
+                        
+                        String activeSessionCode = sessionCode;
+                        if (activeSessionCode == null || activeSessionCode.isEmpty()) {
+                            activeSessionCode = Main.orgSessions.get(orgId).sessionCode;
+                        }
+                        
+                        DatabaseHelper.saveEngagementLog(activeSessionCode, uuid, analyzer.getAttentionScore(), new service.LeechDetector().checkLeech(analyzer.getAttentionScore()), analyzer.getTotalCount(), analyzer.getFocusedCount(), webcam, "");
                         sendResponse(exchange, "{\"success\": true, \"active\": true}");
                     } else {
                         sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Session stopped by manager.\"}");
@@ -497,7 +549,7 @@ public class ApiServer {
             }
             
             // Inject the currently active live session into the array natively
-            if (Main.isMonitoringActive()) {
+            if (Main.isMonitoringActive(orgId)) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
                     if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
@@ -514,7 +566,7 @@ public class ApiServer {
 
                     String liveJson = String.format(
                         "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"isLive\": true}",
-                        empName, scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.currentSessionCode
+                        empName, scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode
                     );
                     
                     if (combinedJson.length() > 1) combinedJson.append(", ");
@@ -542,7 +594,7 @@ public class ApiServer {
             StringBuilder combinedJson = new StringBuilder("[");
             boolean hasLocal = false;
             
-            if (Main.isMonitoringActive()) {
+            if (Main.isMonitoringActive(orgId)) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
                     if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
@@ -580,7 +632,7 @@ public class ApiServer {
             int total = 0;
             java.util.List<Integer> history = new java.util.ArrayList<>();
             
-            if (Main.isMonitoringActive()) {
+            if (Main.isMonitoringActive(orgId)) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
                     if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
@@ -618,10 +670,11 @@ public class ApiServer {
         public void handle(HttpExchange exchange) throws IOException {
             addCorsHeaders(exchange);
             String token = extractToken(exchange);
+            int orgId = DatabaseHelper.getOrgIdFromToken(token);
             
             double sumScore = 0;
             int count = 0;
-            if (Main.isMonitoringActive() && !token.isEmpty()) {
+            if (orgId != -1 && Main.isMonitoringActive(orgId) && !token.isEmpty()) {
                 service.AttentionAnalyzer analyzer = Main.analyzers.get(token.toLowerCase());
                 if (analyzer != null && analyzer.getTotalCount() > 0) {
                     sumScore += analyzer.getAttentionScore();
@@ -630,7 +683,7 @@ public class ApiServer {
             }
             int score = count > 0 ? (int)Math.round((sumScore / count) * 100) : 0;
             int focus = count > 0 ? score : 0;
-            String status = Main.isMonitoringActive() ? "Active Monitoring Session (" + Main.currentSessionCode + ")" : "Session Stopped";
+            String status = (orgId != -1 && Main.isMonitoringActive(orgId)) ? "Active Monitoring Session (" + Main.orgSessions.get(orgId).sessionCode + ")" : "Session Stopped";
             String json = "{\n" +
                 "\"score\": " + score + ",\n" +
                 "\"focus\": " + focus + ",\n" +

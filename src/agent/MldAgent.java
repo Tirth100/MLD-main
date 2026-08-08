@@ -93,9 +93,21 @@ public class MldAgent {
         System.out.println(" is joined, and stops when the session ends.     ");
         System.out.println("=================================================\n");
 
-        ScheduledExecutorService backgroundScheduler = Executors.newSingleThreadScheduledExecutor();
+        ScheduledExecutorService backgroundScheduler = Executors.newScheduledThreadPool(2);
 
-        // 3. Automated Background Listener Loop (Runs every 5 seconds)
+        // 3. Heartbeat — tells the server this agent is alive every 30 seconds
+        //    This persists to the database so status survives server restarts.
+        final String finalUuid = uuid;
+        final String finalServerUrl = serverUrl;
+        backgroundScheduler.scheduleAtFixedRate(() -> {
+            try {
+                sendHeartbeat(finalServerUrl, finalUuid);
+            } catch (Throwable t) {
+                // Silently retry — heartbeat failures are non-fatal
+            }
+        }, 0, 30, TimeUnit.SECONDS);
+
+        // 4. Automated Background Listener Loop (Runs every 5 seconds)
         backgroundScheduler.scheduleAtFixedRate(() -> {
             try {
                 // Check if backend has an active session for organization
@@ -125,6 +137,13 @@ public class MldAgent {
                 System.err.println("[MLD Agent Loop Warning] Telemetry cycle warning: " + t.getMessage());
             }
         }, 0, 5, TimeUnit.SECONDS);
+    }
+
+    private static void sendHeartbeat(String baseUrl, String userUuid) {
+        try {
+            String payload = "{\"uuid\": \"" + userUuid + "\"}";
+            postHttpRequest(baseUrl + "/api/heartbeat", payload, userUuid);
+        } catch (Exception ignored) {}
     }
 
     private static void sendTelemetryTick(String baseUrl, String code, String userUuid) {

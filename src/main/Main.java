@@ -17,7 +17,6 @@ public class Main {
 
     public static class SessionState {
         public String sessionCode;
-        public Map<String, AttentionAnalyzer> analyzers = new ConcurrentHashMap<>();
         public ScheduledExecutorService scheduler;
 
         public SessionState(String sessionCode) {
@@ -51,8 +50,9 @@ public class Main {
             state = new SessionState(sessionCode);
             orgSessions.put(orgId, state);
             
-            currentSessionCode = sessionCode;
-            analyzers = state.analyzers;
+            if (orgId == 1) {
+                currentSessionCode = sessionCode;
+            }
             
             System.out.println("Distributed monitoring session started for Org " + orgId + " with session " + sessionCode);
         }
@@ -71,10 +71,10 @@ public class Main {
 
         System.out.println("\nMonitoring session stopped for Org " + orgId + "! Saving all client reports...");
         
-        if (state.analyzers != null) {
-            for (Map.Entry<String, AttentionAnalyzer> entry : state.analyzers.entrySet()) {
+        for (Map.Entry<String, AttentionAnalyzer> entry : analyzers.entrySet()) {
+            String clientUuid = entry.getKey();
+            if (DatabaseHelper.getOrgIdFromToken(clientUuid) == orgId) {
                 try {
-                    String clientUuid = entry.getKey();
                     AttentionAnalyzer clientAnalyzer = entry.getValue();
                     
                     double finalScore = clientAnalyzer.getAttentionScore();
@@ -89,8 +89,8 @@ public class Main {
                 } catch (Exception e) {
                     System.err.println("Error saving client report: " + e.getMessage());
                 }
+                analyzers.remove(clientUuid);
             }
-            state.analyzers.clear();
         }
         
         if (state.scheduler != null && !state.scheduler.isShutdown()) {

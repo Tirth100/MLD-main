@@ -919,7 +919,7 @@ async function loadEmployeeDashboard() {
                             <td><span class="ps-3">${emp.name}</span></td>
                             <td>${emp.role}</td>
                             <td><span class="fw-bold">${emp.score}%</span></td>
-                            <td><span class="badge badge-soft-${statusClass} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span></td>
+                            <td><span class="badge badge-soft-${badgeClass} px-3 py-2 rounded-pill text-capitalize">${emp.status}</span></td>
                             <td><button class="btn btn-sm btn-outline-primary action-btn" data-timeline="${safeTimelineStr}">Actions</button></td>
                         </tr>
                     `;
