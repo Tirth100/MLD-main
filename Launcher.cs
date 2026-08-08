@@ -118,26 +118,20 @@ namespace MLDAgent
             string zipPath = Path.Combine(appData, "jre.zip");
             try
             {
-                string apiUrl = "https://api.adoptium.net/v3/assets/latest/21/hotspot?os=windows&architecture=x64&image_type=jre&project=jdk";
+                string downloadUrl = "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse";
                 
                 using (WebClient client = new WebClient())
                 {
-                    client.Headers.Add("User-Agent", "Mozilla/5.0");
-                    string json = client.DownloadString(apiUrl);
-                    Match match = Regex.Match(json, "\"link\"\\s*:\\s*\"([^\"]+)\"");
-                    if (match.Success)
-                    {
-                        string downloadUrl = match.Groups[1].Value;
-                        client.DownloadFile(downloadUrl, zipPath);
+                    client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                    client.DownloadFile(downloadUrl, zipPath);
+                    
+                    if (Directory.Exists(jreDir))
+                        Directory.Delete(jreDir, true);
                         
-                        if (Directory.Exists(jreDir))
-                            Directory.Delete(jreDir, true);
-                            
-                        ZipFile.ExtractToDirectory(zipPath, jreDir);
-                        File.Delete(zipPath);
-                        
-                        return FindJavaExe(jreDir);
-                    }
+                    ZipFile.ExtractToDirectory(zipPath, jreDir);
+                    File.Delete(zipPath);
+                    
+                    return FindJavaExe(jreDir);
                 }
             }
             catch (Exception ex)
