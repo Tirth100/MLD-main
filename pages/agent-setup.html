@@ -231,11 +231,6 @@
     <script src="../js/api.js"></script>
     <script>
         // Real-Time Agent Status Verification Script
-        const downloadBtn = document.getElementById('btnDownloadAgent');
-        if (downloadBtn) {
-            const apiBase = getApiBaseUrl();
-            downloadBtn.href = apiBase.replace(/\/api\/?$/, '') + '/download/mld-agent';
-        }
 
         async function checkAgentStatus() {
             const badge = document.getElementById('agentStatusBadge');
