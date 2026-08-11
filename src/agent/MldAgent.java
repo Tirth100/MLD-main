@@ -21,6 +21,19 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import java.awt.AWTException;
+import java.awt.Color;
+import java.awt.Desktop;
+import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
+import java.awt.Image;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
+import java.awt.image.BufferedImage;
+import java.net.URI;
+
 public class MldAgent {
 
     private static String serverUrl = "https://mld-server.onrender.com";
@@ -29,6 +42,7 @@ public class MldAgent {
     private static String currentSessionCode = "";
     private static boolean isMonitoring = false;
     private static final File CONFIG_FILE = new File(System.getProperty("user.home"), ".mld_agent.properties");
+    private static TrayIcon trayIcon;
 
     public static void main(String[] args) {
         // Force TLS 1.2 and modern cipher suites for older JREs (e.g., Java 7/8)
@@ -113,10 +127,13 @@ public class MldAgent {
         }
 
         System.out.println("\n=================================================");
-        System.out.println(" 🤖 Agent Status: Running Silently in Background ");
+        System.out.println(" 🤖 Agent Status: Running in Background ");
+        System.out.println(" A system tray icon has been added. ");
         System.out.println(" Monitoring automatically starts when a session  ");
         System.out.println(" is joined, and stops when the session ends.     ");
         System.out.println("=================================================\n");
+
+        initTray();
 
         ScheduledExecutorService backgroundScheduler = Executors.newScheduledThreadPool(2);
 
@@ -144,6 +161,7 @@ public class MldAgent {
                         isMonitoring = true;
                         System.out.println("\n🟢 [ACTIVE SESSION DETECTED] Session Code: " + currentSessionCode);
                         System.out.println("   [MLD Agent] Auto-started monitoring telemetry!");
+                        updateTrayStatus(true, currentSessionCode);
                     }
 
                     // Collect and transmit telemetry tick
@@ -154,6 +172,7 @@ public class MldAgent {
                         System.out.println("\n🔴 [SESSION ENDED] Session " + currentSessionCode + " ended by manager.");
                         System.out.println("   [MLD Agent] Monitoring paused. Standing by for next session...");
                         isMonitoring = false;
+                        updateTrayStatus(false, currentSessionCode);
                         currentSessionCode = "";
                     }
                 }
@@ -162,6 +181,66 @@ public class MldAgent {
                 System.err.println("[MLD Agent Loop Warning] Telemetry cycle warning: " + t.getMessage());
             }
         }, 0, 10, TimeUnit.SECONDS);
+    }
+
+    private static void initTray() {
+        if (GraphicsEnvironment.isHeadless() || !SystemTray.isSupported()) {
+            System.out.println("[MLD Agent] System tray not supported or running headless. Continuing without tray icon.");
+            return;
+        }
+        try {
+            SystemTray tray = SystemTray.getSystemTray();
+            Image image = createTrayImage(Color.GRAY);
+            PopupMenu popup = new PopupMenu();
+            MenuItem openItem = new MenuItem("Open my dashboard");
+            openItem.addActionListener(e -> openDashboard());
+            MenuItem exitItem = new MenuItem("Exit MLD Agent");
+            exitItem.addActionListener(e -> {
+                System.out.println("Exiting MLD Agent...");
+                System.exit(0);
+            });
+            popup.add(openItem);
+            popup.addSeparator();
+            popup.add(exitItem);
+            trayIcon = new TrayIcon(image, "MLD Agent: Standing by", popup);
+            trayIcon.setImageAutoSize(true);
+            trayIcon.addActionListener(e -> openDashboard());
+            tray.add(trayIcon);
+        } catch (AWTException e) {
+            System.err.println("TrayIcon could not be added.");
+        }
+    }
+
+    private static Image createTrayImage(Color color) {
+        BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = image.createGraphics();
+        g2.setColor(color);
+        g2.fillOval(2, 2, 12, 12);
+        g2.dispose();
+        return image;
+    }
+
+    private static void openDashboard() {
+        try {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new URI("https://mld-main.onrender.com"));
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private static void updateTrayStatus(boolean monitoring, String sessionCode) {
+        if (trayIcon == null) return;
+        if (monitoring) {
+            trayIcon.setImage(createTrayImage(Color.GREEN));
+            trayIcon.setToolTip("MLD Agent: Monitoring Active (" + sessionCode + ")");
+            trayIcon.displayMessage("MLD Agent", "Session " + sessionCode + " has started. Telemetry is now being recorded.", TrayIcon.MessageType.INFO);
+        } else {
+            trayIcon.setImage(createTrayImage(Color.GRAY));
+            trayIcon.setToolTip("MLD Agent: Standing by");
+            trayIcon.displayMessage("MLD Agent", "Session ended. Monitoring stopped.", TrayIcon.MessageType.INFO);
+        }
     }
 
     private static void sendHeartbeat(String baseUrl, String userUuid) {

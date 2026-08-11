@@ -153,7 +153,7 @@ public class ApiServer {
             // Only allow specific safe directories and root HTML files
             boolean isSafePath = path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/assets/") || path.endsWith(".html") || path.equals("/favicon.ico");
             
-            if (isSafePath && file.exists() && !file.isDirectory() && file.getPath().startsWith(baseDir.getPath())) {
+            if (isSafePath && file.exists() && !file.isDirectory() && file.getPath().startsWith(baseDir.getPath() + java.io.File.separator)) {
                 byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
                 String contentType = "text/html";
                 if (path.endsWith(".css")) contentType = "text/css";

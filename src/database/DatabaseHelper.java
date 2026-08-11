@@ -252,18 +252,22 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String checkOrg = "SELECT COUNT(*) FROM organizations";
-                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(checkOrg)) {
-                    if (rs.next() && rs.getInt(1) == 0) {
-                        String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
-                        st.executeUpdate(insOrg);
-                        
-                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '" + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
-                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '" + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
-                        st.executeUpdate(insAdmin);
-                        st.executeUpdate(insEmp);
-                        System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
+                if ("true".equalsIgnoreCase(System.getenv("SEED_DEMO_ACCOUNTS"))) {
+                    String checkOrg = "SELECT COUNT(*) FROM organizations";
+                    try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(checkOrg)) {
+                        if (rs.next() && rs.getInt(1) == 0) {
+                            String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
+                            st.executeUpdate(insOrg);
+                            
+                            String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '" + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
+                            String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '" + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
+                            st.executeUpdate(insAdmin);
+                            st.executeUpdate(insEmp);
+                            System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
+                        }
                     }
+                } else {
+                    System.out.println("[Database] Skipping PostgreSQL demo account seeding (SEED_DEMO_ACCOUNTS not set).");
                 }
             } catch (Exception e) {
                 System.err.println("[Database Seed Note] " + e.getMessage());
