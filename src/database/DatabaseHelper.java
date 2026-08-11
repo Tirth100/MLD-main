@@ -225,6 +225,40 @@ public class DatabaseHelper {
         return -1;
     }
 
+    /** Returns epoch ms of last heartbeat for ANY device belonging to the same user as the provided UUID */
+    public static long getAnyDeviceLastHeartbeat(String webUuid) {
+        if (webUuid == null || webUuid.isEmpty()) return -1;
+        Connection conn = connect();
+        if (conn == null) {
+            // Fallback to in-memory check
+            Integer uid = devicesToUserId.get(webUuid);
+            if (uid != null) {
+                // Not ideal, but hard to map backwards without iterating
+            }
+            return -1;
+        }
+        try {
+            // Find the user_id for this uuid, then find the max heartbeat of any device for that user
+            String sql = "SELECT EXTRACT(EPOCH FROM MAX(d2.last_heartbeat)) * 1000 AS ms " +
+                         "FROM devices d1 " +
+                         "JOIN devices d2 ON d1.user_id = d2.user_id " +
+                         "WHERE d1.device_uuid = ? AND d2.last_heartbeat IS NOT NULL";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, webUuid.toLowerCase().trim());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    long ms = rs.getLong("ms");
+                    if (!rs.wasNull()) return ms;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("[AnyDeviceHeartbeat Error] " + e.getMessage());
+        } finally {
+            try { conn.close(); } catch (Exception ignored) {}
+        }
+        return -1;
+    }
+
     private static void seedDefaultAccounts() {
         // Seed In-Memory fallback accounts
         OrgRecord demoOrg = new OrgRecord(1, "Demo Organization", "ORG1000");

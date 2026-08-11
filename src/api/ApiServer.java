@@ -268,6 +268,12 @@ public class ApiServer {
                         isConnected = true;
                         // Restore into in-memory cache
                         lastAgentHeartbeats.put(cleanUuid, dbPing);
+                    } else {
+                        // Check if ANY device belonging to this user is connected
+                        long anyDbPing = database.DatabaseHelper.getAnyDeviceLastHeartbeat(cleanUuid);
+                        if (anyDbPing > 0 && (now - anyDbPing) < twoMinutes) {
+                            isConnected = true;
+                        }
                     }
                 }
 
