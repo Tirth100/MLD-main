@@ -14,3 +14,4 @@ node_modules/
 
 # Bundled JRE (generated locally, too large for git)
 bundled-jre/
+jre/

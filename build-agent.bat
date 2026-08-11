@@ -18,8 +18,12 @@ if %ERRORLEVEL% NEQ 0 (
 echo Packaging executable MLD-Agent.jar...
 jar cvfe MLD-Agent.jar agent.MldAgent -C bin .
 
+echo Bundling minimal JRE...
+if exist jre rmdir /s /q jre
+jlink --no-header-files --no-man-pages --compress=2 --strip-debug --add-modules java.base,java.logging,java.desktop,java.management,java.naming,java.security.jgss,java.instrument,jdk.crypto.ec --output jre
+
 echo Packaging MLD-Agent.zip distribution...
-powershell -Command "Compress-Archive -Path 'MLD-Agent.jar', 'run-agent.bat', 'lib' -DestinationPath 'MLD-Agent.zip' -Force"
+powershell -Command "Compress-Archive -Path 'MLD-Agent.jar', 'run-agent.bat', 'lib', 'jre' -DestinationPath 'MLD-Agent.zip' -Force"
 
 echo.
 echo ===================================================

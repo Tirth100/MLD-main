@@ -15,6 +15,15 @@
     <style>
         .employee-main { margin-left: 0; }
     </style>
+    <script>
+        function requireLogin() {
+            const token = localStorage.getItem('mld_token');
+            if (!token) {
+                window.location.replace('../index.html');
+            }
+        }
+        requireLogin();
+    </script>
 </head>
 <body id="employeeDashboard">
     

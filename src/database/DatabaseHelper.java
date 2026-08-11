@@ -132,6 +132,7 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn == null) {
             System.out.println("[Database] PostgreSQL server not connected. Running with high-performance In-Memory DB mode.");
+            seedDefaultAccounts();
             return;
         }
 
@@ -164,6 +165,8 @@ public class DatabaseHelper {
                 + " created_by INTEGER,"
                 + " org_id INTEGER,"
                 + " created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+                + " status VARCHAR(20) DEFAULT 'ACTIVE',"
+                + " expires_at TIMESTAMP,"
                 + " FOREIGN KEY(created_by) REFERENCES users(user_id),"
                 + " FOREIGN KEY(org_id) REFERENCES organizations(org_id)"
                 + ");";
@@ -351,6 +354,16 @@ public class DatabaseHelper {
 
     public static OrgSignupResult signupOrg(String orgName, String managerName, String email, String password) {
         String orgCode = "ORG" + (1000 + new java.security.SecureRandom().nextInt(9000));
+        if (orgName == null || orgName.trim().isEmpty() || managerName == null || managerName.trim().isEmpty() || email == null || email.trim().isEmpty() || password == null || password.trim().isEmpty()) {
+            return new OrgSignupResult(false, null, "All fields are required.");
+        }
+        if (password.length() < 6) {
+            return new OrgSignupResult(false, null, "Password must be at least 6 characters.");
+        }
+        if (!email.contains("@")) {
+            return new OrgSignupResult(false, null, "Invalid email address format.");
+        }
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -416,6 +429,16 @@ public class DatabaseHelper {
     }
 
     public static EmpSignupResult signupEmp(String name, String email, String password, String orgCode) {
+        if (name == null || name.trim().isEmpty() || email == null || email.trim().isEmpty() || password == null || password.trim().isEmpty() || orgCode == null || orgCode.trim().isEmpty()) {
+            return new EmpSignupResult(false, "All fields are required.");
+        }
+        if (password.length() < 6) {
+            return new EmpSignupResult(false, "Password must be at least 6 characters.");
+        }
+        if (!email.contains("@")) {
+            return new EmpSignupResult(false, "Invalid email address format.");
+        }
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -467,6 +490,7 @@ public class DatabaseHelper {
 
         UserRecord newEmp = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(password), "EMPLOYEE", org.orgId);
         usersByEmail.put(email, newEmp);
+        usersById.put(newEmp.userId, newEmp);
         return new EmpSignupResult(true, "Employee registered successfully.");
     }
 
@@ -482,7 +506,14 @@ public class DatabaseHelper {
     private static final Map<String, Integer> activeSessionsOrgMap = new ConcurrentHashMap<>();
 
     public static String createSession(String token) {
-        String sessionCode = "MLD" + (100 + new java.security.SecureRandom().nextInt(900));
+        String sessionCode;
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        while (true) {
+            sessionCode = "MLD" + (100 + random.nextInt(900));
+            if (!sessionCodeExists(sessionCode)) {
+                break;
+            }
+        }
         activeSessions.put(sessionCode.toUpperCase(), sessionCode);
 
         Connection conn = connect();
@@ -500,7 +531,8 @@ public class DatabaseHelper {
                 if (orgId != -1) {
                     activeSessionsOrgMap.put(sessionCode.toUpperCase(), orgId);
                 }
-                String sql = "INSERT INTO sessions(session_code, created_by, org_id) VALUES (?, ?, ?)";
+                // Expires in 12 hours
+                String sql = "INSERT INTO sessions(session_code, created_by, org_id, status, expires_at) VALUES (?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP + INTERVAL '12 hours')";
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setString(1, sessionCode);
                     if (userId != -1) pstmt.setInt(2, userId); else pstmt.setNull(2, java.sql.Types.INTEGER);
@@ -509,10 +541,47 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try { conn.close(); } catch (Exception ignore) {}
             }
         }
         return sessionCode;
+    }
+
+    public static boolean sessionCodeExists(String code) {
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT 1 FROM sessions WHERE UPPER(session_code) = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, code.toUpperCase());
+                    ResultSet rs = ps.executeQuery();
+                    return rs.next();
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+        return activeSessions.containsKey(code.toUpperCase());
+    }
+
+    public static void invalidateSession(String sessionCode) {
+        if (sessionCode == null) return;
+        activeSessions.remove(sessionCode.toUpperCase());
+        activeSessionsOrgMap.remove(sessionCode.toUpperCase());
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "UPDATE sessions SET status = 'STOPPED' WHERE UPPER(session_code) = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, sessionCode.toUpperCase());
+                    ps.executeUpdate();
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
     }
 
     public static JoinValidationResult validateSessionOrgAccess(String sessionCode, String employeeUuid) {
@@ -526,7 +595,7 @@ public class DatabaseHelper {
             try {
                 // 1. Get session's org_id
                 Integer sessionOrgId = null;
-                String sessSql = "SELECT org_id FROM sessions WHERE UPPER(session_code) = ?";
+                String sessSql = "SELECT org_id FROM sessions WHERE UPPER(session_code) = ? AND status = 'ACTIVE' AND expires_at > CURRENT_TIMESTAMP";
                 try (PreparedStatement ps = conn.prepareStatement(sessSql)) {
                     ps.setString(1, upperCode);
                     ResultSet rs = ps.executeQuery();
@@ -582,6 +651,29 @@ public class DatabaseHelper {
         }
 
         return new JoinValidationResult(false, "Invalid session code.");
+    }
+
+    public static boolean isValidDeviceUuid(String uuid) {
+        if (uuid == null || uuid.isEmpty()) return false;
+        if (devicesToUserId.containsKey(uuid)) return true;
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT user_id FROM devices WHERE device_uuid = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, uuid);
+                    ResultSet rs = pstmt.executeQuery();
+                    if (rs.next()) {
+                        conn.close();
+                        return true;
+                    }
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+        return false;
     }
 
     public static boolean isValidSession(String sessionCode) {

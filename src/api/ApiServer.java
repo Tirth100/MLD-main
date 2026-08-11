@@ -105,9 +105,31 @@ public class ApiServer {
         server.createContext("/api/google-login", new GoogleLoginHandler());
         server.createContext("/api/google-signup-org", new GoogleOrgSignupHandler());
         server.createContext("/api/google-signup-emp", new GoogleEmpSignupHandler());
+        server.createContext("/api/logout", new LogoutHandler());
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
         System.out.println("API Server started on port " + port + "!");
+    }
+
+    class LogoutHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendJsonError(exchange, 405, "Method Not Allowed");
+                return;
+            }
+            String token = exchange.getRequestHeaders().getFirst("Authorization");
+            if (token != null && token.startsWith("Bearer ")) {
+                REVOKED_TOKENS.add(token.substring(7).trim());
+            }
+            sendResponse(exchange, "{\"success\": true, \"message\": \"Logged out successfully\"}");
+        }
     }
 
     class RootHandler implements HttpHandler {
@@ -128,7 +150,10 @@ public class ApiServer {
             java.io.File baseDir = new java.io.File(".").getCanonicalFile();
             java.io.File file = new java.io.File(baseDir, path).getCanonicalFile();
             
-            if (file.exists() && !file.isDirectory() && file.getPath().startsWith(baseDir.getPath())) {
+            // Only allow specific safe directories and root HTML files
+            boolean isSafePath = path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/assets/") || path.endsWith(".html") || path.equals("/favicon.ico");
+            
+            if (isSafePath && file.exists() && !file.isDirectory() && file.getPath().startsWith(baseDir.getPath())) {
                 byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
                 String contentType = "text/html";
                 if (path.endsWith(".css")) contentType = "text/css";
@@ -136,6 +161,7 @@ public class ApiServer {
                 else if (path.endsWith(".svg")) contentType = "image/svg+xml";
                 else if (path.endsWith(".png")) contentType = "image/png";
                 else if (path.endsWith(".json")) contentType = "application/json";
+                else if (path.endsWith(".ico")) contentType = "image/x-icon";
                 
                 exchange.getResponseHeaders().set("Content-Type", contentType);
                 exchange.sendResponseHeaders(200, bytes.length);
@@ -143,6 +169,10 @@ public class ApiServer {
                     os.write(bytes);
                 }
                 return;
+            }
+            if (!isSafePath && !path.equals("/api")) {
+                 exchange.sendResponseHeaders(403, -1);
+                 return;
             }
 
             sendResponse(exchange, "{\"status\": \"online\", \"service\": \"Meeting Leech Detector Central Server\", \"version\": \"1.0.0\"}");
@@ -197,10 +227,26 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+
             String query = exchange.getRequestURI().getQuery();
             String uuid = "";
             if (query != null && query.contains("uuid=")) {
                 uuid = query.split("uuid=")[1].split("&")[0].trim();
+            }
+
+            String token = extractToken(exchange);
+            boolean isAuthorized = (!token.isEmpty() && database.DatabaseHelper.getOrgIdFromToken(token) != -1) 
+                                 || database.DatabaseHelper.isValidDeviceUuid(uuid);
+
+            if (!isAuthorized) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
             }
 
             boolean isConnected = false;
@@ -280,24 +326,39 @@ public class ApiServer {
     class ActiveSessionHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+
             String query = exchange.getRequestURI().getQuery();
             String userUuid = "";
             if (query != null && query.contains("uuid=")) {
                 userUuid = query.split("uuid=")[1].split("&")[0].trim().toLowerCase();
-                if (!userUuid.isEmpty()) {
-                    lastAgentHeartbeats.put(userUuid, System.currentTimeMillis());
-                }
+            }
+
+            String token = extractToken(exchange);
+            boolean isAuthorized = (!token.isEmpty() && database.DatabaseHelper.getOrgIdFromToken(token) != -1) 
+                                 || database.DatabaseHelper.isValidDeviceUuid(userUuid);
+
+            if (!isAuthorized) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
+            if (!userUuid.isEmpty()) {
+                lastAgentHeartbeats.put(userUuid, System.currentTimeMillis());
             }
             
             boolean active = false;
             String code = "";
-            String token = extractToken(exchange);
             if (token == null || token.isEmpty()) {
                 token = userUuid;
             }
@@ -318,20 +379,28 @@ public class ApiServer {
     class StopHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
-            addCorsHeaders(exchange);
-            String token = extractToken(exchange);
-            int orgId = DatabaseHelper.getOrgIdFromToken(token);
-            if (orgId == -1) {
-                sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized session stop request.\"}");
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
                 return;
             }
+            String token = extractToken(exchange);
+            int orgId = requireAuthenticated(exchange);
+            if (orgId == -1) return;
+            if (!requireManagerOrAdmin(exchange, token)) return;
             try {
+                if (!Main.isMonitoringActive(orgId)) {
+                    sendResponse(exchange, "{\"success\": true, \"message\": \"No active session to stop.\"}");
+                    return;
+                }
+                String sessionCode = Main.orgSessions.get(orgId).sessionCode;
+                DatabaseHelper.invalidateSession(sessionCode);
                 Main.stopMonitoring(orgId);
                 activeJoinedSessions.entrySet().removeIf(entry -> DatabaseHelper.getOrgIdFromToken(entry.getKey()) == orgId);
                 sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped.\"}");
@@ -376,22 +445,33 @@ public class ApiServer {
     class StartHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
                 exchange.close();
                 return;
             }
             try {
                 String token = extractToken(exchange);
-                int orgId = DatabaseHelper.getOrgIdFromToken(token);
-                if (orgId == -1) {
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized session start request.\"}");
-                    return;
-                }
+                int orgId = requireAuthenticated(exchange);
+                if (orgId == -1) return;
+                if (!requireManagerOrAdmin(exchange, token)) return;
                 
-                String sessionCode = DatabaseHelper.createSession(token);
-                Main.startMonitoring(orgId, sessionCode);
+                String sessionCode;
+                synchronized (Main.orgSessions) {
+                    if (Main.isMonitoringActive(orgId)) {
+                        sessionCode = Main.orgSessions.get(orgId).sessionCode;
+                        sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Session already active with code " + sessionCode + "\"}");
+                        return;
+                    }
+                    sessionCode = DatabaseHelper.createSession(token);
+                    Main.startMonitoring(orgId, sessionCode);
+                }
                 sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Session started successfully with code " + sessionCode + "\"}");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -510,13 +590,23 @@ public class ApiServer {
 
     private void addCorsHeaders(HttpExchange exchange) {
         String origin = exchange.getRequestHeaders().getFirst("Origin");
-        if (origin == null || origin.isEmpty()) {
-            origin = "http://localhost:8000";
+        String allowedOrigin = "http://localhost:3000"; // default safe fallback
+        
+        if (origin != null && (
+            origin.equals("http://localhost:3000") || 
+            origin.equals("http://localhost:8000") ||
+            origin.equals("https://mld-server.onrender.com") ||
+            origin.equals("https://mld-main.onrender.com"))) {
+            allowedOrigin = origin;
         }
-        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
+
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", allowedOrigin);
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE, PUT");
         exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization");
         exchange.getResponseHeaders().set("Access-Control-Max-Age", "86400");
+        exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
+        exchange.getResponseHeaders().set("X-Frame-Options", "DENY");
+        exchange.getResponseHeaders().set("Referrer-Policy", "strict-origin-when-cross-origin");
     }
     
     private void sendResponse(HttpExchange exchange, String response) throws IOException {
@@ -547,24 +637,31 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
-            if ("DELETE".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
-                String query = exchange.getRequestURI().getQuery();
-                if (query != null && query.startsWith("timestamp=")) {
-                    String timestamp = java.net.URLDecoder.decode(query.substring(10), "UTF-8");
-                    ReportGenerator.deleteReport(timestamp);
-                    exchange.sendResponseHeaders(200, -1);
-                } else {
-                    exchange.sendResponseHeaders(400, -1);
-                }
+            addCorsHeaders(exchange);
+            if (!"GET".equals(exchange.getRequestMethod()) && !"DELETE".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
                 return;
             }
 
-            addCorsHeaders(exchange);
             String token = extractToken(exchange);
-            int orgId = DatabaseHelper.getOrgIdFromToken(token);
-            if (orgId == -1) {
-                exchange.sendResponseHeaders(401, -1);
+            int orgId = requireAuthenticated(exchange);
+            if (orgId == -1) return;
+
+            if ("DELETE".equals(exchange.getRequestMethod())) {
+                if (!requireManagerOrAdmin(exchange, token)) return;
+                String query = exchange.getRequestURI().getQuery();
+                if (query != null && query.startsWith("timestamp=")) {
+                    String timestamp = java.net.URLDecoder.decode(query.substring(10), "UTF-8");
+                    boolean deleted = ReportGenerator.deleteReportForOrganization(timestamp, orgId);
+                    if (deleted) {
+                        sendResponse(exchange, "{\"success\": true, \"message\": \"Report deleted.\"}");
+                    } else {
+                        sendJsonError(exchange, 404, "Report not found or access denied.");
+                    }
+                } else {
+                    sendJsonError(exchange, 400, "Missing timestamp.");
+                }
                 return;
             }
 
@@ -696,12 +793,28 @@ public class ApiServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+            
             String token = extractToken(exchange);
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
+            if (token.isEmpty() || orgId == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
             
             double sumScore = 0;
             int count = 0;
-            if (orgId != -1 && Main.isMonitoringActive(orgId) && !token.isEmpty()) {
+            if (Main.isMonitoringActive(orgId)) {
                 service.AttentionAnalyzer analyzer = Main.analyzers.get(token.toLowerCase());
                 if (analyzer != null && analyzer.getTotalCount() > 0) {
                     sumScore += analyzer.getAttentionScore();
@@ -723,6 +836,9 @@ public class ApiServer {
     }
 
     class LoginHandler implements HttpHandler {
+        private final java.util.concurrent.ConcurrentHashMap<String, Integer> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
+        private final java.util.concurrent.ConcurrentHashMap<String, Long> loginLockouts = new java.util.concurrent.ConcurrentHashMap<>();
+
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             addCorsHeaders(exchange);
@@ -731,23 +847,51 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
-            if ("POST".equals(exchange.getRequestMethod())) {
-                InputStream is = exchange.getRequestBody();
-                String body = new String(is.readAllBytes());
-                try {
-                    String email = extractJsonField(body, "email").trim();
-                    String password = extractJsonField(body, "password").trim();
-                    
-                    DatabaseHelper.LoginResult res = DatabaseHelper.login(email, password);
-                    if (res.success) {
-                        sendResponse(exchange, "{\"success\": true, \"token\": \"" + res.token + "\", \"role\": \"" + res.role + "\", \"name\": \"" + res.name + "\"}");
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+
+            String ip = exchange.getRemoteAddress().getAddress().getHostAddress();
+            long now = System.currentTimeMillis();
+            if (loginLockouts.containsKey(ip) && now - loginLockouts.get(ip) < 60000) {
+                exchange.sendResponseHeaders(429, -1); // 429 Too Many Requests
+                exchange.close();
+                return;
+            } else if (loginLockouts.containsKey(ip)) {
+                loginLockouts.remove(ip);
+                loginAttempts.remove(ip);
+            }
+
+            InputStream is = exchange.getRequestBody();
+            String body = new String(is.readAllBytes());
+            try {
+                String email = extractJsonField(body, "email").trim();
+                String password = extractJsonField(body, "password").trim();
+                
+                if (!InputValidator.isValidEmail(email) || password.isBlank()) {
+                    sendJsonError(exchange, 400, "Invalid email or missing password format.");
+                    return;
+                }
+
+                DatabaseHelper.LoginResult res = DatabaseHelper.login(email, password);
+                if (res.success) {
+                    loginAttempts.remove(ip);
+                    sendResponse(exchange, "{\"success\": true, \"token\": \"" + res.token + "\", \"role\": \"" + res.role + "\", \"name\": \"" + res.name + "\"}");
+                } else {
+                    int attempts = loginAttempts.getOrDefault(ip, 0) + 1;
+                    loginAttempts.put(ip, attempts);
+                    if (attempts >= 5) {
+                        loginLockouts.put(ip, System.currentTimeMillis());
+                        sendResponse(exchange, "{\"success\": false, \"message\": \"Too many login attempts. Please wait 1 minute.\"}");
                     } else {
                         sendResponse(exchange, "{\"success\": false, \"message\": \"" + res.message + "\"}");
                     }
-                } catch (Exception e) {
-                    System.err.println("Login error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Login failed: " + e.getMessage() + "\"}");
                 }
+            } catch (Exception e) {
+                System.err.println("Login error: " + e.getMessage());
+                sendResponse(exchange, "{\"success\": false, \"message\": \"Login failed: " + e.getMessage() + "\"}");
             }
         }
     }
@@ -767,8 +911,13 @@ public class ApiServer {
                     String body = new String(is.readAllBytes());
                     String orgName = extractJsonField(body, "orgName");
                     String managerName = extractJsonField(body, "managerName");
-                    String email = extractJsonField(body, "email");
-                    String password = extractJsonField(body, "password");
+                    String email = extractJsonField(body, "email").trim();
+                    String password = extractJsonField(body, "password").trim();
+                    
+                    if (!InputValidator.isValidEmail(email) || !InputValidator.isValidPassword(password) || !InputValidator.isValidName(orgName)) {
+                        sendJsonError(exchange, 400, "Invalid input formats. Password must be 8+ chars, 1 uppercase, 1 lowercase, 1 number.");
+                        return;
+                    }
                     
                     DatabaseHelper.OrgSignupResult res = DatabaseHelper.signupOrg(orgName, managerName, email, password);
                     if (res.success) {
@@ -798,10 +947,15 @@ public class ApiServer {
                     InputStream is = exchange.getRequestBody();
                     String body = new String(is.readAllBytes());
                     String name = extractJsonField(body, "name");
-                    String email = extractJsonField(body, "email");
-                    String password = extractJsonField(body, "password");
-                    String orgCode = extractJsonField(body, "orgCode");
+                    String email = extractJsonField(body, "email").trim();
+                    String password = extractJsonField(body, "password").trim();
+                    String orgCode = extractJsonField(body, "orgCode").trim();
                     
+                    if (!InputValidator.isValidEmail(email) || !InputValidator.isValidPassword(password) || !InputValidator.isValidName(name)) {
+                        sendJsonError(exchange, 400, "Invalid input formats. Password must be 8+ chars, 1 uppercase, 1 lowercase, 1 number.");
+                        return;
+                    }
+
                     DatabaseHelper.EmpSignupResult res = DatabaseHelper.signupEmp(name, email, password, orgCode);
                     if (res.success) {
                         sendResponse(exchange, "{\"success\": true, \"message\": \"" + res.message + "\"}");
@@ -887,25 +1041,96 @@ public class ApiServer {
         }
     }
     
+    private static final java.util.Set<String> REVOKED_TOKENS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private String extractToken(HttpExchange exchange) {
         String auth = exchange.getRequestHeaders().getFirst("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) {
-            return auth.substring(7).trim();
+            String token = auth.substring(7).trim();
+            if (REVOKED_TOKENS.contains(token)) return "";
+            return token;
         }
         return "";
+    }
+
+    private int requireAuthenticated(HttpExchange exchange) throws IOException {
+        String token = extractToken(exchange);
+        if (token == null || token.isBlank()) {
+            exchange.sendResponseHeaders(401, -1);
+            exchange.close();
+            return -1;
+        }
+        int orgId = DatabaseHelper.getOrgIdFromToken(token);
+        if (orgId == -1) {
+            exchange.sendResponseHeaders(401, -1);
+            exchange.close();
+            return -1;
+        }
+        return orgId;
+    }
+
+    private boolean requireManagerOrAdmin(HttpExchange exchange, String token) throws IOException {
+        if (token == null || token.isBlank()) {
+            exchange.sendResponseHeaders(401, -1);
+            exchange.close();
+            return false;
+        }
+        int orgId = DatabaseHelper.getOrgIdFromToken(token);
+        if (orgId == -1) {
+            exchange.sendResponseHeaders(401, -1);
+            exchange.close();
+            return false;
+        }
+        String role = DatabaseHelper.getUserRoleFromToken(token);
+        if (!"ADMIN".equalsIgnoreCase(role) && !"MANAGER".equalsIgnoreCase(role)) {
+            exchange.sendResponseHeaders(403, -1);
+            exchange.close();
+            return false;
+        }
+        return true;
+    }
+
+    private void sendJsonError(HttpExchange exchange, int status, String message) throws IOException {
+        String json = "{\"success\": false, \"message\": \"" + escapeJson(message) + "\"}";
+        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        byte[] bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(status, bytes.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(bytes);
+        }
+    }
+
+    private static String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\b", "\\b")
+                    .replace("\f", "\\f")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
     }
 
     class EmployeesHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
-            addCorsHeaders(exchange);
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
             String token = extractToken(exchange);
+            if (token.isEmpty() || DatabaseHelper.getOrgIdFromToken(token) == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
             String json = DatabaseHelper.getEmployeesByManagerToken(token);
             sendResponse(exchange, json);
         }
@@ -914,25 +1139,32 @@ public class ApiServer {
     class RemoveEmployeeHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
-            addCorsHeaders(exchange);
-            if ("POST".equals(exchange.getRequestMethod())) {
-                String token = extractToken(exchange);
-                try {
-                    InputStream is = exchange.getRequestBody();
-                    String body = new String(is.readAllBytes());
-                    String idStr = extractJsonField(body, "id");
-                    if (idStr.isEmpty()) idStr = "0";
-                    boolean success = DatabaseHelper.removeEmployee(token, Integer.parseInt(idStr));
-                    sendResponse(exchange, "{\"success\": " + success + "}");
-                } catch (Exception e) {
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"" + e.getMessage() + "\"}");
-                }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+            String token = extractToken(exchange);
+            if (token.isEmpty() || DatabaseHelper.getOrgIdFromToken(token) == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
+            try {
+                InputStream is = exchange.getRequestBody();
+                String body = new String(is.readAllBytes());
+                String idStr = extractJsonField(body, "id");
+                if (idStr.isEmpty()) idStr = "0";
+                boolean success = DatabaseHelper.removeEmployee(token, Integer.parseInt(idStr));
+                sendResponse(exchange, "{\"success\": " + success + "}");
+            } catch (Exception e) {
+                sendResponse(exchange, "{\"success\": false, \"message\": \"" + e.getMessage() + "\"}");
             }
         }
     }
@@ -940,14 +1172,23 @@ public class ApiServer {
     class ProfileHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
-            addCorsHeaders(exchange);
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
             String token = extractToken(exchange);
+            if (token.isEmpty() || DatabaseHelper.getOrgIdFromToken(token) == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
             String json = DatabaseHelper.getManagerProfile(token);
             sendResponse(exchange, json);
         }
@@ -981,14 +1222,23 @@ public class ApiServer {
     class NotificationsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
-            addCorsHeaders(exchange);
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
             String token = extractToken(exchange);
+            if (token.isEmpty() || DatabaseHelper.getOrgIdFromToken(token) == -1) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
             String json = DatabaseHelper.getRecentNotifications(token);
             sendResponse(exchange, json);
         }

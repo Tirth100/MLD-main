@@ -124,21 +124,25 @@ public class ReportGenerator {
         return jsonArray.toString();
     }
 
-    public static void deleteReport(String timestamp) {
-        fallbackReports.removeIf(rep -> rep.contains("\"timestamp\": \"" + timestamp + "\""));
+    public static boolean deleteReportForOrganization(String timestampStr, int orgId) {
+        fallbackReports.removeIf(rep -> rep.contains("\"timestamp\": \"" + timestampStr + "\""));
 
         Connection conn = DatabaseHelper.connect();
+        boolean deleted = false;
         if (conn != null) {
-            String sql = "DELETE FROM engagement_logs WHERE timestamp = ?";
+            String sql = "DELETE FROM engagement_logs WHERE timestamp = ?::timestamp AND session_code IN (SELECT session_code FROM sessions WHERE org_id = ?)";
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                pstmt.setString(1, timestamp);
-                pstmt.executeUpdate();
+                pstmt.setString(1, timestampStr);
+                pstmt.setInt(2, orgId);
+                int rows = pstmt.executeUpdate();
+                if (rows > 0) deleted = true;
             } catch (SQLException e) {
                 System.err.println("Error deleting report: " + e.getMessage());
             } finally {
                 try { conn.close(); } catch (Exception ignored) {}
             }
         }
+        return deleted;
     }
 }
 

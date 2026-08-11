@@ -132,7 +132,7 @@ public class MldAgent {
             }
         }, 0, 30, TimeUnit.SECONDS);
 
-        // 4. Automated Background Listener Loop (Runs every 5 seconds)
+        // 4. Automated Background Listener Loop (Runs every 10 seconds)
         backgroundScheduler.scheduleAtFixedRate(() -> {
             try {
                 // Check if backend has an active session for organization
@@ -161,7 +161,7 @@ public class MldAgent {
                 // Outer exception barrier prevents ScheduledExecutorService thread termination
                 System.err.println("[MLD Agent Loop Warning] Telemetry cycle warning: " + t.getMessage());
             }
-        }, 0, 5, TimeUnit.SECONDS);
+        }, 0, 10, TimeUnit.SECONDS);
     }
 
     private static void sendHeartbeat(String baseUrl, String userUuid) {
