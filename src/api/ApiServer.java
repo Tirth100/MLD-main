@@ -301,8 +301,10 @@ public class ApiServer {
             }
             try {
                 java.io.InputStream is = exchange.getRequestBody();
-                java.util.Scanner s = new java.util.Scanner(is, java.nio.charset.StandardCharsets.UTF_8).useDelimiter("\\A");
-                String body = s.hasNext() ? s.next() : "{}";
+                String body;
+                try (java.util.Scanner s = new java.util.Scanner(is, java.nio.charset.StandardCharsets.UTF_8).useDelimiter("\\A")) {
+                    body = s.hasNext() ? s.next() : "{}";
+                }
                 // Extract uuid from JSON body: {"uuid":"..."}
                 String uuid = "";
                 int idx = body.indexOf("\"uuid\":");

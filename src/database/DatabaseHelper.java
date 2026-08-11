@@ -20,21 +20,7 @@ public class DatabaseHelper {
     private static final String USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "postgres";
     private static final String PASSWORD = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
     
-    private static String getJdbcUrl() {
-        String dbUrl = System.getenv("DATABASE_URL");
-        if (dbUrl != null && !dbUrl.isEmpty()) {
-            if (dbUrl.startsWith("postgres://")) {
-                dbUrl = dbUrl.replace("postgres://", "jdbc:postgresql://");
-            } else if (dbUrl.startsWith("postgresql://")) {
-                dbUrl = dbUrl.replace("postgresql://", "jdbc:postgresql://");
-            }
-            if (!dbUrl.startsWith("jdbc:postgresql://")) {
-                dbUrl = "jdbc:postgresql://" + dbUrl;
-            }
-            return dbUrl;
-        }
-        return "jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME;
-    }
+    
     
     private static boolean postgresAvailable = false;
     private static boolean isDbChecked = false;
@@ -376,7 +362,6 @@ public class DatabaseHelper {
                     checkStmt.setString(1, email);
                     ResultSet rs = checkStmt.executeQuery();
                     if (rs.next()) {
-                        String existingCode = rs.getString("org_code");
                         conn.close();
                         return new OrgSignupResult(false, null, "Email address is already registered. Please login or use a different email.");
                     }
@@ -1143,7 +1128,6 @@ public class DatabaseHelper {
                 uStmt.executeUpdate();
                 ResultSet uRs = uStmt.getGeneratedKeys();
                 if (uRs.next()) {
-                    int newUserId = uRs.getInt(1);
                     try {
                         String getManagerSql = "SELECT user_id FROM users WHERE org_id = ? AND role = 'ADMIN'";
                         PreparedStatement getManagerStmt = conn.prepareStatement(getManagerSql);

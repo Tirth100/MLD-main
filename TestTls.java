@@ -1,7 +1,6 @@
 import java.net.URL;
 import java.net.HttpURLConnection;
-import java.io.InputStream;
-import java.util.Scanner;
+
 import java.nio.charset.StandardCharsets;
 
 public class TestTls {

@@ -65,6 +65,7 @@ public class MldAgent {
         System.out.println("   [MLD Automated Background Client]      ");
         System.out.println("=================================================");
 
+        @SuppressWarnings("resource")
         Scanner scanner = new Scanner(System.in);
 
         // 1. Load Saved Configuration if available
@@ -366,8 +367,9 @@ public class MldAgent {
         InputStream is = (status >= 200 && status < 400) ? conn.getInputStream() : conn.getErrorStream();
         if (is == null) return "{}";
 
-        Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A");
-        return s.hasNext() ? s.next() : "{}";
+        try (Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+            return s.hasNext() ? s.next() : "{}";
+        }
     }
 
     private static String postHttpRequest(String urlString, String jsonBody, String authToken) throws Exception {
@@ -391,8 +393,9 @@ public class MldAgent {
         InputStream is = (status >= 200 && status < 400) ? conn.getInputStream() : conn.getErrorStream();
         if (is == null) return "{}";
 
-        Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A");
-        return s.hasNext() ? s.next() : "{}";
+        try (Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+            return s.hasNext() ? s.next() : "{}";
+        }
     }
 
     private static String extractJsonVal(String json, String field) {
