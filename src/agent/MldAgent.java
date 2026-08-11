@@ -46,20 +46,7 @@ public class MldAgent {
 
     public static void main(String[] args) {
         // Force TLS 1.2 and modern cipher suites for older JREs (e.g., Java 7/8)
-        try {
-            System.setProperty("https.protocols", "TLSv1.2,TLSv1.3");
-            TrustManager[] trustAllCerts = new TrustManager[]{
-                new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return null; }
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-                }
-            };
-            SSLContext sc = SSLContext.getInstance("TLSv1.2");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
-        } catch (Exception ignored) {}
+        System.setProperty("https.protocols", "TLSv1.2,TLSv1.3");
         System.out.println("=================================================");
         System.out.println("   Meeting Leech Detector (MLD) - Desktop Agent  ");
         System.out.println("   [MLD Automated Background Client]      ");
