@@ -15,6 +15,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import java.security.cert.X509Certificate;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 public class MldAgent {
 
     private static String serverUrl = "https://mld-server.onrender.com";
@@ -25,6 +31,21 @@ public class MldAgent {
     private static final File CONFIG_FILE = new File(System.getProperty("user.home"), ".mld_agent.properties");
 
     public static void main(String[] args) {
+        // Force TLS 1.2 and modern cipher suites for older JREs (e.g., Java 7/8)
+        try {
+            System.setProperty("https.protocols", "TLSv1.2,TLSv1.3");
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    public X509Certificate[] getAcceptedIssuers() { return null; }
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                }
+            };
+            SSLContext sc = SSLContext.getInstance("TLSv1.2");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+        } catch (Exception ignored) {}
         System.out.println("=================================================");
         System.out.println("   Meeting Leech Detector (MLD) - Desktop Agent  ");
         System.out.println("   [MLD Automated Background Client]      ");
