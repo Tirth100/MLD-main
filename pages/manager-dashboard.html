@@ -15,7 +15,7 @@
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <script>
         function requireLogin() {
-            const token = localStorage.getItem('mld_token');
+            const token = localStorage.getItem('uuid_token');
             if (!token) {
                 window.location.replace('../index.html');
             }
