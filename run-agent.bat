@@ -42,7 +42,7 @@ REM Create a VBScript launcher (no console window shown, tray icon only)
   echo Dim fso : Set fso = CreateObject^("Scripting.FileSystemObject"^)
   echo If Not fso.FileExists^(jrePath^) Then jrePath = "javaw.exe"
   echo Dim cpPath : cpPath = installDir ^& "\lib\*;" ^& installDir ^& "\MLD-Agent.jar"
-  echo Dim cmd : cmd = """""" ^& jrePath ^& """""" ^& " -cp """""" ^& cpPath ^& """""" agent.MldAgent"
+  echo Dim cmd : cmd = Chr^(34^) ^& jrePath ^& Chr^(34^) ^& " -cp " ^& Chr^(34^) ^& cpPath ^& Chr^(34^) ^& " agent.MldAgent"
   echo sh.Run cmd, 0, False
 ) > "%VBS%"
 
