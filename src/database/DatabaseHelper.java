@@ -242,8 +242,8 @@ public class DatabaseHelper {
         orgsByCode.putIfAbsent("ORG1000", demoOrg);
         orgsById.putIfAbsent(1, demoOrg);
 
-        usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com", "admin123", "ADMIN", 1));
-        usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com", "emp123", "EMPLOYEE", 1));
+        usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com", PasswordUtil.hashPassword("admin123"), "ADMIN", 1));
+        usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com", PasswordUtil.hashPassword("emp123"), "EMPLOYEE", 1));
 
         // Seed PostgreSQL if available
         Connection conn = connect();
@@ -255,8 +255,8 @@ public class DatabaseHelper {
                         String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
                         st.executeUpdate(insOrg);
                         
-                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', 'admin123', 'ADMIN', 1)";
-                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', 'emp123', 'EMPLOYEE', 1)";
+                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '" + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
+                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '" + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
                         st.executeUpdate(insAdmin);
                         st.executeUpdate(insEmp);
                         System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
@@ -287,12 +287,16 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) AND password = ?";
+                String sql = "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))";
                 PreparedStatement pstmt = conn.prepareStatement(sql);
                 pstmt.setString(1, email != null ? email.trim() : "");
-                pstmt.setString(2, password != null ? password.trim() : "");
                 ResultSet rs = pstmt.executeQuery();
                 if (rs.next()) {
+                    String storedHash = rs.getString("password");
+                    if (!PasswordUtil.verifyPassword(password != null ? password.trim() : "", storedHash)) {
+                        conn.close();
+                        return new LoginResult(false, null, null, null, "Invalid email or password.");
+                    }
                     String role = rs.getString("role");
                     int userId = rs.getInt("user_id");
                     String name = rs.getString("name");
@@ -327,7 +331,7 @@ public class DatabaseHelper {
 
         for (UserRecord user : usersByEmail.values()) {
             if (user.email != null && user.email.trim().equalsIgnoreCase(cleanEmail) &&
-                user.password != null && user.password.trim().equals(cleanPass)) {
+                PasswordUtil.verifyPassword(cleanPass, user.password)) {
                 String uuid = UUID.randomUUID().toString();
                 devicesToUserId.put(uuid, user.userId);
                 return new LoginResult(true, uuid, user.role, user.name, "Login successful");
@@ -346,7 +350,7 @@ public class DatabaseHelper {
     }
 
     public static OrgSignupResult signupOrg(String orgName, String managerName, String email, String password) {
-        String orgCode = "ORG" + (1000 + new java.util.Random().nextInt(9000));
+        String orgCode = "ORG" + (1000 + new java.security.SecureRandom().nextInt(9000));
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -373,7 +377,7 @@ public class DatabaseHelper {
                         try (PreparedStatement pstmtUser = conn.prepareStatement(insertSql)) {
                             pstmtUser.setString(1, managerName);
                             pstmtUser.setString(2, email);
-                            pstmtUser.setString(3, password);
+                            pstmtUser.setString(3, PasswordUtil.hashPassword(password));
                             pstmtUser.setString(4, "ADMIN");
                             pstmtUser.setInt(5, orgId);
                             pstmtUser.executeUpdate();
@@ -396,7 +400,7 @@ public class DatabaseHelper {
         orgsByCode.put(orgCode, newOrg);
         orgsById.put(newOrg.orgId, newOrg);
 
-        UserRecord newAdmin = new UserRecord(nextUserId++, managerName, email, password, "ADMIN", newOrg.orgId);
+        UserRecord newAdmin = new UserRecord(nextUserId++, managerName, email, PasswordUtil.hashPassword(password), "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
         usersById.put(newAdmin.userId, newAdmin);
         
@@ -434,7 +438,7 @@ public class DatabaseHelper {
                         try (PreparedStatement pstmtUser = conn.prepareStatement(insertSql)) {
                             pstmtUser.setString(1, name);
                             pstmtUser.setString(2, email);
-                            pstmtUser.setString(3, password);
+                            pstmtUser.setString(3, PasswordUtil.hashPassword(password));
                             pstmtUser.setString(4, "EMPLOYEE");
                             pstmtUser.setInt(5, orgId);
                             pstmtUser.executeUpdate();
@@ -461,7 +465,7 @@ public class DatabaseHelper {
             return new EmpSignupResult(false, "Account already exists with this email! Please log in.");
         }
 
-        UserRecord newEmp = new UserRecord(nextUserId++, name, email, password, "EMPLOYEE", org.orgId);
+        UserRecord newEmp = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(password), "EMPLOYEE", org.orgId);
         usersByEmail.put(email, newEmp);
         return new EmpSignupResult(true, "Employee registered successfully.");
     }
@@ -478,7 +482,7 @@ public class DatabaseHelper {
     private static final Map<String, Integer> activeSessionsOrgMap = new ConcurrentHashMap<>();
 
     public static String createSession(String token) {
-        String sessionCode = "MLD" + (100 + new java.util.Random().nextInt(900));
+        String sessionCode = "MLD" + (100 + new java.security.SecureRandom().nextInt(900));
         activeSessions.put(sessionCode.toUpperCase(), sessionCode);
 
         Connection conn = connect();
@@ -831,7 +835,7 @@ public class DatabaseHelper {
             try {
                 String sql = "UPDATE users SET password = ? WHERE user_id = ?";
                 PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setString(1, newPass);
+                ps.setString(1, PasswordUtil.hashPassword(newPass));
                 ps.setInt(2, userId);
                 int rows = ps.executeUpdate();
                 conn.close();
@@ -844,7 +848,7 @@ public class DatabaseHelper {
         // Fallback
         UserRecord user = usersById.get(userId);
         if (user != null) {
-            user.password = newPass;
+            user.password = PasswordUtil.hashPassword(newPass);
             return true;
         }
         return false;
@@ -962,7 +966,7 @@ public class DatabaseHelper {
     }
 
     public static String signupOrgWithGoogle(String email, String name, String orgName) {
-        String orgCode = "ORG" + (1000 + new java.util.Random().nextInt(9000));
+        String orgCode = "ORG" + (1000 + new java.security.SecureRandom().nextInt(9000));
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -986,7 +990,7 @@ public class DatabaseHelper {
                     PreparedStatement pstmtUser = conn.prepareStatement(insertSql);
                     pstmtUser.setString(1, name);
                     pstmtUser.setString(2, email);
-                    pstmtUser.setString(3, "GOOGLE_AUTH");
+                    pstmtUser.setString(3, PasswordUtil.hashPassword(UUID.randomUUID().toString()));
                     pstmtUser.setString(4, "ADMIN");
                     pstmtUser.setInt(5, orgId);
                     pstmtUser.executeUpdate();
@@ -1005,7 +1009,7 @@ public class DatabaseHelper {
         OrgRecord newOrg = new OrgRecord(nextOrgId++, orgName, orgCode);
         orgsByCode.put(orgCode, newOrg);
         orgsById.put(newOrg.orgId, newOrg);
-        UserRecord newAdmin = new UserRecord(nextUserId++, name, email, "GOOGLE_AUTH", "ADMIN", newOrg.orgId);
+        UserRecord newAdmin = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(UUID.randomUUID().toString()), "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
         usersById.put(newAdmin.userId, newAdmin);
         return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
@@ -1037,7 +1041,7 @@ public class DatabaseHelper {
                 PreparedStatement uStmt = conn.prepareStatement(insertSql, java.sql.Statement.RETURN_GENERATED_KEYS);
                 uStmt.setString(1, name);
                 uStmt.setString(2, email);
-                uStmt.setString(3, "GOOGLE_AUTH");
+                uStmt.setString(3, PasswordUtil.hashPassword(UUID.randomUUID().toString()));
                 uStmt.setString(4, "EMPLOYEE");
                 uStmt.setInt(5, orgId);
                 uStmt.executeUpdate();
@@ -1073,7 +1077,7 @@ public class DatabaseHelper {
         OrgRecord org = orgsByCode.get(orgCode.toUpperCase());
         if (org == null) return null; // Invalid code
 
-        UserRecord newUser = new UserRecord(nextUserId++, name, email, "GOOGLE_AUTH", "EMPLOYEE", org.orgId);
+        UserRecord newUser = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(UUID.randomUUID().toString()), "EMPLOYEE", org.orgId);
         usersByEmail.put(email, newUser);
         usersById.put(newUser.userId, newUser);
         

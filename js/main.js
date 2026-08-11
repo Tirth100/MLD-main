@@ -497,17 +497,17 @@ async function loadManagerDashboard() {
             const durationSecs = emp.durationSeconds || 0;
             const durationDisplay = `${Math.floor(durationSecs / 60)}m ${durationSecs % 60}s`;
             const codeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary font-monospace px-2.5 py-1 text-nowrap fs-7">${emp.sessionCode || liveSessionCode || 'MLD123'}</span>`;
-            const activeWinDisplay = emp.activeWindow ? `<span class="fw-semibold text-primary text-nowrap"><i class="bi bi-window-desktop me-1"></i>${emp.activeWindow}</span>` : '<span class="text-muted">Desktop Workspace</span>';
+            const activeWinDisplay = emp.activeWindow ? `<span class="fw-semibold text-primary text-nowrap"><i class="bi bi-window-desktop me-1"></i>${escapeHtml(emp.activeWindow)}</span>` : '<span class="text-muted">Desktop Workspace</span>';
 
             newRowsHtml += `
                 <tr id="mgr-emp-row-${emp.id || Math.random()}">
                     <td class="ps-4">
                         <div class="d-flex align-items-center text-nowrap">
                             <div class="bg-primary rounded-circle text-white d-flex justify-content-center align-items-center me-3 flex-shrink-0" style="width: 38px; height: 38px; font-weight: 600;">
-                                ${emp.name.charAt(0)}
+                                ${escapeHtml(emp.name).charAt(0)}
                             </div>
                             <div>
-                                <h6 class="mb-0 fw-bold text-dark">${emp.name}</h6>
+                                <h6 class="mb-0 fw-bold text-dark">${escapeHtml(emp.name)}</h6>
                                 <small class="text-muted">${emp.role} ${emp.isLive ? '<span class="text-primary fw-bold ms-1">(Live Session)</span>' : "(" + emp.timestamp + ")"}</small>
                             </div>
                         </div>

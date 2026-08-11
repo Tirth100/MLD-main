@@ -24,6 +24,15 @@ xcopy /E /I /Y "%~dp0jre" "%INSTALL_DIR%\jre\" >nul 2>&1
 xcopy /E /I /Y "%~dp0lib" "%INSTALL_DIR%\lib\" >nul 2>&1
 copy /Y "%~dp0MLD-Agent.jar" "%JAR%" >nul 2>&1
 
+REM Verify JRE integrity
+set "EXPECTED_HASH=YOUR_EXPECTED_SHA256_HASH_HERE"
+powershell -NoProfile -Command "$hash = (Get-FileHash '%INSTALL_DIR%\jre\bin\javaw.exe' -Algorithm SHA256).Hash; if ($hash -ne '%EXPECTED_HASH%' -and '%EXPECTED_HASH%' -ne 'YOUR_EXPECTED_SHA256_HASH_HERE') { Write-Host 'JRE integrity check failed!'; exit 1 }"
+if %ERRORLEVEL% neq 0 (
+    echo JRE integrity check failed. Aborting setup.
+    pause
+    exit /b 1
+)
+
 REM Create a silent VBScript launcher (no window shown on startup)
 (
   echo Set sh = CreateObject^("WScript.Shell"^)
@@ -48,8 +57,19 @@ echo.
 REM ── LAUNCH AGENT SILENTLY IN BACKGROUND ─────────────────────────────────────
 if exist "%INSTALL_DIR%\jre\bin\javaw.exe" (
     set "JRE=%INSTALL_DIR%\jre\bin\javaw.exe"
+    set "JAVA_EXE=%INSTALL_DIR%\jre\bin\java.exe"
 ) else (
     set "JRE=javaw.exe"
+    set "JAVA_EXE=java.exe"
+)
+
+REM If no config exists, run interactively first so the user can log in
+if not exist "%USERPROFILE%\.mld_agent.properties" (
+    echo.
+    echo  First-time run detected. A console window will open for you to log in.
+    echo  Please enter your agent credentials.
+    "%JAVA_EXE%" -cp "%INSTALL_DIR%\lib\*;%JAR%" agent.MldAgent --setup
+    echo.
 )
 
 if exist "%VBS%" (

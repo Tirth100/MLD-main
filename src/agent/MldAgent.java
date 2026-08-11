@@ -76,6 +76,10 @@ public class MldAgent {
                     System.out.println(" 🎉 MLD Agent Installed & Activated Successfully!");
                     System.out.println(" Welcome, " + employeeName + "!");
                     System.out.println("=================================================");
+                    if (args.length > 0 && "--setup".equals(args[0])) {
+                        System.out.println(" Setup complete. Exiting setup mode.");
+                        System.exit(0);
+                    }
                 } else {
                     System.err.println("[Login Failed] " + loginRes.message + " Please try again.");
                 }

@@ -298,6 +298,9 @@ public class ApiServer {
             boolean active = false;
             String code = "";
             String token = extractToken(exchange);
+            if (token == null || token.isEmpty()) {
+                token = userUuid;
+            }
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                 if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
@@ -351,7 +354,14 @@ public class ApiServer {
             try {
                 InputStream is = exchange.getRequestBody();
                 String body = new String(is.readAllBytes());
+                String token = extractToken(exchange);
                 String uuid = extractJsonField(body, "uuid").trim().toLowerCase();
+                
+                if (token == null || token.isEmpty() || !uuid.equals(token.toLowerCase())) {
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized session leave request.\"}");
+                    return;
+                }
+                
                 if (!uuid.isEmpty()) {
                     activeJoinedSessions.remove(uuid);
                     Main.analyzers.remove(uuid);
@@ -405,6 +415,12 @@ public class ApiServer {
                 String body = new String(is.readAllBytes());
                 String sessionCode = extractJsonField(body, "sessionCode").trim().toUpperCase();
                 String uuid = extractJsonField(body, "uuid").trim();
+                String token = extractToken(exchange);
+
+                if (token == null || token.isEmpty() || !uuid.equalsIgnoreCase(token)) {
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized join request.\"}");
+                    return;
+                }
 
                 DatabaseHelper.JoinValidationResult validation = DatabaseHelper.validateSessionOrgAccess(sessionCode, uuid);
                 if (!validation.allowed) {
@@ -441,7 +457,14 @@ public class ApiServer {
                     java.io.InputStream is = exchange.getRequestBody();
                     String body = new String(is.readAllBytes());
                     
+                    String token = extractToken(exchange);
                     String uuid = extractJsonField(body, "uuid").trim();
+                    
+                    if (token == null || token.isEmpty() || !uuid.equalsIgnoreCase(token)) {
+                        sendResponse(exchange, "{\"success\": false, \"active\": false, \"message\": \"Unauthorized track request.\"}");
+                        return;
+                    }
+                    
                     String sessionCode = extractJsonField(body, "sessionCode").trim();
                     String window = extractJsonField(body, "window");
                     int idle = 0;
@@ -486,9 +509,13 @@ public class ApiServer {
     }
 
     private void addCorsHeaders(HttpExchange exchange) {
-        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin == null || origin.isEmpty()) {
+            origin = "http://localhost:8000";
+        }
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE, PUT");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization");
         exchange.getResponseHeaders().set("Access-Control-Max-Age", "86400");
     }
     
@@ -978,6 +1005,14 @@ public class ApiServer {
             if (conn.getResponseCode() == 200) {
                 try (InputStream is = conn.getInputStream()) {
                     String json = new String(is.readAllBytes());
+                    
+                    String aud = extractJsonField(json, "aud");
+                    String expectedAud = System.getenv("GOOGLE_CLIENT_ID") != null ? System.getenv("GOOGLE_CLIENT_ID") : "875383442505-YOUR_CLIENT_ID.apps.googleusercontent.com";
+                    if (aud == null || !aud.equals(expectedAud)) {
+                        System.err.println("[Google Auth] Invalid aud claim: " + aud);
+                        return null;
+                    }
+                    
                     String email = extractJsonField(json, "email");
                     String name = extractJsonField(json, "name");
                     if (name == null || name.isEmpty()) name = email;

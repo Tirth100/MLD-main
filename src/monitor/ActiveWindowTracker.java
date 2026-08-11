@@ -46,7 +46,7 @@ public class ActiveWindowTracker {
                     User32.INSTANCE.GetWindowText(hwnd, windowText, 512);
                     String fgTitle = Native.toString(windowText);
                     if (fgTitle != null && !fgTitle.trim().isEmpty()) {
-                        return fgTitle.trim();
+                        return "Background / Distracted Window";
                     }
                 }
             }
