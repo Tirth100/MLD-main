@@ -72,18 +72,7 @@ export default function EmployeeDashboard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
-        <div className="spinner-border text-primary mb-3" style={{width: '3rem', height: '3rem'}} role="status"></div>
-        <h4 className="fw-bold text-dark">Connecting to Backend Server...</h4>
-        <p className="text-muted small w-50 mt-2">
-            Because the backend is hosted on a free Render tier, it goes to sleep after 15 minutes of inactivity. 
-            <strong> Waking it up can take up to 50 seconds.</strong> Please be patient!
-        </p>
-      </div>
-    );
-  }
+
 
   return (
     <>
@@ -108,9 +97,11 @@ export default function EmployeeDashboard() {
       <div className="container-fluid px-3 px-lg-4 pb-4">
           <div className="row justify-content-center">
               <div className="col-12 col-xl-10">
-                  <div id="meetingStatusAlert" className={`alert ${session.active ? 'alert-primary' : 'alert-secondary'} shadow-sm mb-4`}>
+                  <div id="meetingStatusAlert" className={`alert ${session.active ? 'alert-primary' : (loading ? 'alert-warning' : 'alert-secondary')} shadow-sm mb-4`}>
                       <strong><i className="bi bi-camera-video-fill me-2"></i> MEETING STATUS</strong><br/>
-                      {session.active ? (
+                      {loading ? (
+                        <span className="text-warning-emphasis fw-bold">Connecting to Server (Waking up... takes ~50s) <div className="spinner-border spinner-border-sm ms-2" role="status"></div></span>
+                      ) : session.active ? (
                         <span className="text-success fw-bold">Active Monitoring Session ({session.code})</span>
                       ) : (
                         <span className="text-muted">No Active Session</span>

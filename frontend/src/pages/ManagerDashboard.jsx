@@ -90,18 +90,7 @@ export default function ManagerDashboard() {
     ? Math.round(data.reduce((sum, emp) => sum + (emp.attentionScore * 100), 0) / data.length) 
     : 0;
 
-  if (loading) {
-    return (
-      <div className="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
-        <div className="spinner-border text-primary mb-3" style={{width: '3rem', height: '3rem'}} role="status"></div>
-        <h4 className="fw-bold text-dark">Connecting to Backend Server...</h4>
-        <p className="text-muted small w-50 mt-2">
-            Because the backend is hosted on a free Render tier, it goes to sleep after 15 minutes of inactivity. 
-            <strong> Waking it up can take up to 50 seconds.</strong> Please be patient!
-        </p>
-      </div>
-    );
-  }
+
 
   return (
     <>
@@ -221,7 +210,14 @@ export default function ManagerDashboard() {
                                       </tr>
                                   </thead>
                                   <tbody>
-                                      {data.length === 0 ? (
+                                      {loading && data.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="8" className="text-center py-4 text-muted">
+                                                <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                                Connecting to Backend Server (Waking up... takes ~50s)
+                                            </td>
+                                        </tr>
+                                      ) : data.length === 0 ? (
                                         <tr>
                                             <td colSpan="8" className="text-center py-4 text-muted">
                                                 {session.active ? "Waiting for employee data..." : "No active session."}

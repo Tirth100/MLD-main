@@ -27,14 +27,7 @@ export default function Analytics() {
     return () => clearInterval(interval);
   }, []);
 
-  if (loading && !data) {
-    return (
-      <div className="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
-        <div className="spinner-border text-primary mb-3" style={{width: '3rem', height: '3rem'}} role="status"></div>
-        <h4 className="fw-bold text-dark">Loading Analytics...</h4>
-      </div>
-    );
-  }
+
 
   const pData = data?.windowFocus || [0, 0, 1];
   const finalPData = pData[0] === 0 && pData[1] === 0 && pData[2] === 0 ? [0, 0, 1] : pData;
