@@ -8,11 +8,14 @@ export default function ManagerDashboard() {
   const [alerts, setAlerts] = useState([]);
   const [session, setSession] = useState({ active: false, code: '' });
   const [loading, setLoading] = useState(true);
+  const [managerName, setManagerName] = useState('Loading...');
+  
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem('uuid_token');
     localStorage.removeItem('user_role');
+    localStorage.removeItem('username');
     navigate('/');
   };
 
@@ -54,6 +57,9 @@ export default function ManagerDashboard() {
       navigate('/');
       return;
     }
+    
+    const name = localStorage.getItem('username');
+    if (name) setManagerName(name);
 
     fetchData();
     const interval = setInterval(fetchData, 5000);
@@ -90,8 +96,6 @@ export default function ManagerDashboard() {
     ? Math.round(data.reduce((sum, emp) => sum + (emp.attentionScore * 100), 0) / data.length) 
     : 0;
 
-
-
   return (
     <>
       <Sidebar />
@@ -119,10 +123,72 @@ export default function ManagerDashboard() {
                   )}
               </div>
               <div className="d-flex align-items-center gap-3">
-                  <button className="btn btn-link p-0 border-0 shadow-sm rounded-circle">
-                      <img src="https://ui-avatars.com/api/?name=Admin&background=7c3aed&color=fff" alt="Profile"
-                          className="rounded-circle" width="40" height="40" />
-                  </button>
+                  {/* Notifications Dropdown */}
+                  <div className="dropdown">
+                      <button className="btn btn-link text-muted p-0 position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                          <i className="bi bi-bell-fill fs-5"></i>
+                          {alerts.length > 0 && (
+                              <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                  <span className="visually-hidden">New alerts</span>
+                              </span>
+                          )}
+                      </button>
+                      <ul className="dropdown-menu dropdown-menu-end shadow-sm" style={{ width: '300px', maxHeight: '400px', overflowY: 'auto' }}>
+                          <li><h6 className="dropdown-header">Recent Notifications</h6></li>
+                          <li><hr className="dropdown-divider" /></li>
+                          {alerts.length === 0 ? (
+                              <li><span className="dropdown-item text-muted text-center">No new notifications</span></li>
+                          ) : (
+                              alerts.map((a, i) => (
+                                  <li key={i}>
+                                      <span className="dropdown-item d-flex flex-column gap-1">
+                                          <span className="fw-bold text-dark">{a.name}</span>
+                                          <span className="small text-muted">{a.reason}</span>
+                                      </span>
+                                  </li>
+                              ))
+                          )}
+                      </ul>
+                  </div>
+
+                  {/* Profile Dropdown */}
+                  <div className="dropdown ms-2">
+                      <button className="btn btn-link p-0 border-0 shadow-sm rounded-circle" data-bs-toggle="dropdown" aria-expanded="false" title="Manager Profile">
+                          <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(managerName)}&background=7c3aed&color=fff`} alt="Profile" className="rounded-circle" width="40" height="40" />
+                      </button>
+                      <div className="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2" style={{ width: '340px', padding: '0', overflow: 'hidden' }}>
+                          <div className="text-center p-4 bg-light border-bottom">
+                              <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(managerName)}&background=7c3aed&color=fff&size=80`} alt="Profile" className="rounded-circle shadow-sm mb-3 border border-3 border-white" />
+                              <h5 className="fw-bold mb-1">{managerName}</h5>
+                              <p className="text-primary fw-medium small tracking-widest mb-0">MANAGER</p>
+                          </div>
+
+                          <div className="p-3 bg-white">
+                              <div className="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 mb-3 border">
+                                  <div>
+                                      <h6 className="text-muted small text-uppercase fw-bold mb-1" style={{ fontSize: '0.7rem' }}>Org Code</h6>
+                                      <span className="fw-bold tracking-widest text-dark" id="profileOrgCode">MLD-ORG-X</span>
+                                  </div>
+                                  <button className="btn btn-outline-primary btn-sm rounded-pill px-3" style={{ fontSize: '0.75rem' }} onClick={() => alert('Copied!')}>
+                                      <i className="bi bi-clipboard me-1"></i>Copy
+                                  </button>
+                              </div>
+
+                              <button className="dropdown-item py-2 px-3 rounded-2 mb-1 fw-medium" data-bs-toggle="modal" data-bs-target="#manageEmployeesModal">
+                                  <i className="bi bi-people-fill text-primary me-3 fs-5 align-middle"></i>Manage Employees
+                              </button>
+                              <button className="dropdown-item py-2 px-3 rounded-2 fw-medium" onClick={() => alert('Settings module coming soon!')}>
+                                  <i className="bi bi-gear-fill text-muted me-3 fs-5 align-middle"></i>Account Settings
+                              </button>
+                          </div>
+
+                          <div className="p-2 border-top bg-light">
+                              <button onClick={handleLogout} className="dropdown-item py-2 px-3 rounded-2 text-danger fw-medium d-flex justify-content-center align-items-center w-100 border-0 bg-transparent">
+                                  <i className="bi bi-box-arrow-right me-2"></i>Sign Out
+                              </button>
+                          </div>
+                      </div>
+                  </div>
               </div>
           </header>
 
@@ -185,13 +251,13 @@ export default function ManagerDashboard() {
               </div>
           </div>
 
-          <div className="row g-4">
+          <div className="row g-4 mb-4">
               <div className="col-lg-8">
                   <div className="card glass-card h-100">
                       <div className="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
                           <h5 className="mb-0 fw-bold">Live Employee Engagement</h5>
                           <div className="d-flex gap-2">
-                              <button className="btn btn-sm btn-outline-primary shadow-sm">View Reports</button>
+                              <a href="#/reports" className="btn btn-sm btn-outline-primary shadow-sm">View Reports</a>
                           </div>
                       </div>
                       <div className="card-body p-0">
@@ -278,17 +344,96 @@ export default function ManagerDashboard() {
                                   <div key={i} className="alert-item">
                                       <div>
                                           <strong>{alert.name}</strong>
-                                          <div className="small text-muted mt-1">{alert.message} (Score: {Math.round(alert.attentionScore * 100)}%)</div>
+                                          <div className="small text-muted mt-1">{alert.message || alert.reason} (Score: {Math.round((alert.attentionScore || 0) * 100)}%)</div>
                                       </div>
                                       <span className="badge bg-danger rounded-pill">New</span>
                                   </div>
                               ))
                           )}
                       </div>
+                      <div className="card-footer bg-transparent border-top border-secondary text-center py-3">
+                          <a href="#/alerts" className="text-decoration-none text-primary fw-medium">View All Alerts <i className="bi bi-arrow-right"></i></a>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          {/* Latest Meeting Summary */}
+          <div className="row g-4 mb-4">
+              <div className="col-12">
+                  <div className="card glass-card">
+                      <div className="card-header bg-transparent border-bottom border-secondary py-3">
+                          <h5 className="mb-0 fw-bold">Latest Meeting Summary <span className="badge bg-primary ms-2">{avgEngagement}%</span></h5>
+                      </div>
+                      <div className="card-body">
+                          {data.length === 0 ? (
+                              <div className="text-muted text-center py-4">Waiting for meeting data...</div>
+                          ) : (
+                              <div className="row text-center">
+                                  <div className="col-md-3 border-end border-secondary">
+                                      <h6 className="text-muted">Total Participants</h6>
+                                      <h3 className="fw-bold">{uniqueEmployees}</h3>
+                                  </div>
+                                  <div className="col-md-3 border-end border-secondary">
+                                      <h6 className="text-muted">Most Engaged</h6>
+                                      <h3 className="fw-bold text-success">
+                                          {[...data].sort((a,b) => b.attentionScore - a.attentionScore)[0]?.name || '-'}
+                                      </h3>
+                                  </div>
+                                  <div className="col-md-3 border-end border-secondary">
+                                      <h6 className="text-muted">Most Distracted</h6>
+                                      <h3 className="fw-bold text-danger">
+                                          {[...data].sort((a,b) => a.attentionScore - b.attentionScore)[0]?.name || '-'}
+                                      </h3>
+                                  </div>
+                                  <div className="col-md-3">
+                                      <h6 className="text-muted">Average Duration</h6>
+                                      <h3 className="fw-bold text-primary">
+                                          {Math.floor((data.reduce((sum, e) => sum + e.duration, 0) / data.length) / 60)}m
+                                      </h3>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
                   </div>
               </div>
           </div>
       </main>
+
+      {/* Manage Employees Modal */}
+      <div className="modal fade" id="manageEmployeesModal" tabIndex="-1" aria-hidden="true">
+          <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+              <div className="modal-content bg-white border-0 shadow">
+                  <div className="modal-header border-bottom">
+                      <h5 className="modal-title fw-bold"><i className="bi bi-people me-2 text-primary"></i>Manage Employees</h5>
+                      <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div className="modal-body p-0">
+                      <div className="table-responsive">
+                          <table className="table table-hover align-middle mb-0">
+                              <thead className="bg-light">
+                                  <tr>
+                                      <th className="ps-4">Employee Name</th>
+                                      <th>Email</th>
+                                      <th>Joined At</th>
+                                      <th className="text-end pe-4">Actions</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  <tr>
+                                      <td colSpan="4" className="text-center py-4 text-muted">Loading employees...</td>
+                                  </tr>
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+                  <div className="modal-footer border-top bg-light">
+                      <button className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+
     </>
   );
 }

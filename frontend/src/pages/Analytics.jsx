@@ -103,6 +103,16 @@ export default function Analytics() {
                   <div className="card glass-card h-100">
                       <div className="card-header bg-transparent border-bottom border-secondary py-3 d-flex justify-content-between align-items-center">
                           <h6 className="mb-0 fw-bold">Average Speaking Activity (Duration)</h6>
+                          <div className="dropdown">
+                              <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                  Last 7 Days
+                              </button>
+                              <ul className="dropdown-menu">
+                                  <li><a className="dropdown-item" href="#">Today</a></li>
+                                  <li><a className="dropdown-item" href="#">Last 7 Days</a></li>
+                                  <li><a className="dropdown-item" href="#">This Month</a></li>
+                              </ul>
+                          </div>
                       </div>
                       <div className="card-body" style={{position: 'relative', height: '400px'}}>
                           <Line data={lineData} options={{ maintainAspectRatio: false, animation: {duration: 0}, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }} />
