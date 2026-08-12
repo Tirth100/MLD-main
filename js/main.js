@@ -635,7 +635,7 @@ async function loadManagerDashboard() {
         console.error("Failed to load dashboard data", e);
         const tbody = document.getElementById('engagementTableBody');
         if(tbody && !tbody.innerHTML.includes("Backend server offline") && !tbody.innerHTML.includes("No data")) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to connect to backend server. Ensure it is running.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to connect to backend server. Error: ' + escapeHtml(e.toString()) + '</td></tr>';
         }
     }
 }
