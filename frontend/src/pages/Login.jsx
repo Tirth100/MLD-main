@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 
 export default function Login() {
@@ -116,8 +116,8 @@ export default function Login() {
 
                 <div className="mt-3 pt-3 border-top">
                     <p className="text-muted small mb-2">Don't have an account?</p>
-                    <button className="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your Organization</button>
-                    <button className="btn btn-link text-decoration-none w-100">Join as an Employee</button>
+                    <Link to="/organization-signup" className="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your Organization</Link>
+                    <Link to="/employee-signup" className="btn btn-link text-decoration-none w-100">Join as an Employee</Link>
                 </div>
             </div>
         </div>
