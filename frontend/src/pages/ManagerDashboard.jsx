@@ -92,8 +92,13 @@ export default function ManagerDashboard() {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <div className="spinner-border text-primary" role="status"></div>
+      <div className="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
+        <div className="spinner-border text-primary mb-3" style={{width: '3rem', height: '3rem'}} role="status"></div>
+        <h4 className="fw-bold text-dark">Connecting to Backend Server...</h4>
+        <p className="text-muted small w-50 mt-2">
+            Because the backend is hosted on a free Render tier, it goes to sleep after 15 minutes of inactivity. 
+            <strong> Waking it up can take up to 50 seconds.</strong> Please be patient!
+        </p>
       </div>
     );
   }
