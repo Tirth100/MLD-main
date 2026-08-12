@@ -38,16 +38,7 @@ export default function Sidebar() {
                     <i className="bi bi-bell"></i> Alerts
                 </Link>
             </li>
-            <li className="nav-item">
-                <Link to="/agent-setup" className={`nav-link ${location.pathname === '/agent-setup' ? 'active' : ''}`}>
-                    <i className="bi bi-laptop"></i> Desktop Agent
-                </Link>
-            </li>
-            <li className="nav-item">
-                <Link to="/mobile-agent" className={`nav-link ${location.pathname === '/mobile-agent' ? 'active' : ''}`}>
-                    <i className="bi bi-phone"></i> Mobile App
-                </Link>
-            </li>
+
         </ul>
         <hr className="border-secondary" />
         <div className="px-3 py-2">
