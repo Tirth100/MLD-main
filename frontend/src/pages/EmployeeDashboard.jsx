@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { LogOut, Camera, Activity, Monitor } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const [session, setSession] = useState({ active: false, code: '' });
@@ -24,7 +23,6 @@ export default function EmployeeDashboard() {
 
   const fetchStatus = async () => {
     try {
-      // 1. Check Active Session
       const sessionRes = await api.get('/active-session');
       if (sessionRes && sessionRes.active) {
         setSession({ active: true, code: sessionRes.sessionCode });
@@ -32,19 +30,10 @@ export default function EmployeeDashboard() {
         setSession({ active: false, code: '' });
       }
 
-      // 2. If in session, fetch my specific stats from /engagement
       if (sessionRes && sessionRes.active) {
         const engRes = await api.get('/engagement');
-        if (Array.isArray(engRes)) {
-          // In the real system, the employee's ID/token maps to their data.
-          // For now, we take the first matching employee or just display overall logic if needed.
-          // Actually, the desktop agent sends data. The employee dashboard doesn't have an endpoint for single employee stats easily unless we filter the array.
-          // Let's just grab the last updated one for now, or assume the backend filters if role=EMPLOYEE.
-          // Wait, the backend /engagement returns ALL employees if called by employee?
-          // Actually /engagement for employee returns their own stats or fails.
-          if (engRes.length > 0) {
-            setDashboardData(engRes[0]);
-          }
+        if (Array.isArray(engRes) && engRes.length > 0) {
+          setDashboardData(engRes[0]);
         }
       }
     } catch (err) {
@@ -62,7 +51,6 @@ export default function EmployeeDashboard() {
       navigate('/');
       return;
     }
-
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
@@ -86,126 +74,127 @@ export default function EmployeeDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" role="status"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
-      {/* Navbar / Header */}
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-            MLD
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-800">Employee Dashboard</h1>
-            <p className="text-xs text-gray-500">Meeting & Log System</p>
-          </div>
+    <>
+      <nav className="navbar navbar-expand-lg top-navbar glass-card mx-3 mx-lg-4 mt-3 mt-lg-4 rounded-4 mb-4">
+        <div className="container-fluid px-2">
+            <a className="navbar-brand d-flex align-items-center gap-2 fw-bold text-primary" href="#">
+                <div className="bg-primary text-white rounded p-1 d-flex align-items-center justify-content-center"
+                    style={{ width: '32px', height: '32px' }}>
+                    MLD
+                </div>
+                Employee Dashboard
+                <span className="text-muted fw-normal fs-7 ms-2 d-none d-sm-inline">Meeting & Log System</span>
+            </a>
+            <div className="d-flex align-items-center gap-3">
+                <button onClick={handleLogout} className="btn btn-light btn-sm fw-medium d-flex align-items-center gap-2">
+                    <i className="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </div>
         </div>
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <LogOut size={18} /> Logout
-        </button>
+      </nav>
+
+      <div className="container-fluid px-3 px-lg-4 pb-4">
+          <div className="row justify-content-center">
+              <div className="col-12 col-xl-10">
+                  <div id="meetingStatusAlert" className={`alert ${session.active ? 'alert-primary' : 'alert-secondary'} shadow-sm mb-4`}>
+                      <strong><i className="bi bi-camera-video-fill me-2"></i> MEETING STATUS</strong><br/>
+                      {session.active ? (
+                        <span className="text-success fw-bold">Active Monitoring Session ({session.code})</span>
+                      ) : (
+                        <span className="text-muted">No Active Session</span>
+                      )}
+                  </div>
+
+                  {!session.active ? (
+                    <div className="glass-card p-4 p-md-5 text-center mx-auto mt-5" style={{ maxWidth: '500px' }}>
+                        <h4 className="fw-bold mb-3">Join a Session</h4>
+                        <p className="text-muted mb-4 fs-7">Enter the code provided by your manager to begin the monitoring session.</p>
+                        
+                        {error && <div className="alert alert-danger text-start small mb-3">{error}</div>}
+
+                        <form onSubmit={handleJoin}>
+                            <div className="mb-4">
+                                <input 
+                                  type="text" 
+                                  className="form-control form-control-lg text-center font-monospace text-uppercase" 
+                                  placeholder="E.G., MLD123" 
+                                  required
+                                  value={joinCode}
+                                  onChange={e => setJoinCode(e.target.value)}
+                                />
+                            </div>
+                            <button type="submit" className="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                                Join Session
+                            </button>
+                        </form>
+                    </div>
+                  ) : (
+                    <div className="row g-3 g-md-4 mb-4">
+                        <div className="col-12 col-sm-6 col-xl-3">
+                            <div className="glass-card p-4 h-100">
+                                <div className="d-flex justify-content-between mb-3">
+                                    <span className="text-muted fw-semibold fs-7 text-uppercase">Webcam Status</span>
+                                    <div className="bg-primary bg-opacity-10 text-primary p-2 rounded">
+                                        <i className="bi bi-camera-video"></i>
+                                    </div>
+                                </div>
+                                <h3 className="metric-value mb-1">{dashboardData.webcam ? 'ACTIVE (ON)' : 'INACTIVE (OFF)'}</h3>
+                                <div className="text-muted fs-7">Privacy mode enabled</div>
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-sm-6 col-xl-3">
+                            <div className="glass-card p-4 h-100">
+                                <div className="d-flex justify-content-between mb-3">
+                                    <span className="text-muted fw-semibold fs-7 text-uppercase">Window Focus</span>
+                                    <div className="bg-info bg-opacity-10 text-info p-2 rounded">
+                                        <i className="bi bi-window"></i>
+                                    </div>
+                                </div>
+                                <h3 className="metric-value mb-1">{Math.round((dashboardData.attentionScore || 0) * 100)}%</h3>
+                                <div className="text-muted fs-7">Current engagement level</div>
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-sm-6 col-xl-3">
+                            <div className="glass-card p-4 h-100">
+                                <div className="d-flex justify-content-between mb-3">
+                                    <span className="text-muted fw-semibold fs-7 text-uppercase">Session Duration</span>
+                                    <div className="bg-success bg-opacity-10 text-success p-2 rounded">
+                                        <i className="bi bi-clock-history"></i>
+                                    </div>
+                                </div>
+                                <h3 className="metric-value mb-1">
+                                  {Math.floor((dashboardData.duration || 0) / 60)}m {(dashboardData.duration || 0) % 60}s
+                                </h3>
+                                <div className="text-muted fs-7">Since joining</div>
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-sm-6 col-xl-3">
+                            <div className="glass-card p-4 h-100">
+                                <div className="d-flex justify-content-between mb-3">
+                                    <span className="text-muted fw-semibold fs-7 text-uppercase">Idle Time</span>
+                                    <div className="bg-danger bg-opacity-10 text-danger p-2 rounded">
+                                        <i className="bi bi-keyboard"></i>
+                                    </div>
+                                </div>
+                                <h3 className="metric-value text-danger mb-1">{dashboardData.idleSeconds || 0}s</h3>
+                                <div className="text-muted fs-7">No input detected</div>
+                            </div>
+                        </div>
+                    </div>
+                  )}
+              </div>
+          </div>
       </div>
-
-      <div className="w-full max-w-4xl space-y-6">
-        {/* Status Alert */}
-        <div className={`rounded-xl p-6 border ${session.active ? 'bg-blue-50 border-blue-100' : 'bg-gray-100 border-gray-200'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-full ${session.active ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-              <Camera size={24} />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-1">Meeting Status</h2>
-              {session.active ? (
-                <div className="text-blue-700 font-medium">Active Monitoring Session (<span className="font-bold">{session.code}</span>)</div>
-              ) : (
-                <div className="text-gray-600 font-medium">No Active Session</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Conditional View: Join Form vs Live Dashboard */}
-        {!session.active ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center max-w-md mx-auto">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Join a Session</h2>
-            <p className="text-gray-500 mb-6 text-sm">Enter the code provided by your manager to begin the monitoring session.</p>
-            
-            {error && <div className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded-lg border border-red-100">{error}</div>}
-            
-            <form onSubmit={handleJoin} className="space-y-4">
-              <input 
-                type="text" 
-                placeholder="e.g., MLD123" 
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center font-mono text-lg uppercase transition-all"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              />
-              <button 
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors shadow-sm"
-              >
-                Join Session
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-gray-500 font-medium">Webcam Status</h3>
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Camera size={20} /></div>
-              </div>
-              <div className="text-2xl font-bold text-gray-900 mb-1">
-                {dashboardData.webcam ? 'ACTIVE (ON)' : 'INACTIVE (OFF)'}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-gray-500 font-medium">Window Focus</h3>
-                <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Monitor size={20} /></div>
-              </div>
-              <div className="text-2xl font-bold text-gray-900 mb-1">
-                {Math.round((dashboardData.attentionScore || 0) * 100)}%
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-gray-500 font-medium">Session Duration</h3>
-                <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Activity size={20} /></div>
-              </div>
-              <div className="text-2xl font-bold text-gray-900 mb-1">
-                {Math.floor((dashboardData.duration || 0) / 60)}m {(dashboardData.duration || 0) % 60}s
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-gray-500 font-medium">Idle Time</h3>
-                <div className="p-2 bg-red-50 text-red-600 rounded-lg"><Monitor size={20} /></div>
-              </div>
-              <div className="text-2xl font-bold text-red-600 mb-1">
-                {dashboardData.idleSeconds || 0}s
-              </div>
-            </div>
-            
-            <div className="col-span-1 md:col-span-2 lg:col-span-4 bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-4 text-center">
-              <p className="text-gray-500 text-sm">
-                Your activity is currently being securely logged to the active session. Ensure you remain focused on productive windows to maintain your engagement score.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    </>
   );
 }

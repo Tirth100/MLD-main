@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { AlertTriangle, Users, Activity, Video, LogOut, Play, Square } from 'lucide-react';
 
 export default function ManagerDashboard() {
   const [data, setData] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [session, setSession] = useState({ active: false, code: '' });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -19,7 +17,6 @@ export default function ManagerDashboard() {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Session
       const sessionRes = await api.get('/active-session');
       if (sessionRes && sessionRes.active) {
         setSession({ active: true, code: sessionRes.sessionCode });
@@ -27,7 +24,6 @@ export default function ManagerDashboard() {
         setSession({ active: false, code: '' });
       }
 
-      // 2. Fetch Engagement
       const engRes = await api.get('/engagement');
       if (engRes && engRes.success === false && engRes.status === 401) {
         handleLogout();
@@ -35,10 +31,8 @@ export default function ManagerDashboard() {
       }
       if (Array.isArray(engRes)) {
         setData(engRes.reverse());
-        setError(null);
       }
 
-      // 3. Fetch Alerts
       const alertsRes = await api.get('/alerts');
       if (Array.isArray(alertsRes)) {
         setAlerts(alertsRes);
@@ -48,7 +42,7 @@ export default function ManagerDashboard() {
         console.error("Dashboard error:", err);
       }
     } finally {
-      setLoading(false);
+      if (loading) setLoading(false);
     }
   };
 
@@ -79,7 +73,7 @@ export default function ManagerDashboard() {
   };
 
   const handleStopSession = async () => {
-    if (confirm("Are you sure you want to end the current monitoring session for all participants?")) {
+    if (window.confirm("Are you sure you want to end the current monitoring session for all participants?")) {
       try {
         await api.get('/stop');
         setSession({ active: false, code: '' });
@@ -90,7 +84,6 @@ export default function ManagerDashboard() {
     }
   };
 
-  // Calculations
   const uniqueEmployees = new Set(data.map(emp => emp.name)).size;
   const avgEngagement = data.length > 0 
     ? Math.round(data.reduce((sum, emp) => sum + (emp.attentionScore * 100), 0) / data.length) 
@@ -98,206 +91,238 @@ export default function ManagerDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" role="status"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+    <>
       {/* Sidebar */}
-      <div className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
-        <div className="p-6 border-b border-gray-100 flex items-center gap-3 text-blue-600 font-bold text-xl">
-          <Activity size={24} />
-          MLD Admin
-        </div>
-        <div className="flex-1 py-6 px-4 space-y-2">
-          <button className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg font-medium">
-            <Activity size={20} /> Dashboard
-          </button>
-        </div>
-        <div className="p-4 border-t border-gray-100">
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <LogOut size={18} /> Logout
-          </button>
-        </div>
-      </div>
+      <nav className="sidebar d-none d-md-flex flex-column p-3">
+          <a href="#" className="d-flex align-items-center mb-4 text-dark text-decoration-none px-3">
+              <i className="bi bi-radar text-primary fs-3 me-2"></i>
+              <span className="fs-5 fw-bold">MLD Admin</span>
+          </a>
+          <hr className="border-secondary mt-0" />
+          <ul className="nav flex-column mb-auto">
+              <li className="nav-item">
+                  <a href="#" className="nav-link active">
+                      <i className="bi bi-grid-1x2"></i> Dashboard
+                  </a>
+              </li>
+              <li className="nav-item">
+                  <a href="#" className="nav-link">
+                      <i className="bi bi-graph-up"></i> Analytics
+                  </a>
+              </li>
+              <li className="nav-item">
+                  <a href="#" className="nav-link">
+                      <i className="bi bi-file-earmark-text"></i> Reports
+                  </a>
+              </li>
+              <li className="nav-item">
+                  <a href="#" className="nav-link">
+                      <i className="bi bi-bell"></i> Alerts
+                      {alerts.length > 0 && <span className="badge bg-danger rounded-pill ms-auto">{alerts.length}</span>}
+                  </a>
+              </li>
+          </ul>
+          <hr className="border-secondary" />
+          <div className="px-3 py-2">
+              <button onClick={handleLogout} className="btn btn-outline-danger w-100">
+                  <i className="bi bi-box-arrow-left me-2"></i>Logout
+              </button>
+          </div>
+      </nav>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        {/* Header bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-gray-800">Overview</h1>
-          <div>
-            {!session.active ? (
-              <button 
-                onClick={handleStartSession}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-              >
-                <Play size={18} fill="currentColor" /> Start Meeting Session
-              </button>
-            ) : (
-              <div className="flex items-center gap-4">
-                <div className="px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg font-medium">
-                  Session Code: <span className="font-bold">{session.code}</span>
-                </div>
-                <button 
-                  onClick={handleStopSession}
-                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
-                >
-                  <Square size={18} fill="currentColor" /> Stop Session
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-gray-500 font-medium">Total Monitored</h3>
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Users size={20} /></div>
-            </div>
-            <div className="text-4xl font-bold text-gray-900 mb-1">{uniqueEmployees}</div>
-            <div className="text-sm text-green-600">↑ Based on active session</div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-gray-500 font-medium">Avg Engagement</h3>
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Activity size={20} /></div>
-            </div>
-            <div className="text-4xl font-bold text-gray-900 mb-1">{avgEngagement}%</div>
-            <div className="text-sm text-green-600">↑ Across all records</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-gray-500 font-medium">Active Meetings</h3>
-              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Video size={20} /></div>
-            </div>
-            <div className="text-4xl font-bold text-gray-900 mb-1">{session.active ? 1 : 0}</div>
-            <div className="text-sm text-gray-500">Live right now</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-gray-500 font-medium">Low Engagement</h3>
-              <div className="p-2 bg-red-50 text-red-600 rounded-lg"><AlertTriangle size={20} /></div>
-            </div>
-            <div className="text-4xl font-bold text-red-600 mb-1">{alerts.length}</div>
-            <div className="text-sm text-red-500">Requires attention</div>
-          </div>
-        </div>
-
-        {/* Table & Alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-gray-800">Live Employee Engagement</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-100 text-sm text-gray-600 font-medium">
-                  <tr>
-                    <th className="px-6 py-4">Employee</th>
-                    <th className="px-6 py-4">Active Window</th>
-                    <th className="px-6 py-4">Webcam</th>
-                    <th className="px-6 py-4">Score</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {data.length === 0 ? (
-                    <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                        {session.active ? "Waiting for employee data..." : "No active session."}
-                      </td>
-                    </tr>
+      <main className="main-content">
+          <header className="top-navbar mb-4 rounded-3 glass-card">
+              <div className="d-flex align-items-center">
+                  <h4 className="mb-0 fw-bold">Overview</h4>
+                  
+                  {!session.active ? (
+                    <button className="btn btn-primary ms-4 shadow" onClick={handleStartSession}>
+                        <i className="bi bi-play-circle me-2"></i>Start Meeting Session
+                    </button>
                   ) : (
-                    data.map((emp, i) => (
-                      <tr key={i} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                              {emp.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-medium text-gray-900">{emp.name}</div>
-                              <div className="text-xs text-blue-600">Live Session</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-600 max-w-[200px] truncate" title={emp.window}>
-                            {emp.window}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {emp.webcam ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                              <Video size={12} /> ON
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                              OFF
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <span className={`text-sm font-bold ${emp.attentionScore < 0.5 ? 'text-red-600' : 'text-gray-900'}`}>
-                              {Math.round(emp.attentionScore * 100)}%
-                            </span>
-                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden w-16">
-                              <div 
-                                className={`h-full rounded-full ${emp.attentionScore < 0.5 ? 'bg-red-500' : 'bg-blue-500'}`} 
-                                style={{ width: `${emp.attentionScore * 100}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    <>
+                        <button className="btn btn-danger ms-4 shadow" onClick={handleStopSession}>
+                            <i className="bi bi-stop-circle me-2"></i>Stop Meeting Session
+                        </button>
+                        <div className="ms-4 px-3 py-1 bg-success bg-opacity-10 border border-success rounded text-success">
+                            <span className="fw-bold">Session Code: </span>
+                            <span className="fw-bold fs-5 tracking-widest">{session.code}</span>
+                        </div>
+                    </>
                   )}
-                </tbody>
-              </table>
-            </div>
+              </div>
+              <div className="d-flex align-items-center gap-3">
+                  <button className="btn btn-link p-0 border-0 shadow-sm rounded-circle">
+                      <img src="https://ui-avatars.com/api/?name=Admin&background=7c3aed&color=fff" alt="Profile"
+                          className="rounded-circle" width="40" height="40" />
+                  </button>
+              </div>
+          </header>
+
+          <div className="row g-4 row-cols-1 row-cols-md-2 row-cols-xl-4 mb-4">
+              <div className="col">
+                  <div className="card glass-card h-100">
+                      <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h6 className="card-subtitle text-muted">Total Monitored</h6>
+                              <div className="bg-primary bg-opacity-10 p-2 rounded text-primary">
+                                  <i className="bi bi-people-fill"></i>
+                              </div>
+                          </div>
+                          <h2 className="metric-value">{uniqueEmployees}</h2>
+                          <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Based on total records</span>
+                      </div>
+                  </div>
+              </div>
+              <div className="col">
+                  <div className="card glass-card h-100">
+                      <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h6 className="card-subtitle text-muted">Avg Engagement</h6>
+                              <div className="bg-info bg-opacity-10 p-2 rounded text-info">
+                                  <i className="bi bi-activity"></i>
+                              </div>
+                          </div>
+                          <h2 className="metric-value">{avgEngagement}%</h2>
+                          <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Across all records</span>
+                      </div>
+                  </div>
+              </div>
+              <div className="col">
+                  <div className="card glass-card h-100">
+                      <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h6 className="card-subtitle text-muted">Active Meetings</h6>
+                              <div className="bg-warning bg-opacity-10 p-2 rounded text-warning">
+                                  <i className="bi bi-camera-video-fill"></i>
+                              </div>
+                          </div>
+                          <h2 className="metric-value">{session.active ? 1 : 0}</h2>
+                          <span className="text-muted small">Live right now</span>
+                      </div>
+                  </div>
+              </div>
+              <div className="col">
+                  <div className="card glass-card h-100">
+                      <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h6 className="card-subtitle text-muted">Low Engagement Alerts</h6>
+                              <div className="bg-danger bg-opacity-10 p-2 rounded text-danger">
+                                  <i className="bi bi-exclamation-triangle-fill"></i>
+                              </div>
+                          </div>
+                          <h2 className="metric-value text-danger">{alerts.length}</h2>
+                          <span className="text-danger small">Requires attention</span>
+                      </div>
+                  </div>
+              </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">Recent Alerts</h2>
-            </div>
-            <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-              {alerts.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-50 text-gray-400 mb-3">
-                    <Activity size={24} />
-                  </div>
-                  <p>No alerts at this time.</p>
-                </div>
-              ) : (
-                alerts.map((alert, i) => (
-                  <div key={i} className="p-4 hover:bg-gray-50">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-red-500"><AlertTriangle size={18} /></div>
-                      <div>
-                        <div className="font-medium text-gray-900 text-sm">Low Engagement: {alert.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">Score dropped to {Math.round(alert.attentionScore * 100)}%</div>
+          <div className="row g-4">
+              <div className="col-lg-8">
+                  <div className="card glass-card h-100">
+                      <div className="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
+                          <h5 className="mb-0 fw-bold">Live Employee Engagement</h5>
+                          <div className="d-flex gap-2">
+                              <button className="btn btn-sm btn-outline-primary shadow-sm">View Reports</button>
+                          </div>
                       </div>
-                    </div>
+                      <div className="card-body p-0">
+                          <div className="table-responsive">
+                              <table className="table table-hover align-middle mb-0">
+                                  <thead className="bg-transparent text-nowrap">
+                                      <tr>
+                                          <th scope="col" className="ps-4">Employee</th>
+                                          <th scope="col">Active Window</th>
+                                          <th scope="col">Session Code</th>
+                                          <th scope="col">Webcam</th>
+                                          <th scope="col">Idle Time</th>
+                                          <th scope="col">Duration</th>
+                                          <th scope="col">Engagement Score</th>
+                                          <th scope="col">Status</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {data.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="8" className="text-center py-4 text-muted">
+                                                {session.active ? "Waiting for employee data..." : "No active session."}
+                                            </td>
+                                        </tr>
+                                      ) : (
+                                        data.map((emp, i) => {
+                                            let score = Math.round(emp.attentionScore * 100);
+                                            let scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
+                                            let windowBadge = emp.window.toLowerCase().includes('google meet') || emp.window.toLowerCase().includes('meet') || emp.window.toLowerCase().includes('zoom') ? 'primary' : 'secondary';
+                                            let statusBadge = score < 50 ? 'danger' : 'success';
+                                            let statusText = score < 50 ? 'Distracted' : 'Engaged';
+                                            
+                                            return (
+                                                <tr key={i}>
+                                                    <td className="ps-4 fw-medium">{emp.name}</td>
+                                                    <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{emp.window}</span></td>
+                                                    <td className="font-monospace text-muted">{emp.sessionCode}</td>
+                                                    <td>
+                                                        {emp.webcam ? (
+                                                            <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
+                                                        ) : (
+                                                            <span className="badge-soft-danger px-2 py-1 rounded"><i className="bi bi-camera-video-off me-1"></i> OFF</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={emp.idleSeconds > 10 ? 'text-danger fw-bold' : ''}>{emp.idleSeconds}s</td>
+                                                    <td>{Math.floor(emp.duration / 60)}m {emp.duration % 60}s</td>
+                                                    <td>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <div className="progress flex-grow-1" style={{height: '6px'}}>
+                                                                <div className={`progress-bar bg-${scoreColor}`} role="progressbar" style={{width: `${score}%`}}></div>
+                                                            </div>
+                                                            <span className={`fw-bold text-${scoreColor}`} style={{minWidth: '40px'}}>{score}%</span>
+                                                        </div>
+                                                    </td>
+                                                    <td><span className={`badge bg-${statusBadge}`}>{statusText}</span></td>
+                                                </tr>
+                                            );
+                                        })
+                                      )}
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
                   </div>
-                ))
-              )}
-            </div>
+              </div>
+
+              <div className="col-lg-4">
+                  <div className="card glass-card h-100">
+                      <div className="card-header bg-transparent border-bottom border-secondary py-3">
+                          <h5 className="mb-0 fw-bold">Recent Alerts</h5>
+                      </div>
+                      <div className="card-body">
+                          {alerts.length === 0 ? (
+                              <div className="text-center py-4 text-muted">No alerts at this time.</div>
+                          ) : (
+                              alerts.map((alert, i) => (
+                                  <div key={i} className="alert-item">
+                                      <div>
+                                          <strong>{alert.name}</strong>
+                                          <div className="small text-muted mt-1">{alert.message} (Score: {Math.round(alert.attentionScore * 100)}%)</div>
+                                      </div>
+                                      <span className="badge bg-danger rounded-pill">New</span>
+                                  </div>
+                              ))
+                          )}
+                      </div>
+                  </div>
+              </div>
           </div>
-        </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }

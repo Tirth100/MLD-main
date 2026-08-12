@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
 export default function Login() {
-  const [activeTab, setActiveTab] = useState('manager');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [orgCode, setOrgCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -30,17 +28,22 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const endpoint = activeTab === 'manager' ? '/login/manager' : '/login/employee';
+      // In the original, they only had one form for both, but the JS would hit /login/manager or /login/employee?
+      // Wait, original JS for login:
+      // it just sent to /login with email and password?
+      // Let's assume /login handles it if the API is smart, or I can just use /login/manager as fallback if it's not specified.
+      // Wait, original main.js login logic:
+      // e.preventDefault();
+      // const data = { email, password };
+      // api.post('/login', data).then(...)
       const payload = { email, password };
-      if (activeTab === 'manager') payload.orgCode = orgCode;
-
-      const response = await api.post(endpoint, payload);
+      const response = await api.post('/login', payload);
       
       if (response.success && response.token) {
         localStorage.setItem('uuid_token', response.token);
-        localStorage.setItem('user_role', response.role || (activeTab === 'manager' ? 'MANAGER' : 'EMPLOYEE'));
+        localStorage.setItem('user_role', response.role || 'EMPLOYEE');
         
-        if (activeTab === 'manager' || response.role === 'MANAGER' || response.role === 'ADMIN') {
+        if (response.role === 'MANAGER' || response.role === 'ADMIN') {
           navigate('/manager-dashboard');
         } else {
           navigate('/employee-dashboard');
@@ -56,82 +59,68 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-        {/* Header */}
-        <div className="bg-blue-600 p-8 text-center text-white">
-          <h1 className="text-3xl font-bold mb-2">MLD System</h1>
-          <p className="text-blue-100">Meeting & Log Dashboard</p>
+    <div className="auth-layout">
+        {/* Left Brand Panel */}
+        <div className="auth-brand-panel">
+            <div className="auth-glow-orb orb-1"></div>
+            <div className="auth-glow-orb orb-2"></div>
+
+            <div className="auth-brand-content">
+                <div className="auth-brand-icon">
+                    <i className="bi bi-radar"></i>
+                </div>
+                <h1 className="fw-bold display-5 mb-3">Meeting Leech Detector</h1>
+                <p className="auth-tagline">
+                    AI-powered telemetry and analytics to measure true meeting engagement. Identify active contributors,
+                    track focus metrics, and eliminate wasted time.
+                </p>
+            </div>
         </div>
 
-        {/* Content */}
-        <div className="p-8">
-          <div className="flex bg-gray-100 rounded-lg p-1 mb-8">
-            <button 
-              className={`flex-1 py-2 rounded-md font-medium transition-all ${activeTab === 'manager' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => { setActiveTab('manager'); setError(''); }}
-            >
-              Manager
-            </button>
-            <button 
-              className={`flex-1 py-2 rounded-md font-medium transition-all ${activeTab === 'employee' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => { setActiveTab('employee'); setError(''); }}
-            >
-              Employee
-            </button>
-          </div>
+        {/* Right Form Panel */}
+        <div className="auth-form-panel">
+            <div className="auth-form-card text-center">
+                <h3 className="fw-bold mb-1">Welcome Back</h3>
+                
+                {error && <div className="alert alert-danger text-start small mb-3">{error}</div>}
+                
+                {/* Standard Email & Password Login Form */}
+                <form id="loginForm" className="text-start mb-3" onSubmit={handleSubmit}>
+                    <div className="mb-3">
+                        <label htmlFor="email" className="form-label fw-semibold text-muted small mb-1">EMAIL ADDRESS</label>
+                        <input type="email" className="form-control auth-input" id="email" placeholder="Enter your email" required
+                               value={email} onChange={e => setEmail(e.target.value)} />
+                    </div>
+                    <div className="mb-3">
+                        <label htmlFor="password" className="form-label fw-semibold text-muted small mb-1">PASSWORD</label>
+                        <input type="password" className="form-control auth-input" id="password" placeholder="Enter your password" required
+                               value={password} onChange={e => setPassword(e.target.value)} />
+                    </div>
+                    <button type="submit" className="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-2" disabled={loading}>
+                        <i className="bi bi-box-arrow-in-right me-1"></i> {loading ? 'Signing In...' : 'Sign In'}
+                    </button>
+                </form>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 text-sm">
-              {error}
+                <div className="d-flex align-items-center my-3">
+                    <hr className="flex-grow-1 text-muted opacity-25" />
+                    <span className="px-2 text-muted extra-small text-uppercase fw-semibold" style={{fontSize: '0.75rem'}}>OR CONTINUE WITH</span>
+                    <hr className="flex-grow-1 text-muted opacity-25" />
+                </div>
+
+                <div className="d-flex justify-content-center mb-3 mt-2">
+                    {/* Google Sign-in placeholder */}
+                    <button className="btn btn-outline-secondary w-100 py-2 fw-bold">
+                        <i className="bi bi-google me-2"></i> Sign In with Google
+                    </button>
+                </div>
+
+                <div className="mt-3 pt-3 border-top">
+                    <p className="text-muted small mb-2">Don't have an account?</p>
+                    <button className="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your Organization</button>
+                    <button className="btn btn-link text-decoration-none w-100">Join as an Employee</button>
+                </div>
             </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-              <input 
-                type="email" 
-                required 
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input 
-                type="password" 
-                required 
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
-            </div>
-
-            {activeTab === 'manager' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Code (Optional)</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  value={orgCode}
-                  onChange={e => setOrgCode(e.target.value)}
-                />
-              </div>
-            )}
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-2"
-            >
-              {loading ? 'Authenticating...' : 'Sign In'}
-            </button>
-          </form>
         </div>
-      </div>
     </div>
   );
 }
