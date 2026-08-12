@@ -423,6 +423,15 @@ let activeCharts = {};
 async function loadManagerDashboard() {
     try {
         const data = await window.api.get('/engagement');
+        
+        // Handle unauthorized or expired sessions
+        if (data && data.success === false && data.message && (data.message.includes("401") || data.message.includes("Unauthorized"))) {
+            alert("Your session has expired. Please log in again.");
+            localStorage.removeItem('uuid_token');
+            window.location.href = '../index.html';
+            return;
+        }
+
         const tbody = document.getElementById('engagementTableBody');
         if(!tbody) return;
         
@@ -625,8 +634,8 @@ async function loadManagerDashboard() {
     } catch (e) {
         console.error("Failed to load dashboard data", e);
         const tbody = document.getElementById('engagementTableBody');
-        if(tbody && !tbody.innerHTML.includes("Backend server offline")) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Backend server offline. Please run run.bat to view live data.</td></tr>';
+        if(tbody && !tbody.innerHTML.includes("Backend server offline") && !tbody.innerHTML.includes("No data")) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to connect to backend server. Ensure it is running.</td></tr>';
         }
     }
 }
