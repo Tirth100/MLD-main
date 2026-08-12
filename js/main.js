@@ -438,6 +438,10 @@ async function loadManagerDashboard() {
 
         const tbody = document.getElementById('engagementTableBody');
         if(!tbody) return;
+
+        // Clear any previous errors on successful load
+        const errorRow = tbody.querySelector('.error-row');
+        if (errorRow) errorRow.remove();
         
         // Calculate dynamic metrics
         const uniqueEmployees = new Set(data.map(emp => emp.name)).size;
@@ -636,10 +640,23 @@ async function loadManagerDashboard() {
         }
         
     } catch (e) {
-        console.error("Failed to load dashboard data", e);
+        console.error("Manager dashboard error:", e);
         const tbody = document.getElementById('engagementTableBody');
-        if(tbody && !tbody.innerHTML.includes("Backend server offline") && !tbody.innerHTML.includes("No data")) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to connect to backend server. Error: ' + escapeHtml(e.toString()) + '</td></tr>';
+        
+        // If it's a NetworkError and we already have rows, or it's just a transient fetch cancellation, silently ignore it
+        // to prevent the red error banner from flashing when the user refreshes the page.
+        const isTransientError = e.name === 'TypeError' && e.message.includes('NetworkError');
+        const hasExistingData = tbody && tbody.children.length > 0 && !tbody.querySelector('.error-row');
+        
+        if (tbody && (!isTransientError || !hasExistingData)) {
+            tbody.innerHTML = `
+                <tr class="error-row">
+                    <td colspan="7" class="text-center text-danger py-4">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Failed to connect to backend server. Error: ${e.message}
+                    </td>
+                </tr>
+            `;
         }
     }
 }
