@@ -75,10 +75,10 @@ const api = {
         try {
             const baseUrl = getApiBaseUrl();
             const token = localStorage.getItem('uuid_token');
-            const headers = { 'Cache-Control': 'no-store', 'Bypass-Tunnel-Reminder': 'true' };
+            const headers = { 'Bypass-Tunnel-Reminder': 'true' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { headers }, 25000);
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { headers, cache: 'no-store' }, 25000);
             const text = await response.text();
             try {
                 if (!response.ok) {
@@ -124,14 +124,18 @@ const api = {
         try {
             const baseUrl = getApiBaseUrl();
             const token = localStorage.getItem('uuid_token');
-            const headers = { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
             const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(data)
-            }, 25000);
+                body: JSON.stringify(data),
+                cache: 'no-store'
+            }, 30000);
             const text = await response.text();
             try {
                 return JSON.parse(text);
