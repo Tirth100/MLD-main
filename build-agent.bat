@@ -29,4 +29,4 @@ echo.
 echo ===================================================
 echo [SUCCESS] MLD-Agent.jar & MLD-Agent.zip built successfully!
 echo ===================================================
-pause
+exit /b 0

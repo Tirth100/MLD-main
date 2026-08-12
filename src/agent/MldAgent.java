@@ -37,6 +37,7 @@ public class MldAgent {
     private static boolean isMonitoring = false;
     private static final File CONFIG_FILE = new File(System.getProperty("user.home"), ".mld_agent.properties");
     private static TrayIcon trayIcon;
+    private static int tickCounter = 0;
 
     public static void main(String[] args) {
         // Force TLS 1.2 and modern cipher suites for older JREs (e.g., Java 7/8)
@@ -253,8 +254,11 @@ public class MldAgent {
                 isMonitoring = false;
                 currentSessionCode = "";
                 System.out.println("\n🔴 [SESSION ENDED] Monitoring paused by manager.");
+                tickCounter = 0; // Reset counter
             } else {
-                System.out.println("[Telemetry Auto-Sent] Window: " + windowTitle + " | Camera: " + (webcamActive ? "ON" : "OFF"));
+                tickCounter++;
+                if (tickCounter > 240) tickCounter = 1;
+                System.out.println("[Tick " + tickCounter + "/240] Tracked window: " + windowTitle);
             }
         } catch (Exception e) {
             System.err.println("[Telemetry Connection Retry] " + e.getMessage());
