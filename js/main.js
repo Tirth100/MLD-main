@@ -431,6 +431,10 @@ async function loadManagerDashboard() {
             window.location.href = '../index.html';
             return;
         }
+        
+        if (!Array.isArray(data)) {
+            throw new Error(data && data.message ? data.message : "Invalid data format received from backend");
+        }
 
         const tbody = document.getElementById('engagementTableBody');
         if(!tbody) return;
