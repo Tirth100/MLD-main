@@ -81,13 +81,21 @@ const api = {
             const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, { headers }, 25000);
             const text = await response.text();
             try {
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        return { success: false, status: 401, message: 'Unauthorized' };
+                    }
+                }
                 return JSON.parse(text);
             } catch (e) {
                 console.error('Non-JSON response from backend:', text);
                 if (!text || text.trim() === '') {
+                    if (!response.ok) {
+                        return { success: false, status: response.status, message: `HTTP Error ${response.status}` };
+                    }
                     return { success: false, message: 'Backend server returned an empty response. The server may still be spinning up, please try again in a few seconds.' };
                 }
-                return { success: false, message: 'Backend server returned non-JSON response.' };
+                return { success: false, status: response.status || 500, message: 'Backend server returned non-JSON response.' };
             }
         } catch (error) {
             console.error('API Get Error:', error);

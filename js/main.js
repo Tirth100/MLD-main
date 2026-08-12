@@ -425,7 +425,7 @@ async function loadManagerDashboard() {
         const data = await window.api.get('/engagement');
         
         // Handle unauthorized or expired sessions
-        if (data && data.success === false && data.message && (data.message.includes("401") || data.message.includes("Unauthorized"))) {
+        if (data && data.success === false && (data.status === 401 || (data.message && (data.message.includes("401") || data.message.includes("Unauthorized"))))) {
             alert("Your session has expired. Please log in again.");
             localStorage.removeItem('uuid_token');
             window.location.href = '../index.html';
