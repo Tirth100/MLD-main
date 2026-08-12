@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import Sidebar from '../components/Sidebar';
 
 export default function ManagerDashboard() {
   const [data, setData] = useState([]);
@@ -99,43 +100,7 @@ export default function ManagerDashboard() {
 
   return (
     <>
-      {/* Sidebar */}
-      <nav className="sidebar d-none d-md-flex flex-column p-3">
-          <a href="#" className="d-flex align-items-center mb-4 text-dark text-decoration-none px-3">
-              <i className="bi bi-radar text-primary fs-3 me-2"></i>
-              <span className="fs-5 fw-bold">MLD Admin</span>
-          </a>
-          <hr className="border-secondary mt-0" />
-          <ul className="nav flex-column mb-auto">
-              <li className="nav-item">
-                  <a href="#" className="nav-link active">
-                      <i className="bi bi-grid-1x2"></i> Dashboard
-                  </a>
-              </li>
-              <li className="nav-item">
-                  <a href="#" className="nav-link">
-                      <i className="bi bi-graph-up"></i> Analytics
-                  </a>
-              </li>
-              <li className="nav-item">
-                  <a href="#" className="nav-link">
-                      <i className="bi bi-file-earmark-text"></i> Reports
-                  </a>
-              </li>
-              <li className="nav-item">
-                  <a href="#" className="nav-link">
-                      <i className="bi bi-bell"></i> Alerts
-                      {alerts.length > 0 && <span className="badge bg-danger rounded-pill ms-auto">{alerts.length}</span>}
-                  </a>
-              </li>
-          </ul>
-          <hr className="border-secondary" />
-          <div className="px-3 py-2">
-              <button onClick={handleLogout} className="btn btn-outline-danger w-100">
-                  <i className="bi bi-box-arrow-left me-2"></i>Logout
-              </button>
-          </div>
-      </nav>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="main-content">
