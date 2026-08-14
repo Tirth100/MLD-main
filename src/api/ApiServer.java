@@ -184,9 +184,9 @@ public class ApiServer {
                 return;
             }
             try {
-                java.io.File fileToServe = new java.io.File("MLDAgent.zip");
+                java.io.File fileToServe = new java.io.File("MLDAgent.msi");
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("installer/MLDAgent.zip");
+                    fileToServe = new java.io.File("installer/MLDAgent.msi");
                 }
                 if (!fileToServe.exists()) {
                     fileToServe = new java.io.File("mld-agent-app/installer/MLD Agent-1.0.0.msi");
@@ -199,14 +199,14 @@ public class ApiServer {
                 }
                 if (fileToServe.exists()) {
                     byte[] bytes = java.nio.file.Files.readAllBytes(fileToServe.toPath());
-                    exchange.getResponseHeaders().set("Content-Type", "application/zip");
-                    exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"MLDAgent.zip\"");
+                    exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
+                    exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + fileToServe.getName() + "\"");
                     exchange.sendResponseHeaders(200, bytes.length);
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(bytes);
                     }
                 } else {
-                    String msg = "MLD Agent zip installer file not found on server.";
+                    String msg = "MLD Agent MSI installer file not found on server.";
                     exchange.sendResponseHeaders(404, msg.length());
                     try (OutputStream os = exchange.getResponseBody()) { os.write(msg.getBytes()); }
                 }
