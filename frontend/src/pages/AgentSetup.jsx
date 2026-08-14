@@ -62,7 +62,7 @@ export default function AgentSetup() {
     }
   };
 
-  const downloadUrl = '/MLDAgent.msi';
+  const downloadUrl = '/MLDAgent.zip';
   const protocolLink = `mld-agent://link?token=${token}`;
 
   return (
@@ -150,7 +150,7 @@ export default function AgentSetup() {
                   </div>
                 </div>
                 <p className="text-muted small flex-grow-1">
-                  Get the official <strong>MLDAgent.msi</strong> installer. Comes with a self-contained runtime so you don't need to install or configure Java manually.
+                  Get the official <strong>MLDAgent.zip</strong> file. Extract it and run the executable. Comes with a self-contained runtime so you don't need to install or configure Java manually.
                 </p>
                 <div className="mt-3 pt-3 border-top">
                   <span className="badge bg-light text-muted border"><i className="bi bi-file-earmark-binary me-1"></i>Windows 10/11 (64-bit)</span>
@@ -227,10 +227,10 @@ export default function AgentSetup() {
                 <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center mb-4">
                   <a 
                     href={downloadUrl} 
-                    download="MLDAgent.msi" 
+                    download="MLDAgent.zip" 
                     className="btn btn-primary btn-lg px-4 py-3 shadow fs-6 fw-bold d-inline-flex align-items-center justify-content-center"
                   >
-                    <i className="bi bi-download me-2"></i>Download MLD Agent (.msi)
+                    <i className="bi bi-download me-2"></i>Download MLD Agent (.zip)
                   </a>
 
                   <a 
@@ -243,7 +243,7 @@ export default function AgentSetup() {
 
                 <div className="d-flex align-items-center justify-content-center gap-4 text-muted small mb-4">
                   <span><i className="bi bi-shield-check text-success me-1"></i>Verified Safe</span>
-                  <span><i className="bi bi-patch-check text-primary me-1"></i>MSI Format</span>
+                  <span><i className="bi bi-patch-check text-primary me-1"></i>ZIP Format</span>
                   <span><i className="bi bi-windows text-info me-1"></i>Win 10/11 Ready</span>
                 </div>
               </div>
