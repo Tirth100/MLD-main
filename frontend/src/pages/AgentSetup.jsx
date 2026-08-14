@@ -99,7 +99,7 @@ export default function AgentSetup() {
                   
                   <div className="card glass-card border-0 mb-4 shadow-sm">
                       <div className="card-body p-4">
-                          <h4 className="fw-bold mb-3"><i className="bi bi-info-circle text-primary me-2"></i>Section 1: What is MLD Agent?</h4>
+                          <h4 className="fw-bold mb-3"><i className="bi bi-info-circle text-primary me-2"></i>What is MLD Agent?</h4>
                           <p className="text-muted leading-relaxed">
                               <strong>MLD Agent</strong> is a lightweight, secure background application installed on your computer. It monitors meeting engagement (such as active meeting window focus, camera status, and idle time) strictly during <strong>authorized monitoring sessions</strong> started by your organization manager.
                           </p>
@@ -112,13 +112,13 @@ export default function AgentSetup() {
 
                   <div className="card glass-card border-0 mb-4 shadow-sm">
                       <div className="card-body p-4">
-                          <h4 className="fw-bold mb-4"><i className="bi bi-list-check text-primary me-2"></i>Section 2: Installation Steps</h4>
+                          <h4 className="fw-bold mb-4"><i className="bi bi-list-check text-primary me-2"></i>Installation Guide</h4>
                           
                           <div className="d-flex align-items-start mb-3">
                               <div className="badge bg-primary rounded-circle p-3 me-3 fs-6">1</div>
                               <div>
                                   <h6 className="fw-bold mb-1">Step 1: Download MLD Agent</h6>
-                                  <p className="text-muted small mb-0">Click the <strong>Download MLD Agent</strong> button below to get the official installer (.msi).</p>
+                                  <p className="text-muted small mb-0">Click the <strong>Download MLD Agent (.msi)</strong> button below to get the official installer.</p>
                               </div>
                           </div>
 
@@ -126,7 +126,7 @@ export default function AgentSetup() {
                               <div className="badge bg-primary rounded-circle p-3 me-3 fs-6">2</div>
                               <div>
                                   <h6 className="fw-bold mb-1">Step 2: Install the Agent</h6>
-                                  <p className="text-muted small mb-0">Run the downloaded MSI file and follow the standard installation prompts.</p>
+                                  <p className="text-muted small mb-0">Run the downloaded MSI file and follow the standard installation prompts. The agent will run quietly in your system tray.</p>
                               </div>
                           </div>
 
@@ -134,7 +134,7 @@ export default function AgentSetup() {
                               <div className="badge bg-primary rounded-circle p-3 me-3 fs-6">3</div>
                               <div>
                                   <h6 className="fw-bold mb-1">Step 3: Link Agent</h6>
-                                  <p className="text-muted small mb-0">Click the <strong>Link Agent</strong> button on the right column to securely pair your desktop agent with your account.</p>
+                                  <p className="text-muted small mb-0">Click the <strong>Link Agent Now</strong> button on the right to securely pair your desktop agent with your account.</p>
                               </div>
                           </div>
 
@@ -142,7 +142,7 @@ export default function AgentSetup() {
                               <div className="badge bg-success rounded-circle p-3 me-3 fs-6">4</div>
                               <div>
                                   <h6 className="fw-bold mb-1">Step 4: Verify Connection</h6>
-                                  <p className="text-muted small mb-0">Wait for the badge to turn 🟢 <strong>Connected</strong> automatically.</p>
+                                  <p className="text-muted small mb-0">Wait for the connection badge at the top right to turn 🟢 <strong>Connected</strong> automatically.</p>
                               </div>
                           </div>
                       </div>
@@ -167,19 +167,19 @@ export default function AgentSetup() {
                   
                   <div className="card glass-card border-0 mb-4 shadow-sm">
                       <div className="card-body p-4">
-                          <h5 className="fw-bold mb-3"><i className="bi bi-link-45deg text-primary me-2"></i>Section 4: Link Your Agent</h5>
+                          <h5 className="fw-bold mb-3"><i className="bi bi-link-45deg text-primary me-2"></i>Link Your Agent</h5>
                           <p className="text-muted small">
-                              After installing the agent, you must link it to your account. This is a one-time process.
+                              After installing the agent, you must link it to your account. This is a one-time seamless process.
                           </p>
                           <ul className="list-group list-group-flush border-0 mb-3">
                               <li className="list-group-item bg-transparent px-0 py-2 d-flex align-items-center">
-                                  <i className="bi bi-check-circle-fill text-success me-2"></i>1. Ensure the MLD Agent is running.
+                                  <i className="bi bi-check-circle-fill text-success me-2"></i>1. Ensure the MLD Agent is running in your system tray.
                               </li>
                               <li className="list-group-item bg-transparent px-0 py-2 d-flex align-items-center">
-                                  <i className="bi bi-check-circle-fill text-success me-2"></i>2. Click the <strong>Link Agent</strong> button below.
+                                  <i className="bi bi-check-circle-fill text-success me-2"></i>2. Click the <strong>Link Agent Now</strong> button below.
                               </li>
                               <li className="list-group-item bg-transparent px-0 py-2 d-flex align-items-center">
-                                  <i className="bi bi-check-circle-fill text-success me-2"></i>3. When prompted, allow your browser to open the agent.
+                                  <i className="bi bi-check-circle-fill text-success me-2"></i>3. When prompted by your browser, allow it to open the MLD Agent.
                               </li>
                           </ul>
 
@@ -199,7 +199,7 @@ export default function AgentSetup() {
 
                   <div className="card glass-card border-0 shadow-sm">
                       <div className="card-body p-4">
-                          <h5 className="fw-bold mb-3"><i className="bi bi-question-circle text-primary me-2"></i>Section 6: Frequently Asked Questions</h5>
+                          <h5 className="fw-bold mb-3"><i className="bi bi-question-circle text-primary me-2"></i>Frequently Asked Questions</h5>
                           
                           <div className="accordion accordion-flush" id="faqAccordion">
                               <div className="accordion-item bg-transparent">
