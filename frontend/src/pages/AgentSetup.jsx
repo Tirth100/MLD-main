@@ -62,7 +62,7 @@ export default function AgentSetup() {
     }
   };
 
-  const downloadUrl = '/MLDAgent.msi';
+  const downloadUrl = 'https://mld-server.onrender.com/MLDAgent.msi';
   const protocolLink = `mld-agent://link?token=${token}`;
 
   return (
