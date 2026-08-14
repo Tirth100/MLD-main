@@ -16,16 +16,39 @@ function App() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/index.html" element={<Login />} />
+        
         <Route path="/organization-signup" element={<OrganizationSignup />} />
+        <Route path="/pages/organization-signup.html" element={<OrganizationSignup />} />
+        
         <Route path="/employee-signup" element={<EmployeeSignup />} />
+        <Route path="/pages/employee-signup.html" element={<EmployeeSignup />} />
+        
         <Route path="/manager-dashboard" element={<ManagerDashboard />} />
+        <Route path="/pages/manager-dashboard.html" element={<ManagerDashboard />} />
+        
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+        <Route path="/pages/employee-dashboard.html" element={<EmployeeDashboard />} />
+        
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/pages/analytics.html" element={<Analytics />} />
+        
         <Route path="/alerts" element={<Alerts />} />
+        <Route path="/pages/alerts.html" element={<Alerts />} />
+        
         <Route path="/reports" element={<Reports />} />
+        <Route path="/pages/reports.html" element={<Reports />} />
+        
         <Route path="/agent-setup" element={<AgentSetup />} />
+        <Route path="/pages/agent-setup.html" element={<AgentSetup />} />
+        <Route path="/agent-setup.html" element={<AgentSetup />} />
+        <Route path="/pages/agent-setup" element={<AgentSetup />} />
+        
         <Route path="/mobile-agent" element={<MobileAgent />} />
-        {/* Redirect everything else to login */}
+        <Route path="/pages/mobile-agent.html" element={<MobileAgent />} />
+        
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
