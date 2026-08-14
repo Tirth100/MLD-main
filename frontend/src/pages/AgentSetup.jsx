@@ -173,7 +173,7 @@ export default function AgentSetup() {
                   </div>
                 </div>
                 <p className="text-muted small flex-grow-1">
-                  Double-click the downloaded <strong>.msi</strong> file and follow the standard prompt. It installs into <code>Program Files</code> and runs silently in your <strong>System Tray</strong>.
+                  Double-click the downloaded <strong>.msi</strong> file and install it. <strong>Important:</strong> After installation, open your Windows Start Menu, search for <strong>"MLD Agent"</strong>, and click it to run the agent in the background.
                 </p>
                 <div className="mt-3 pt-3 border-top">
                   <span className="badge bg-light text-muted border"><i className="bi bi-shield-check text-success me-1"></i>System Tray Background App</span>
@@ -196,7 +196,7 @@ export default function AgentSetup() {
                   </div>
                 </div>
                 <p className="text-muted small flex-grow-1">
-                  Click <strong>Link Agent Now</strong> below. Your browser will trigger the <code>mld-agent://</code> protocol to link your account token automatically without manual copy-pasting.
+                  Click <strong>Link Agent Now</strong> below to pair your account automatically. <strong>Fallback:</strong> If the button doesn't open the agent, use the manual token fallback below and run <code>MLD Agent.exe</code> with it.
                 </p>
                 <div className="mt-3 pt-3 border-top">
                   <span className={`badge ${isConnected ? 'bg-success text-white' : 'bg-light text-primary border'}`}>
@@ -271,7 +271,7 @@ export default function AgentSetup() {
                   </button>
                 </div>
                 <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                  If the browser protocol prompt doesn't open automatically, use this token for manual setup.
+                  If the Link button doesn't work, press <strong>Win + R</strong>, type <code>"C:\Program Files\MLD Agent\MLD Agent.exe" mld-agent://link?token={token || 'YOUR_TOKEN'}</code> and hit Enter.
                 </small>
               </div>
 
