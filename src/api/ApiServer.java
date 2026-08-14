@@ -74,6 +74,8 @@ public class ApiServer {
         
         server.createContext("/", new RootHandler());
         server.createContext("/download/mld-agent", new DownloadAgentHandler());
+        server.createContext("/MLDAgent.msi", new DownloadAgentHandler());
+        server.createContext("/api/download-agent", new DownloadAgentHandler());
         server.createContext("/api/agent-status", new AgentStatusHandler());
         server.createContext("/api/heartbeat", new HeartbeatHandler());
         server.createContext("/api/engagement", new EngagementHandler());
@@ -182,12 +184,18 @@ public class ApiServer {
                 return;
             }
             try {
-                java.io.File fileToServe = new java.io.File("MLD-Agent.zip");
+                java.io.File fileToServe = new java.io.File("MLDAgent.msi");
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("MLD-Agent.jar");
+                    fileToServe = new java.io.File("installer/MLDAgent.msi");
                 }
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("start-mld-agent.bat");
+                    fileToServe = new java.io.File("mld-agent-app/installer/MLD Agent-1.0.0.msi");
+                }
+                if (!fileToServe.exists()) {
+                    fileToServe = new java.io.File("MLD-Agent.zip");
+                }
+                if (!fileToServe.exists()) {
+                    fileToServe = new java.io.File("MLD-Agent.jar");
                 }
                 if (fileToServe.exists()) {
                     byte[] bytes = java.nio.file.Files.readAllBytes(fileToServe.toPath());
@@ -198,7 +206,7 @@ public class ApiServer {
                         os.write(bytes);
                     }
                 } else {
-                    String msg = "MLD Agent installer file not found on server.";
+                    String msg = "MLD Agent MSI installer file not found on server.";
                     exchange.sendResponseHeaders(404, msg.length());
                     try (OutputStream os = exchange.getResponseBody()) { os.write(msg.getBytes()); }
                 }

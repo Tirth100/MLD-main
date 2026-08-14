@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, getApiBaseUrl } from '../api';
 
 export default function AgentSetup() {
   const [agentStatus, setAgentStatus] = useState('Checking Status...');
@@ -153,7 +153,11 @@ export default function AgentSetup() {
                           <h4 className="fw-bold mb-2">Ready to Install?</h4>
                           <p className="text-muted mb-4">Compatible with Windows 10/11</p>
                           
-                          <a href="/MLDAgent.msi" download="MLDAgent.msi" className="btn btn-primary btn-lg px-5 py-3 shadow fs-5 fw-bold">
+                          <a 
+                              href={`${getApiBaseUrl().replace(/\/api$/, '')}/MLDAgent.msi`} 
+                              download="MLDAgent.msi" 
+                              className="btn btn-primary btn-lg px-5 py-3 shadow fs-5 fw-bold"
+                          >
                               <i className="bi bi-download me-2"></i>Download MLD Agent (.msi)
                           </a>
                           <p className="text-muted small mt-3 mb-0"><i className="bi bi-shield-lock text-success me-1"></i>Verified Safe & Malware Free</p>
