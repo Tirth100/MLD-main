@@ -62,7 +62,7 @@ export default function AgentSetup() {
     }
   };
 
-  const downloadUrl = `${getApiBaseUrl().replace(/\/api$/, '')}/MLDAgent.msi`;
+  const downloadUrl = '/MLDAgent.msi';
   const protocolLink = `mld-agent://link?token=${token}`;
 
   return (
