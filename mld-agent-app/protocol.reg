@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\mld-agent]
+@="URL:MLD Agent Protocol"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\mld-agent\shell]
+
+[HKEY_CLASSES_ROOT\mld-agent\shell\open]
+
+[HKEY_CLASSES_ROOT\mld-agent\shell\open\command]
+@="\"C:\\Program Files\\MLD Agent\\MLD Agent.exe\" \"%1\""
