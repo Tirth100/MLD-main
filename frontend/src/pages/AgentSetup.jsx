@@ -15,28 +15,59 @@ export default function AgentSetup() {
 
   const checkAgentStatus = async () => {
     try {
-      const response = await api.get(`/agent-status?uuid=${token}`);
       setLastCheckedTime(new Date().toLocaleTimeString());
-      if (response && response.connected) {
-        setStatusClass('bg-success text-white');
-        setStatusIcon('bi-check-circle-fill');
-        setAgentStatus('Connected & Active');
-        setIsConnected(true);
-      } else if (token) {
-        setStatusClass('bg-warning text-dark');
-        setStatusIcon('bi-exclamation-triangle-fill');
-        setAgentStatus('Offline / Waiting for Link');
-        setIsConnected(false);
+      
+      let localAgentAlive = false;
+      let localAgentUuid = null;
+      try {
+        const localController = new AbortController();
+        const localTimeoutId = setTimeout(() => localController.abort(), 2000);
+        const localResponse = await fetch('http://127.0.0.1:14321/ping', {
+          signal: localController.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(localTimeoutId);
+        
+        if (localResponse.ok) {
+          const localData = await localResponse.json();
+          if (localData && localData.status === 'ok') {
+            localAgentAlive = true;
+            localAgentUuid = localData.uuid;
+          }
+        }
+      } catch (err) {
+        // Local agent not running or unreachable
+      }
+
+      if (localAgentAlive) {
+        if (localAgentUuid === token && token) {
+          setStatusClass('bg-success text-white');
+          setStatusIcon('bi-check-circle-fill');
+          setAgentStatus('Connected & Active');
+          setIsConnected(true);
+        } else {
+          setStatusClass('bg-warning text-dark');
+          setStatusIcon('bi-exclamation-triangle-fill');
+          setAgentStatus('Agent Running (Other Account)');
+          setIsConnected(false);
+        }
       } else {
-        setStatusClass('bg-danger text-white');
-        setStatusIcon('bi-x-circle-fill');
-        setAgentStatus('Not Installed');
-        setIsConnected(false);
+        if (token) {
+          setStatusClass('bg-warning text-dark');
+          setStatusIcon('bi-exclamation-triangle-fill');
+          setAgentStatus('Offline / Waiting for Link');
+          setIsConnected(false);
+        } else {
+          setStatusClass('bg-danger text-white');
+          setStatusIcon('bi-x-circle-fill');
+          setAgentStatus('Not Installed');
+          setIsConnected(false);
+        }
       }
     } catch (e) {
       setStatusClass('bg-secondary text-white');
       setStatusIcon('bi-question-circle');
-      setAgentStatus('Offline');
+      setAgentStatus('Error Checking');
       setIsConnected(false);
     } finally {
       setIsChecking(false);

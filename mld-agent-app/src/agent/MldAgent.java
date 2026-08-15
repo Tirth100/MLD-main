@@ -16,6 +16,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.List;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import java.net.InetSocketAddress;
+import java.io.IOException;
 
 import java.awt.AWTException;
 import java.awt.Color;
@@ -59,6 +64,7 @@ public class MldAgent {
         }
 
         initTray();
+        startLocalServer();
 
         ScheduledExecutorService backgroundScheduler = Executors.newScheduledThreadPool(2);
 
@@ -103,6 +109,37 @@ public class MldAgent {
                 }
             }
         }, 0, 10, TimeUnit.SECONDS);
+    }
+
+    private static void startLocalServer() {
+        try {
+            HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 14321), 0);
+            server.createContext("/ping", new HttpHandler() {
+                @Override
+                public void handle(HttpExchange exchange) throws IOException {
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+                    if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                        exchange.sendResponseHeaders(204, -1);
+                        return;
+                    }
+
+                    String response = "{\"status\":\"ok\",\"uuid\":\"" + escapeJson(uuid) + "\"}";
+                    byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().add("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, bytes.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(bytes);
+                    }
+                }
+            });
+            server.setExecutor(Executors.newSingleThreadExecutor());
+            server.start();
+        } catch (Exception e) {
+            System.err.println("Failed to start local server: " + e.getMessage());
+        }
     }
 
     private static void initTray() {

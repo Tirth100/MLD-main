@@ -24,3 +24,9 @@ node_modules/
 bundled-jre/
 jre/
 test-zip/
+
+# WiX Build Artifacts
+wix-temp/
+wix311/
+*.wixpdb
+msi_files.txt
