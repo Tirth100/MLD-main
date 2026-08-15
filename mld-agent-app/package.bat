@@ -18,6 +18,7 @@ jpackage ^
   --input . ^
   --main-jar mld-agent.jar ^
   --main-class agent.MldAgent ^
+  --license-file License.rtf ^
   --win-menu ^
   --win-shortcut ^
   --win-dir-chooser
