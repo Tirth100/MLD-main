@@ -93,7 +93,7 @@ export default function AgentSetup() {
     }
   };
 
-  const downloadUrl = '/MLDAgent.msi?v=5';
+  const downloadUrl = '/MLDAgent.msi?v=7';
   const protocolLink = `mld-agent://link?token=${token}`;
 
   return (
