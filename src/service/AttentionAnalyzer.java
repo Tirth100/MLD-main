@@ -35,10 +35,7 @@ public class AttentionAnalyzer {
          || lowerWin.contains("powerpoint")
          || lowerWin.contains("powerpnt")) 
         {
-            // Must not be idle to be counted as focused
-            if (idleSeconds < 8) {
-                isFocused = true;
-            }
+            isFocused = true;
         }
         
         webcamActive = webcam;
