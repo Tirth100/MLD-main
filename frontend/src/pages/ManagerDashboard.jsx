@@ -83,7 +83,7 @@ export default function ManagerDashboard() {
   const handleStopSession = async () => {
     if (window.confirm("Are you sure you want to end the current monitoring session for all participants?")) {
       try {
-        await api.get('/stop');
+        await api.post('/stop');
         setSession({ active: false, code: '' });
         fetchData();
       } catch (e) {

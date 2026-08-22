@@ -33,7 +33,8 @@ export default function EmployeeDashboard() {
 
   const fetchStatus = async () => {
     try {
-      const sessionRes = await api.get('/active-session');
+      const token = localStorage.getItem('uuid_token') || '';
+      const sessionRes = await api.get('/active-session?uuid=' + encodeURIComponent(token));
       if (sessionRes && sessionRes.active) {
         setSession({ active: true, code: sessionRes.sessionCode });
       } else {
@@ -171,9 +172,14 @@ export default function EmployeeDashboard() {
                                 <h5 className="fw-bold mb-0 text-success">
                                     <i className="bi bi-cpu-fill me-2"></i>MLD Desktop Agent Activated for Session <span className="badge bg-success">{session.code}</span>
                                 </h5>
-                                <button className="btn btn-sm btn-outline-danger" onClick={handleLeave}>
-                                    <i className="bi bi-box-arrow-right me-1"></i>Leave Session
-                                </button>
+                                <div className="d-flex gap-2">
+                                    <a href={`mld-agent://link?token=${localStorage.getItem('uuid_token') || ''}`} className="btn btn-sm btn-primary shadow-sm">
+                                        <i className="bi bi-play-circle me-1"></i>Activate Agent
+                                    </a>
+                                    <button className="btn btn-sm btn-outline-danger shadow-sm" onClick={handleLeave}>
+                                        <i className="bi bi-box-arrow-right me-1"></i>Leave Session
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
