@@ -230,8 +230,22 @@ export default function ManagerDashboard() {
                   </div>
               </div>
           </header>
-
-          <div className="row g-4 row-cols-1 row-cols-md-2 row-cols-xl-4 mb-4">
+          {session.active ? (
+              <div className="row mt-5">
+                  <div className="col-12 text-center">
+                      <div className="card glass-card border-primary shadow-sm py-5" style={{borderWidth: '2px'}}>
+                          <div className="card-body">
+                              <div className="spinner-grow text-primary mb-4" style={{ width: '4rem', height: '4rem' }} role="status"></div>
+                              <h2 className="fw-bold mb-3">Meeting Session in Progress...</h2>
+                              <p className="text-muted fs-5 mb-0">Employee telemetry is being actively recorded on their local machines.</p>
+                              <p className="text-muted fs-5">Full analytics will be aggregated and displayed here automatically once you stop the session.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          ) : (
+              <>
+                  <div className="row g-4 row-cols-1 row-cols-md-2 row-cols-xl-4 mb-4">
               <div className="col">
                   <div className="card glass-card h-100">
                       <div className="card-body">
@@ -294,7 +308,7 @@ export default function ManagerDashboard() {
               <div className="col-lg-8">
                   <div className="card glass-card h-100">
                       <div className="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
-                          <h5 className="mb-0 fw-bold">Live Employee Engagement</h5>
+                          <h5 className="mb-0 fw-bold">{session.active ? "Live Employee Engagement" : "Historical Session Engagement"}</h5>
                           <div className="d-flex gap-2">
                               <a href="#/reports" className="btn btn-sm btn-outline-primary shadow-sm">View Reports</a>
                           </div>
@@ -436,6 +450,8 @@ export default function ManagerDashboard() {
                   </div>
               </div>
           </div>
+              </>
+          )}
       </main>
 
       {/* Manage Employees Modal */}

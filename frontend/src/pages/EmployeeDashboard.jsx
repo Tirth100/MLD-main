@@ -4,6 +4,7 @@ import { api } from '../api';
 
 export default function EmployeeDashboard() {
   const [session, setSession] = useState({ active: false, code: '' });
+  const [orgSessionCode, setOrgSessionCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,12 @@ export default function EmployeeDashboard() {
         setSession({ active: true, code: sessionRes.sessionCode });
       } else {
         setSession({ active: false, code: '' });
+      }
+      if (sessionRes && sessionRes.orgActiveCode) {
+        setOrgSessionCode(sessionRes.orgActiveCode);
+        if (!joinCode) setJoinCode(sessionRes.orgActiveCode); // Auto-fill the code
+      } else {
+        setOrgSessionCode('');
       }
 
       if (sessionRes && sessionRes.active) {
@@ -82,7 +89,8 @@ export default function EmployeeDashboard() {
     setError('');
     
     try {
-      const response = await api.post('/join', { sessionCode: joinCode });
+      const uuid = localStorage.getItem('uuid_token') || '';
+      const response = await api.post('/join', { sessionCode: joinCode, uuid });
       if (response.success) {
         setSession({ active: true, code: joinCode });
         fetchStatus();
@@ -146,6 +154,8 @@ export default function EmployeeDashboard() {
                                 <p className="text-muted mb-0">Connecting to Server <div className="spinner-border spinner-border-sm ms-1" role="status"></div></p>
                               ) : session.active ? (
                                 <p className="text-success fw-bold mb-0">Monitoring Active for Session: {session.code}</p>
+                              ) : orgSessionCode ? (
+                                <p className="text-warning fw-bold mb-0">Meeting Started: {orgSessionCode} (Awaiting Join)</p>
                               ) : (
                                 <p className="text-muted mb-0">Waiting for Session Code...</p>
                               )}
