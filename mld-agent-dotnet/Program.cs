@@ -30,6 +30,17 @@ namespace MldAgent
                 if (!isOnlyInstance)
                 {
                     AgentLogger.LogInfo("Another instance of MLD-Agent is already active. Config updated & exiting new launcher process.");
+                    
+                    // Send an immediate heartbeat in secondary process too
+                    if (!string.IsNullOrEmpty(config.Uuid))
+                    {
+                        try
+                        {
+                            var backend = new BackendClient();
+                            backend.SendHeartbeatAsync(config.ServerUrl, config.Uuid).Wait(2000);
+                        }
+                        catch {}
+                    }
                     return;
                 }
 

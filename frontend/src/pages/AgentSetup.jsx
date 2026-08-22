@@ -16,14 +16,37 @@ export default function AgentSetup() {
   const token = localStorage.getItem('uuid_token') || '';
 
   const checkAgentStatus = async () => {
+    if (!token) {
+      setStatusClass('bg-danger text-white');
+      setStatusIcon('bi-x-circle-fill');
+      setAgentStatus('Not Logged In');
+      setIsConnected(false);
+      return;
+    }
+
     try {
       setLastCheckedTime(new Date().toLocaleTimeString());
       
+      // 1. Check Server Heartbeat status via Backend API (Cloud reliable)
+      try {
+        const serverRes = await api.get(`/agent-status?uuid=${encodeURIComponent(token)}`);
+        if (serverRes && (serverRes.connected === true || serverRes.status === 'online' || serverRes.active === true)) {
+          setStatusClass('bg-success text-white');
+          setStatusIcon('bi-check-circle-fill');
+          setAgentStatus('Connected & Active');
+          setIsConnected(true);
+          return;
+        }
+      } catch (srvErr) {
+        // Backend check error, fallback to local
+      }
+
+      // 2. Check local HTTP ping listener fallback
       let localAgentAlive = false;
       let localAgentUuid = null;
       try {
         const localController = new AbortController();
-        const localTimeoutId = setTimeout(() => localController.abort(), 2000);
+        const localTimeoutId = setTimeout(() => localController.abort(), 1500);
         const localResponse = await fetch('http://127.0.0.1:14321/ping', {
           signal: localController.signal,
           cache: 'no-store'
@@ -38,7 +61,7 @@ export default function AgentSetup() {
           }
         }
       } catch (err) {
-        // Local agent not running or unreachable
+        // Local agent unreachable
       }
 
       if (localAgentAlive) {
@@ -54,17 +77,10 @@ export default function AgentSetup() {
           setIsConnected(false);
         }
       } else {
-        if (token) {
-          setStatusClass('bg-warning text-dark');
-          setStatusIcon('bi-exclamation-triangle-fill');
-          setAgentStatus('Offline / Waiting for Link');
-          setIsConnected(false);
-        } else {
-          setStatusClass('bg-danger text-white');
-          setStatusIcon('bi-x-circle-fill');
-          setAgentStatus('Not Installed');
-          setIsConnected(false);
-        }
+        setStatusClass('bg-warning text-dark');
+        setStatusIcon('bi-exclamation-triangle-fill');
+        setAgentStatus('Offline / Waiting for Link');
+        setIsConnected(false);
       }
     } catch (e) {
       setStatusClass('bg-secondary text-white');
