@@ -287,7 +287,7 @@ public class ApiServer {
             }
 
             String json = String.format("{\"connected\": %b, \"status\": \"%s\", \"uuid\": \"%s\"}",
-                isConnected, isConnected ? "Connected" : "Offline", uuid);
+                isConnected, isConnected ? "Connected" : "Offline", escapeJson(uuid));
             sendResponse(exchange, json);
         }
     }
@@ -415,7 +415,7 @@ public class ApiServer {
                 sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped.\"}");
             } catch (Exception e) {
                 System.err.println("Stop error: " + e.getMessage());
-                sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped with warning: " + e.getMessage() + "\"}");
+                sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped with warning: " + escapeJson(e.getMessage()) + "\"}");
             }
         }
     }
@@ -591,7 +591,7 @@ public class ApiServer {
                     }
                 } catch (Exception e) {
                     System.err.println("Track error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"active\": false, \"message\": \"" + e.getMessage() + "\"}");
+                    sendResponse(exchange, "{\"success\": false, \"active\": false, \"message\": \"" + escapeJson(e.getMessage()) + "\"}");
                 }
             }
         }
@@ -699,7 +699,7 @@ public class ApiServer {
 
                     String liveJson = String.format(
                         "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"isLive\": true}",
-                        empName, scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode
+                        escapeJson(empName), scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode
                     );
                     
                     if (combinedJson.length() > 1) combinedJson.append(", ");
@@ -738,7 +738,7 @@ public class ApiServer {
                         if (score < 0.5) {
                             if (hasLocal) combinedJson.append(",");
                             String empName = getEmployeeNameByUuid(uuid);
-                            combinedJson.append("\n{ \"name\": \"").append(empName).append("\", \"reason\": \"Tracking detected low window focus under 50% (< 0.5)\", \"time\": \"Current Session\" }\n");
+                            combinedJson.append("\n{ \"name\": \"").append(escapeJson(empName)).append("\", \"reason\": \"Tracking detected low window focus under 50% (< 0.5)\", \"time\": \"Current Session\" }\n");
                             hasLocal = true;
                         }
                     }
@@ -887,7 +887,7 @@ public class ApiServer {
                 DatabaseHelper.LoginResult res = DatabaseHelper.login(email, password);
                 if (res.success) {
                     loginAttempts.remove(ip);
-                    sendResponse(exchange, "{\"success\": true, \"token\": \"" + res.token + "\", \"role\": \"" + res.role + "\", \"name\": \"" + res.name + "\"}");
+                    sendResponse(exchange, "{\"success\": true, \"token\": \"" + res.token + "\", \"role\": \"" + res.role + "\", \"name\": \"" + escapeJson(res.name) + "\"}");
                 } else {
                     int attempts = loginAttempts.getOrDefault(ip, 0) + 1;
                     loginAttempts.put(ip, attempts);
@@ -900,7 +900,7 @@ public class ApiServer {
                 }
             } catch (Exception e) {
                 System.err.println("Login error: " + e.getMessage());
-                sendResponse(exchange, "{\"success\": false, \"message\": \"Login failed: " + e.getMessage() + "\"}");
+                sendResponse(exchange, "{\"success\": false, \"message\": \"Login failed: " + escapeJson(e.getMessage()) + "\"}");
             }
         }
     }
@@ -936,7 +936,7 @@ public class ApiServer {
                     }
                 } catch (Exception e) {
                     System.err.println("Org Signup error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Signup failed: " + e.getMessage() + "\"}");
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Signup failed: " + escapeJson(e.getMessage()) + "\"}");
                 }
             }
         }
@@ -973,7 +973,7 @@ public class ApiServer {
                     }
                 } catch (Exception e) {
                     System.err.println("Emp Signup error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Signup failed: " + e.getMessage() + "\"}");
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Signup failed: " + escapeJson(e.getMessage()) + "\"}");
                 }
             }
         }
@@ -1037,7 +1037,7 @@ public class ApiServer {
                         }
                         timeline = extracted.replace("\r", "").replace("\n", "").replace(",", ";").replace("\"", "'").replace("  ", " ");
                     }
-                    csv += name + ",Employee," + scoreStr + "," + statusStr + "," + totCheck + "," + focCheck + "," + timestamp + "," + timeline + "\n";
+                    csv += csvEscape(name) + ",Employee," + csvEscape(scoreStr) + "," + csvEscape(statusStr) + "," + csvEscape(totCheck) + "," + csvEscape(focCheck) + "," + csvEscape(timestamp) + "," + csvEscape(timeline) + "\n";
                 } catch (Exception e) {
                     System.err.println("Error parsing report block for export: " + e.getMessage());
                 }
@@ -1120,6 +1120,24 @@ public class ApiServer {
                     .replace("\t", "\\t");
     }
 
+    // CSV export safety: prevents formula/DDE injection (CWE-1236) when a cell value
+    // starting with =, +, -, or @ gets opened in Excel/Sheets/LibreOffice, and follows
+    // RFC 4180 quoting so commas/quotes/newlines inside a field (e.g. an employee name)
+    // don't corrupt the column structure.
+    private static String csvEscape(String value) {
+        if (value == null) value = "";
+        if (!value.isEmpty()) {
+            char first = value.charAt(0);
+            if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
+                value = "'" + value;
+            }
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            value = "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
     class EmployeesHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -1173,7 +1191,7 @@ public class ApiServer {
                 boolean success = DatabaseHelper.removeEmployee(token, Integer.parseInt(idStr));
                 sendResponse(exchange, "{\"success\": " + success + "}");
             } catch (Exception e) {
-                sendResponse(exchange, "{\"success\": false, \"message\": \"" + e.getMessage() + "\"}");
+                sendResponse(exchange, "{\"success\": false, \"message\": \"" + escapeJson(e.getMessage()) + "\"}");
             }
         }
     }

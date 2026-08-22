@@ -99,8 +99,12 @@ public class Main {
         
         if (orgId == 1) {
             currentSessionCode = "";
-            analyzers.clear();
         }
+        // Note: analyzers.clear() used to run here unconditionally. The loop above already
+        // removes exactly this org's entries from the shared `analyzers` map via
+        // getOrgIdFromToken(...) == orgId, so clearing the whole map on top of that was
+        // wiping out any other org's still-active, not-yet-saved session data whenever org 1
+        // stopped its own session. Removed - per-org cleanup above is sufficient.
         System.out.println("Org " + orgId + " session saved and monitoring reset.");
     }
 

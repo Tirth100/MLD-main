@@ -37,7 +37,7 @@ import java.net.URI;
 
 public class MldAgent {
 
-    private static String serverUrl = "https://mld-server.onrender.com";
+    private static String serverUrl = "https://mld-main.onrender.com";
     private static String uuid = "";
     private static String employeeName = "Employee";
     private static String currentSessionCode = "";
@@ -58,9 +58,20 @@ public class MldAgent {
         if (args.length > 0 && args[0].startsWith("mld-agent://link?token=")) {
             String newUuid = args[0].substring("mld-agent://link?token=".length()).trim();
             if (newUuid.endsWith("/")) newUuid = newUuid.substring(0, newUuid.length() - 1);
-            uuid = newUuid;
-            saveConfig(serverUrl, uuid, "", employeeName);
-            System.out.println("Agent successfully linked with token: " + uuid);
+
+            // IMPORTANT: this branch runs for ANY mld-agent:// link click, from any page in
+            // any browser tab - not only the "Link Agent Now" button on our own dashboard.
+            // Without confirmation, a malicious page could silently re-point an already-linked
+            // agent at a different (attacker-controlled) account, since saveConfig() persists
+            // to disk immediately with no prior check. Require explicit confirmation first.
+            boolean relinking = !uuid.isEmpty() && !uuid.equals(newUuid);
+            if (confirmLink(newUuid, relinking)) {
+                uuid = newUuid;
+                saveConfig(serverUrl, uuid, "", employeeName);
+                System.out.println("Agent successfully linked with token: " + uuid);
+            } else {
+                System.out.println("Link request declined or could not be confirmed; keeping existing configuration.");
+            }
         }
 
         initTray();
@@ -263,12 +274,32 @@ public class MldAgent {
         return new SessionStatus(active, code);
     }
 
+    private static boolean confirmLink(String newUuid, boolean relinking) {
+        if (GraphicsEnvironment.isHeadless()) {
+            // No display to prompt on - fail safe by rejecting an unattended
+            // relink rather than silently accepting it.
+            return false;
+        }
+        String shortId = newUuid.length() > 8 ? newUuid.substring(0, 8) + "..." : newUuid;
+        String message = (relinking
+            ? "A link is asking to RELINK this MLD Agent to a different account (id starting \""
+            : "A link is asking to link this MLD Agent (id starting \"")
+            + shortId + "\").\n\n"
+            + "Only click Yes if you just clicked \"Link Agent Now\" on your own MLD dashboard.\n"
+            + "If you did not expect this, click No.";
+        int choice = javax.swing.JOptionPane.showConfirmDialog(
+            null, message, "MLD Agent - Confirm Link Request",
+            javax.swing.JOptionPane.YES_NO_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE
+        );
+        return choice == javax.swing.JOptionPane.YES_OPTION;
+    }
+
     private static void loadSavedConfig() {
         if (!CONFIG_FILE.exists()) return;
         try (InputStream input = new FileInputStream(CONFIG_FILE)) {
             Properties prop = new Properties();
             prop.load(input);
-            serverUrl = prop.getProperty("serverUrl", "https://mld-server.onrender.com");
+            serverUrl = prop.getProperty("serverUrl", "https://mld-main.onrender.com");
             uuid = prop.getProperty("uuid", "");
             employeeName = prop.getProperty("employeeName", "Employee");
         } catch (Exception ignored) {}

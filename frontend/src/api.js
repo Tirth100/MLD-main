@@ -5,7 +5,7 @@ export function getApiBaseUrl() {
     if (!origin || origin === 'null' || origin.startsWith('file:') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
         return 'http://localhost:3000/api';
     }
-    return 'https://mld-server.onrender.com/api';
+    return 'https://mld-main.onrender.com/api';
 }
 
 async function fetchWithTimeout(resource, options = {}, timeout = TIMEOUT_MS) {

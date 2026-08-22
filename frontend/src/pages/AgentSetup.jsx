@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getApiBaseUrl } from '../api';
+import { isMobileDevice } from '../utils/device';
 
 export default function AgentSetup() {
   const [agentStatus, setAgentStatus] = useState('Checking Status...');
@@ -10,6 +11,7 @@ export default function AgentSetup() {
   const [isChecking, setIsChecking] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [lastCheckedTime, setLastCheckedTime] = useState(null);
+  const [onMobile] = useState(() => isMobileDevice());
 
   const token = localStorage.getItem('uuid_token') || '';
 
@@ -254,6 +256,15 @@ export default function AgentSetup() {
                 <p className="text-muted mb-4" style={{ maxWidth: '480px', margin: '0 auto' }}>
                   Download the official Windows installer and pair your workstation in under 60 seconds.
                 </p>
+
+                {onMobile && (
+                  <div className="alert alert-warning text-start small mb-4">
+                    <i className="bi bi-phone me-2"></i>
+                    This installer is for Windows desktops. On a phone or tablet? Use the{' '}
+                    <Link to="/mobile-agent" className="alert-link">mobile web agent</Link>{' '}
+                    instead — no install required.
+                  </div>
+                )}
 
                 <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center mb-4">
                   <a 

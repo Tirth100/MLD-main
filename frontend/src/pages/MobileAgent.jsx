@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { isMobileDevice } from '../utils/device';
 
 export default function MobileAgent() {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [currentSessionCode, setCurrentSessionCode] = useState('');
   const [webcamActive, setWebcamActive] = useState(false);
   const [isFocused, setIsFocused] = useState(true);
+  const [onMobile] = useState(() => isMobileDevice());
   
   const videoRef = useRef(null);
   const navigate = useNavigate();
@@ -78,6 +80,16 @@ export default function MobileAgent() {
             
             <h2 className="fw-bold mb-2">Mobile Web Agent</h2>
             <p className="text-muted small mb-4">Your phone browser is now acting as the telemetry agent.</p>
+
+            {!onMobile && (
+                <div className="alert alert-secondary bg-dark border-secondary text-white-50 small text-start mb-4">
+                    <i className="bi bi-laptop me-2"></i>
+                    Looks like you're on a desktop. For the full-featured agent with
+                    background tracking, get the{' '}
+                    <Link to="/agent-setup" className="text-info">desktop installer</Link>{' '}
+                    instead — this mobile page only works while the browser tab stays open.
+                </div>
+            )}
             
             <div className="card bg-dark border-secondary shadow-lg rounded-4 overflow-hidden mb-4">
                 <div className="card-body p-4 position-relative">

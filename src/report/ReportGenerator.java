@@ -21,7 +21,10 @@ public class ReportGenerator {
         StringBuilder sbTimeline = new StringBuilder("[");
         if (report.getWindowTimeline() != null && report.getFocusTimeline() != null) {
             for (int i = 0; i < report.getWindowTimeline().size(); i++) {
-                sbTimeline.append("{\"window\": \"").append(report.getWindowTimeline().get(i).replace("\"", "'")).append("\", ");
+                // Window titles are already JSON-escaped by AttentionAnalyzer when they were
+                // captured - do not re-escape/mangle them here (a prior version replaced the
+                // quote in an already-escaped \" with an apostrophe, producing invalid JSON).
+                sbTimeline.append("{\"window\": \"").append(report.getWindowTimeline().get(i)).append("\", ");
                 sbTimeline.append("\"focused\": ").append(report.getFocusTimeline().get(i)).append("}");
                 if (i < report.getWindowTimeline().size() - 1) sbTimeline.append(",");
             }
@@ -31,7 +34,7 @@ public class ReportGenerator {
 
         String jsonRecord = String.format(
             "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"sessionCode\": \"%s\", \"timestamp\": \"%s\", \"timeline\": %s}",
-            empName, scorePct, report.getParticipationLevel(), report.getTotalChecks(), report.getFocusedChecks(), report.isWebcamActive(), report.getSessionCode(), report.getTimestamp(), timelineStr
+            DatabaseHelper.escapeJson(empName), scorePct, report.getParticipationLevel(), report.getTotalChecks(), report.getFocusedChecks(), report.isWebcamActive(), report.getSessionCode(), report.getTimestamp(), timelineStr
         );
         fallbackReports.add(0, jsonRecord);
 
@@ -91,7 +94,7 @@ public class ReportGenerator {
                     int totalChecks = rs.getInt("total_checks");
                     int focusedChecks = rs.getInt("focused_checks");
                     
-                    jsonArray.append("\"name\": \"").append(name != null ? name : "Local System User").append("\",");
+                    jsonArray.append("\"name\": \"").append(DatabaseHelper.escapeJson(name != null ? name : "Local System User")).append("\",");
                     jsonArray.append("\"role\": \"Employee\",");
                     jsonArray.append("\"score\": ").append(Math.round(rs.getDouble("score") * 100)).append(",");
                     jsonArray.append("\"status\": \"").append(rs.getString("status")).append("\",");

@@ -260,44 +260,70 @@ public class DatabaseHelper {
     }
 
     private static void seedDefaultAccounts() {
-        // Seed In-Memory fallback accounts
-        OrgRecord demoOrg = new OrgRecord(1, "Demo Organization", "ORG1000");
-        orgsByCode.putIfAbsent("ORG1000", demoOrg);
-        orgsById.putIfAbsent(1, demoOrg);
-
-        usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com", PasswordUtil.hashPassword("admin123"), "ADMIN", 1));
-        usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com", PasswordUtil.hashPassword("emp123"), "EMPLOYEE", 1));
-
-        // Seed PostgreSQL if available
         Connection conn = connect();
-        if (conn != null) {
-            try {
-                if ("true".equalsIgnoreCase(System.getenv("SEED_DEMO_ACCOUNTS"))) {
-                    String checkOrg = "SELECT COUNT(*) FROM organizations";
-                    try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(checkOrg)) {
-                        if (rs.next() && rs.getInt(1) == 0) {
-                            String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
-                            st.executeUpdate(insOrg);
-                            
-                            String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '" + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
-                            String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '" + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
-                            st.executeUpdate(insAdmin);
-                            st.executeUpdate(insEmp);
-                            System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
-                        }
+
+        if (conn == null) {
+            // No real database reachable: this process IS the database for
+            // this run, so seed the demo accounts into the in-memory store.
+            // These credentials must never also exist while conn != null —
+            // see the comment below.
+            OrgRecord demoOrg = new OrgRecord(1, "Demo Organization", "ORG1000");
+            orgsByCode.putIfAbsent("ORG1000", demoOrg);
+            orgsById.putIfAbsent(1, demoOrg);
+
+            usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com", PasswordUtil.hashPassword("admin123"), "ADMIN", 1));
+            usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com", PasswordUtil.hashPassword("emp123"), "EMPLOYEE", 1));
+            System.out.println("[Database] No DATABASE_URL reachable - seeded demo accounts into the in-memory store.");
+            return;
+        }
+
+        // A real database is configured and reachable. Deliberately do NOT
+        // seed usersByEmail/orgsByCode in this branch: login() falls back to
+        // usersByEmail if the Postgres call throws, and loginWithGoogle()
+        // falls back to it on any DB miss. A hardcoded admin@mld.com/admin123
+        // sitting in memory would turn either fallback into an
+        // authentication bypass on a real deployment, even with
+        // SEED_DEMO_ACCOUNTS unset. Postgres seeding itself stays opt-in,
+        // unchanged from before.
+        try {
+            if ("true".equalsIgnoreCase(System.getenv("SEED_DEMO_ACCOUNTS"))) {
+                String checkOrg = "SELECT COUNT(*) FROM organizations";
+                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(checkOrg)) {
+                    if (rs.next() && rs.getInt(1) == 0) {
+                        String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
+                        st.executeUpdate(insOrg);
+
+                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '" + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
+                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '" + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
+                        st.executeUpdate(insAdmin);
+                        st.executeUpdate(insEmp);
+                        System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
                     }
-                } else {
-                    System.out.println("[Database] Skipping PostgreSQL demo account seeding (SEED_DEMO_ACCOUNTS not set).");
                 }
-            } catch (Exception e) {
-                System.err.println("[Database Seed Note] " + e.getMessage());
-            } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+            } else {
+                System.out.println("[Database] Skipping PostgreSQL demo account seeding (SEED_DEMO_ACCOUNTS not set).");
             }
+        } catch (Exception e) {
+            System.err.println("[Database Seed Note] " + e.getMessage());
+        } finally {
+            try { conn.close(); } catch (Exception ignored) {}
         }
     }
 
+
     // --- High Level DAO Methods supporting both PostgreSQL & In-Memory Fallback ---
+
+    public static String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\b", "\\b")
+                    .replace("\f", "\\f")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
+    }
+
 
     public static class LoginResult {
         public boolean success;
@@ -812,7 +838,7 @@ public class DatabaseHelper {
                 StringBuilder json = new StringBuilder("[");
                 while(rs.next()) {
                     if(json.length() > 1) json.append(",");
-                    json.append("{\"message\":\"").append(rs.getString("message")).append("\"}");
+                    json.append("{\"message\":\"").append(escapeJson(rs.getString("message"))).append("\"}");
                 }
                 json.append("]");
                 conn.close();
@@ -827,7 +853,7 @@ public class DatabaseHelper {
         for (NotifRecord n : notifs) {
             if (n.userId == userId) {
                 if(json.length() > 1) json.append(",");
-                json.append("{\"message\":\"").append(n.message.replace("\"", "\\\"")).append("\"}");
+                json.append("{\"message\":\"").append(escapeJson(n.message)).append("\"}");
             }
         }
         json.append("]");
@@ -849,8 +875,8 @@ public class DatabaseHelper {
                 while (rs.next()) {
                     if (json.length() > 1) json.append(",");
                     json.append("{\"id\":").append(rs.getInt("user_id"))
-                        .append(",\"name\":\"").append(rs.getString("name"))
-                        .append("\",\"email\":\"").append(rs.getString("email")).append("\"}");
+                        .append(",\"name\":\"").append(escapeJson(rs.getString("name")))
+                        .append("\",\"email\":\"").append(escapeJson(rs.getString("email"))).append("\"}");
                 }
                 json.append("]");
                 conn.close();
@@ -866,8 +892,8 @@ public class DatabaseHelper {
             if (u.orgId == orgId && "EMPLOYEE".equals(u.role)) {
                 if (json.length() > 1) json.append(",");
                 json.append("{\"id\":").append(u.userId)
-                    .append(",\"name\":\"").append(u.name)
-                    .append("\",\"email\":\"").append(u.email).append("\"}");
+                    .append(",\"name\":\"").append(escapeJson(u.name))
+                    .append("\",\"email\":\"").append(escapeJson(u.email)).append("\"}");
             }
         }
         json.append("]");
@@ -919,8 +945,8 @@ public class DatabaseHelper {
                 ps.setInt(1, userId);
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
-                    String json = "{\"name\":\"" + rs.getString("name") + "\",\"email\":\"" + rs.getString("email") 
-                        + "\",\"orgName\":\"" + rs.getString("org_name") + "\",\"orgCode\":\"" + rs.getString("org_code") + "\"}";
+                    String json = "{\"name\":\"" + escapeJson(rs.getString("name")) + "\",\"email\":\"" + escapeJson(rs.getString("email"))
+                        + "\",\"orgName\":\"" + escapeJson(rs.getString("org_name")) + "\",\"orgCode\":\"" + escapeJson(rs.getString("org_code")) + "\"}";
                     conn.close();
                     return json;
                 }
@@ -935,13 +961,15 @@ public class DatabaseHelper {
         if (manager != null) {
             OrgRecord org = orgsById.get(manager.orgId);
             if (org != null) {
-                return "{\"name\":\"" + manager.name + "\",\"email\":\"" + manager.email + "\",\"orgName\":\"" + org.orgName + "\",\"orgCode\":\"" + org.orgCode + "\"}";
+                return "{\"name\":\"" + escapeJson(manager.name) + "\",\"email\":\"" + escapeJson(manager.email) + "\",\"orgName\":\"" + escapeJson(org.orgName) + "\",\"orgCode\":\"" + escapeJson(org.orgCode) + "\"}";
             }
         }
         return "{}";
     }
 
     public static boolean resetPassword(String token, String newPass) {
+        if (!api.InputValidator.isValidPassword(newPass)) return false;
+        
         int userId = getUserIdFromToken(token);
         if (userId == -1) return false;
         
