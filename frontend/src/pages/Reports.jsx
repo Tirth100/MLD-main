@@ -160,13 +160,7 @@ export default function Reports() {
                                             const timeSec = index * 10;
                                             const winName = check.window || "Desktop Workspace";
                                             const lowerWin = winName.toLowerCase();
-                                            const isMeetingOrWorkspace = check.focused || 
-                                                lowerWin.includes("zoom") || 
-                                                lowerWin.includes("meet") || 
-                                                lowerWin.includes("teams") || 
-                                                lowerWin.includes("powerpoint") || 
-                                                lowerWin.includes("webex") || 
-                                                lowerWin.includes("slack");
+                                            const isMeetingOrWorkspace = check.focused;
 
                                             return (
                                                 <tr key={index}>

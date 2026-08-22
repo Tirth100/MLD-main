@@ -351,11 +351,7 @@ export default function EmployeeDashboard() {
                                             const timeSec = index * 10;
                                             const winName = check.window || "Desktop Workspace";
                                             const lowerWin = winName.toLowerCase();
-                                            const isMeetingOrWorkspace = check.focused || 
-                                                lowerWin.includes("zoom") || 
-                                                (lowerWin.includes("meet") && !lowerWin.includes("meeting leech detector") && !lowerWin.includes("mld employee")) || 
-                                                lowerWin.includes("powerpoint") ||
-                                                lowerWin.includes("powerpnt");
+                                            const isMeetingOrWorkspace = check.focused;
 
                                             return (
                                                 <tr key={index}>
