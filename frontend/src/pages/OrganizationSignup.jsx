@@ -24,7 +24,7 @@ export default function OrganizationSignup() {
         password: orgPassword
       };
       
-      const response = await api.post('/signup/organization', payload);
+      const response = await api.post('/signup-org', payload);
       if (response.success && response.orgCode) {
         setSuccessCode(response.orgCode);
       } else {

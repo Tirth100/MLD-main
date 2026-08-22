@@ -24,7 +24,7 @@ export default function EmployeeSignup() {
         password: empPassword
       };
       
-      const response = await api.post('/signup/employee', payload);
+      const response = await api.post('/signup-emp', payload);
       if (response.success) {
         navigate('/');
       } else {
