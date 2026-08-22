@@ -36,7 +36,41 @@ export default function Reports() {
   const filteredData = data.filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleExport = () => {
-    alert("Export feature requires ExcelJS/SheetJS. Coming soon!");
+    if (filteredData.length === 0) {
+      alert("No data to export.");
+      return;
+    }
+
+    const headers = ["Name", "Role", "Score (%)", "Status", "Date & Time"];
+    const csvRows = [];
+    csvRows.push(headers.join(","));
+
+    filteredData.forEach(emp => {
+      const score = emp.score !== undefined ? (emp.score <= 1 ? Math.round(emp.score * 100) : emp.score) : 0;
+      const statusText = score < 50 ? 'Distracted' : 'Engaged';
+      const timeStr = (emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString();
+      
+      const row = [
+        `"${emp.name || ''}"`,
+        `"${emp.role || ''}"`,
+        score,
+        statusText,
+        `"${timeStr}"`
+      ];
+      csvRows.push(row.join(","));
+    });
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'Engagement_Report.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
