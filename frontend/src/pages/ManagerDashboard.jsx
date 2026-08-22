@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import Sidebar from '../components/Sidebar';
@@ -9,6 +9,8 @@ export default function ManagerDashboard() {
   const [session, setSession] = useState({ active: false, code: '' });
   const [loading, setLoading] = useState(true);
   const [managerName, setManagerName] = useState('Manager');
+  const [expandedRows, setExpandedRows] = useState({});
+  const toggleRow = (name) => setExpandedRows(prev => ({ ...prev, [name]: !prev[name] }));
   
   const navigate = useNavigate();
 
@@ -134,6 +136,27 @@ export default function ManagerDashboard() {
   const avgDurationMinutes = data.length > 0 
     ? Math.floor((data.reduce((sum, emp) => sum + getEmpDuration(emp), 0) / data.length) / 60) 
     : 0;
+
+  // Group historical data
+  const groupedData = !session.active ? data.reduce((acc, emp) => {
+      const name = emp.name || 'Employee';
+      if (!acc[name]) {
+          acc[name] = { 
+              name, 
+              sessions: [], 
+              totalScore: 0, 
+              totalDuration: 0, 
+              lastSessionCode: emp.sessionCode,
+              lastJoinedAt: emp.joinTime || emp.timestamp,
+              isCam: getEmpWebcam(emp)
+          };
+      }
+      acc[name].sessions.push(emp);
+      acc[name].totalScore += getEmpScore(emp);
+      acc[name].totalDuration += getEmpDuration(emp);
+      return acc;
+  }, {}) : {};
+  const historicalGroups = Object.values(groupedData);
 
   return (
     <>
@@ -343,7 +366,7 @@ export default function ManagerDashboard() {
                                                 {session.active ? "Waiting for employee telemetry data..." : "No active meeting session."}
                                             </td>
                                         </tr>
-                                      ) : (
+                                      ) : session.active ? (
                                         data.map((emp, i) => {
                                             const score = getEmpScore(emp);
                                             const scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
@@ -362,7 +385,7 @@ export default function ManagerDashboard() {
                                                     <td className="ps-4 fw-medium">{emp.name || 'Employee'}</td>
                                                     <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{winStr}</span></td>
                                                     <td className="font-monospace text-muted">{emp.sessionCode || session.code || '-'}</td>
-                                                    <td className="text-muted small">{emp.joinTime || emp.timestamp || '-'}</td>
+                                                    <td className="text-muted small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : '-'}</td>
                                                     <td>
                                                         {isCam ? (
                                                             <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
@@ -382,6 +405,81 @@ export default function ManagerDashboard() {
                                                     </td>
                                                     <td><span className={`badge bg-${statusBadge}`}>{statusText}</span></td>
                                                 </tr>
+                                            );
+                                        })
+                                      ) : (
+                                        historicalGroups.map((group, i) => {
+                                            const avgScore = Math.round(group.totalScore / group.sessions.length);
+                                            const scoreColor = avgScore < 50 ? 'danger' : (avgScore < 80 ? 'warning' : 'success');
+                                            const statusBadge = avgScore < 50 ? 'danger' : 'success';
+                                            const statusText = avgScore < 50 ? 'Needs Attention' : 'Good';
+                                            const durSec = group.totalDuration;
+                                            const isExpanded = expandedRows[group.name];
+                                            
+                                            return (
+                                                <React.Fragment key={`group-${i}`}>
+                                                    <tr className="bg-light" style={{cursor: 'pointer'}} onClick={() => toggleRow(group.name)}>
+                                                        <td className="ps-4 fw-bold">
+                                                            <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-2 text-muted`}></i>
+                                                            {group.name}
+                                                        </td>
+                                                        <td><span className="text-muted small">{group.sessions.length} sessions</span></td>
+                                                        <td className="font-monospace text-muted">{group.lastSessionCode || '-'}</td>
+                                                        <td className="text-muted small">{group.lastJoinedAt ? new Date(group.lastJoinedAt).toLocaleString() : '-'}</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td className="fw-medium text-primary">{Math.floor(durSec / 60)}m {durSec % 60}s (Total)</td>
+                                                        <td>
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <div className="progress flex-grow-1" style={{height: '6px'}}>
+                                                                    <div className={`progress-bar bg-${scoreColor}`} role="progressbar" style={{width: `${Math.min(100, Math.max(0, avgScore))}%`}}></div>
+                                                                </div>
+                                                                <span className={`fw-bold text-${scoreColor}`} style={{minWidth: '40px'}}>{avgScore}%</span>
+                                                            </div>
+                                                        </td>
+                                                        <td><span className={`badge bg-${statusBadge}`}>{statusText}</span></td>
+                                                    </tr>
+                                                    {isExpanded && group.sessions.map((emp, j) => {
+                                                        const score = getEmpScore(emp);
+                                                        const sColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
+                                                        const winStr = getEmpWindow(emp);
+                                                        const isMeetingWin = ['zoom', 'powerpoint', 'powerpnt'].some(k => winStr.toLowerCase().includes(k)) || 
+                                                            (winStr.toLowerCase().includes('meet') && !winStr.toLowerCase().includes('meeting leech detector') && !winStr.toLowerCase().includes('mld employee'));
+                                                        const windowBadge = isMeetingWin ? 'primary' : 'warning';
+                                                        const sBadge = score < 50 ? 'danger' : 'success';
+                                                        const sText = emp.status || (score < 50 ? 'Distracted' : 'Engaged');
+                                                        const isCam = getEmpWebcam(emp);
+                                                        const empDur = getEmpDuration(emp);
+                                                        const idleSec = Number(emp.idleSeconds || 0);
+                                                        
+                                                        return (
+                                                            <tr key={`sub-${i}-${j}`} className="bg-white">
+                                                                <td className="ps-5 border-start border-3 border-primary text-secondary">└─ Session {j+1}</td>
+                                                                <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{winStr}</span></td>
+                                                                <td className="font-monospace text-muted">{emp.sessionCode || '-'}</td>
+                                                                <td className="text-muted small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : '-'}</td>
+                                                                <td>
+                                                                    {isCam ? (
+                                                                        <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
+                                                                    ) : (
+                                                                        <span className="badge-soft-danger px-2 py-1 rounded"><i className="bi bi-camera-video-off me-1"></i> OFF</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className={idleSec > 10 ? 'text-danger fw-bold' : ''}>{idleSec}s</td>
+                                                                <td>{Math.floor(empDur / 60)}m {empDur % 60}s</td>
+                                                                <td>
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <div className="progress flex-grow-1" style={{height: '6px'}}>
+                                                                            <div className={`progress-bar bg-${sColor}`} role="progressbar" style={{width: `${Math.min(100, Math.max(0, score))}%`}}></div>
+                                                                        </div>
+                                                                        <span className={`fw-bold text-${sColor}`} style={{minWidth: '40px'}}>{score}%</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td><span className={`badge bg-${sBadge}`}>{sText}</span></td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </React.Fragment>
                                             );
                                         })
                                       )}

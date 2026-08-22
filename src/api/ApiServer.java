@@ -361,10 +361,16 @@ public class ApiServer {
             if (token == null || token.isEmpty()) {
                 token = userUuid;
             }
+            String userRole = DatabaseHelper.getUserRoleFromToken(token);
+            boolean isManager = "MANAGER".equals(userRole) || "ADMIN".equals(userRole);
+
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                 orgActiveCode = Main.orgSessions.get(orgId).sessionCode;
-                if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
+                if (isManager) {
+                    active = true;
+                    code = orgActiveCode;
+                } else if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
                     String joinedCode = activeJoinedSessions.get(userUuid);
                     if (joinedCode != null && joinedCode.equals(orgActiveCode)) {
                         active = true;

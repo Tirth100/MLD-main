@@ -13,7 +13,7 @@ export default function Reports() {
     try {
       const result = await api.get('/engagement');
       if (Array.isArray(result)) {
-        setData(result);
+        setData([...result].reverse());
       }
     } catch (error) {
       console.error("Failed to load reports", error);
@@ -116,7 +116,7 @@ export default function Reports() {
                                               <td className="text-muted text-capitalize">{emp.role}</td>
                                               <td><span className="fw-bold">{score}%</span></td>
                                               <td><span className={`badge badge-soft-${statusBadge} px-3 py-2 rounded-pill`}>{statusText}</span></td>
-                                              <td className="text-secondary small">{new Date().toLocaleDateString()}</td>
+                                              <td className="text-secondary small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString()}</td>
                                               <td>
                                                   <button className="btn btn-sm btn-outline-primary" onClick={() => openTimeline(emp.timeline)}>View Timeline</button>
                                               </td>

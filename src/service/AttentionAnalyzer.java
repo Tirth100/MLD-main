@@ -119,6 +119,6 @@ public class AttentionAnalyzer {
     }
 
     public String getJoinTimeFormatted() {
-        return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(startTime));
+        return new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(new java.util.Date(startTime));
     }
 }
