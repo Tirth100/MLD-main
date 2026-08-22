@@ -35,7 +35,16 @@ public class AttentionAnalyzer {
          || lowerWin.contains("teams")
          || lowerWin.contains("powerpoint")
          || lowerWin.contains("webex")
-         || lowerWin.contains("powerpnt")) 
+         || lowerWin.contains("powerpnt")
+         || lowerWin.contains("slack")
+         || lowerWin.contains("discord")
+         || lowerWin.contains("huddle")
+         || lowerWin.contains("chime")
+         || lowerWin.contains("bluejeans")
+         || lowerWin.contains("skype")
+         || lowerWin.contains("gotomeeting")
+         || lowerWin.contains("keynote")
+         || lowerWin.contains("slides")) 
         {
             // Must not be idle to be counted as focused
             if (idleSeconds < 8) {

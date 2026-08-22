@@ -364,12 +364,13 @@ public class ApiServer {
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                 orgActiveCode = Main.orgSessions.get(orgId).sessionCode;
-                if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
-                    active = true;
-                    code = activeJoinedSessions.get(userUuid);
-                } else if (userUuid.isEmpty()) {
-                    active = true;
-                    code = orgActiveCode;
+                active = true;
+                code = orgActiveCode;
+                if (!userUuid.isEmpty()) {
+                    activeJoinedSessions.put(userUuid, orgActiveCode);
+                    if (!Main.analyzers.containsKey(userUuid)) {
+                        Main.analyzers.put(userUuid, new service.AttentionAnalyzer());
+                    }
                 }
             }
             sendResponse(exchange, "{\"active\": " + active + ", \"sessionCode\": \"" + code + "\", \"orgActiveCode\": \"" + orgActiveCode + "\"}");

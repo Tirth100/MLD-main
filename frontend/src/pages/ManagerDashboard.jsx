@@ -347,8 +347,8 @@ export default function ManagerDashboard() {
                                             const score = getEmpScore(emp);
                                             const scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
                                             const winStr = getEmpWindow(emp);
-                                            const isMeetingWin = winStr.toLowerCase().includes('google meet') || winStr.toLowerCase().includes('meet') || winStr.toLowerCase().includes('zoom') || winStr.toLowerCase().includes('teams');
-                                            const windowBadge = isMeetingWin ? 'primary' : 'secondary';
+                                            const isMeetingWin = ['meet', 'zoom', 'teams', 'webex', 'powerpoint', 'powerpnt', 'slack', 'discord', 'huddle', 'chime', 'skype', 'bluejeans', 'gotomeeting', 'keynote', 'slides'].some(k => winStr.toLowerCase().includes(k));
+                                            const windowBadge = isMeetingWin ? 'primary' : 'warning';
                                             const statusBadge = score < 50 ? 'danger' : 'success';
                                             const statusText = emp.status || (score < 50 ? 'Distracted' : 'Engaged');
                                             const isCam = getEmpWebcam(emp);

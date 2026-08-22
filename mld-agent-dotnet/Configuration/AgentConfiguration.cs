@@ -81,6 +81,7 @@ namespace MldAgent.Configuration
                 Logging.AgentLogger.LogError("Failed to load configuration", ex);
             }
 
+            Logging.AgentLogger.LogInfo(string.Format("Config loaded: ServerUrl={0}, Uuid={1}", config.ServerUrl, config.Uuid));
             return config;
         }
 

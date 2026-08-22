@@ -51,7 +51,16 @@ export default function EmployeeDashboard() {
       if (sessionRes && sessionRes.active) {
         const engRes = await api.get('/engagement');
         if (Array.isArray(engRes) && engRes.length > 0) {
-          setDashboardData(engRes[0]);
+          const username = localStorage.getItem('username');
+          const currentEmp = engRes.find(emp => (username && emp.name === username) || emp.isLive) || engRes[0];
+          setDashboardData({
+            attentionScore: currentEmp.score !== undefined ? (Number(currentEmp.score) > 1 ? Number(currentEmp.score) / 100 : Number(currentEmp.score)) : (currentEmp.attentionScore !== undefined ? Number(currentEmp.attentionScore) : 1.0),
+            webcam: currentEmp.webcamActive !== undefined ? Boolean(currentEmp.webcamActive) : Boolean(currentEmp.webcam),
+            duration: currentEmp.durationSeconds !== undefined ? Number(currentEmp.durationSeconds) : (currentEmp.duration !== undefined ? Number(currentEmp.duration) : 0),
+            idleSeconds: currentEmp.idleSeconds !== undefined ? Number(currentEmp.idleSeconds) : 0,
+            activeWindow: currentEmp.activeWindow || currentEmp.window || 'Meeting Workspace',
+            status: currentEmp.status || 'Engaged'
+          });
         }
       }
 

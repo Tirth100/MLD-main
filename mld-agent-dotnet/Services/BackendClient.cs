@@ -43,12 +43,13 @@ namespace MldAgent.Services
 
             try
             {
-                await PostJsonAsync(endpoint, payload, uuid);
+                string res = await PostJsonAsync(endpoint, payload, uuid);
+                Logging.AgentLogger.LogInfo(string.Format("Heartbeat sent to {0} (UUID: {1}) - Server Response: {2}", endpoint, uuid, res));
                 return true;
             }
             catch (Exception ex)
             {
-                Logging.AgentLogger.LogWarning(string.Format("Heartbeat failed to {0}: {1}", endpoint, ex.Message));
+                Logging.AgentLogger.LogWarning(string.Format("Heartbeat failed to {0} (UUID: {1}): {2}", endpoint, uuid, ex.Message));
                 return false;
             }
         }
@@ -155,48 +156,33 @@ namespace MldAgent.Services
 
         private static async Task<string> PostJsonAsync(string url, string jsonBody, string token)
         {
-            var request = (HttpWebRequest)WebRequest.Create(url);
-            request.Method = "POST";
-            request.ContentType = "application/json; charset=utf-8";
-            request.Timeout = 8000;
-            request.ReadWriteTimeout = 8000;
-            request.UserAgent = "MLD-Agent/2.0 (Windows NT; x64)";
-
-            if (!string.IsNullOrEmpty(token))
+            return await Task.Run(delegate
             {
-                request.Headers["Authorization"] = "Bearer " + token;
-            }
-
-            byte[] bytes = Encoding.UTF8.GetBytes(jsonBody);
-            request.ContentLength = bytes.Length;
-
-            using (Stream requestStream = await request.GetRequestStreamAsync())
-            {
-                await requestStream.WriteAsync(bytes, 0, bytes.Length);
-            }
-
-            using (var response = (HttpWebResponse)await request.GetResponseAsync())
-            using (var stream = response.GetResponseStream())
-            using (var reader = new StreamReader(stream, Encoding.UTF8))
-            {
-                return await reader.ReadToEndAsync();
-            }
+                using (var client = new WebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    client.Headers[HttpRequestHeader.ContentType] = "application/json; charset=utf-8";
+                    client.Headers[HttpRequestHeader.UserAgent] = "MLD-Agent/2.0 (Windows NT; x64)";
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        client.Headers[HttpRequestHeader.Authorization] = "Bearer " + token;
+                    }
+                    return client.UploadString(url, "POST", jsonBody);
+                }
+            });
         }
 
         private static async Task<string> GetStringAsync(string url)
         {
-            var request = (HttpWebRequest)WebRequest.Create(url);
-            request.Method = "GET";
-            request.Timeout = 8000;
-            request.ReadWriteTimeout = 8000;
-            request.UserAgent = "MLD-Agent/2.0 (Windows NT; x64)";
-
-            using (var response = (HttpWebResponse)await request.GetResponseAsync())
-            using (var stream = response.GetResponseStream())
-            using (var reader = new StreamReader(stream, Encoding.UTF8))
+            return await Task.Run(delegate
             {
-                return await reader.ReadToEndAsync();
-            }
+                using (var client = new WebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    client.Headers[HttpRequestHeader.UserAgent] = "MLD-Agent/2.0 (Windows NT; x64)";
+                    return client.DownloadString(url);
+                }
+            });
         }
 
         private static string CombineUrl(string baseUrl, string relative)

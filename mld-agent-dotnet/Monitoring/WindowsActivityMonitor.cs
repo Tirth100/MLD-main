@@ -55,35 +55,7 @@ namespace MldAgent.Monitoring
 
                         if (!string.IsNullOrEmpty(title))
                         {
-                            string lower = title.ToLowerInvariant();
-                            foreach (string kw in MeetingAppKeywords)
-                            {
-                                if (lower.Contains(kw))
-                                {
-                                    return title;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                string meetingWin = ScanForMeetingWindows();
-                if (!string.IsNullOrEmpty(meetingWin))
-                {
-                    return meetingWin;
-                }
-
-                if (hwnd != IntPtr.Zero)
-                {
-                    int length = GetWindowTextLength(hwnd);
-                    if (length > 0)
-                    {
-                        var sb = new StringBuilder(length + 1);
-                        GetWindowText(hwnd, sb, sb.Capacity);
-                        string title = sb.ToString().Trim();
-                        if (!string.IsNullOrEmpty(title))
-                        {
-                            return "Background / Distracted Window";
+                            return title;
                         }
                     }
                 }

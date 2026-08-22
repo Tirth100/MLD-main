@@ -53,52 +53,61 @@ namespace MldAgent.Services
             Task.Run(new Func<Task>(TelemetryLoopAsync));
         }
 
+        private System.Net.Sockets.TcpListener _localTcpListener;
+
         private void StartLocalPingServer()
         {
             try
             {
-                _localHttpListener = new HttpListener();
-                _localHttpListener.Prefixes.Add("http://127.0.0.1:14321/");
-                _localHttpListener.Start();
+                _localTcpListener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 14321);
+                _localTcpListener.Start();
+                Logging.AgentLogger.LogInfo("Local TCP ping listener started on 127.0.0.1:14321");
 
                 Task.Run(delegate
                 {
-                    while (!_cts.IsCancellationRequested && _localHttpListener.IsListening)
+                    while (!_cts.IsCancellationRequested)
                     {
                         try
                         {
-                            var context = _localHttpListener.GetContext();
-                            var response = context.Response;
-
-                            // Allow CORS for local web dashboard
-                            response.AddHeader("Access-Control-Allow-Origin", "*");
-                            response.AddHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-                            response.AddHeader("Access-Control-Allow-Headers", "Content-Type");
-
-                            if (context.Request.HttpMethod == "OPTIONS")
+                            var client = _localTcpListener.AcceptTcpClient();
+                            Task.Run(delegate
                             {
-                                response.StatusCode = 204;
-                                response.Close();
-                                continue;
-                            }
+                                try
+                                {
+                                    using (client)
+                                    using (var stream = client.GetStream())
+                                    {
+                                        byte[] reqBuf = new byte[1024];
+                                        stream.Read(reqBuf, 0, reqBuf.Length);
 
-                            string json = string.Format("{{\"status\":\"ok\",\"uuid\":\"{0}\",\"service\":\"MLD-Agent\"}}", _config.Uuid ?? "");
-                            byte[] buffer = Encoding.UTF8.GetBytes(json);
-                            response.ContentType = "application/json";
-                            response.ContentLength64 = buffer.Length;
-                            response.OutputStream.Write(buffer, 0, buffer.Length);
-                            response.Close();
+                                        string json = string.Format("{{\"status\":\"ok\",\"uuid\":\"{0}\",\"service\":\"MLD-Agent\"}}", _config.Uuid ?? "");
+                                        byte[] jsonBytes = Encoding.UTF8.GetBytes(json);
+
+                                        string response = "HTTP/1.1 200 OK\r\n" +
+                                                          "Content-Type: application/json; charset=utf-8\r\n" +
+                                                          "Access-Control-Allow-Origin: *\r\n" +
+                                                          "Access-Control-Allow-Methods: GET, OPTIONS\r\n" +
+                                                          "Access-Control-Allow-Headers: *\r\n" +
+                                                          string.Format("Content-Length: {0}\r\n\r\n", jsonBytes.Length) +
+                                                          json;
+
+                                        byte[] respBytes = Encoding.UTF8.GetBytes(response);
+                                        stream.Write(respBytes, 0, respBytes.Length);
+                                    }
+                                }
+                                catch {}
+                            });
                         }
                         catch
                         {
-                            // Listener closed or aborted
+                            break;
                         }
                     }
                 });
             }
             catch (Exception ex)
             {
-                Logging.AgentLogger.LogWarning(string.Format("Could not start local HTTP ping server on 14321: {0}", ex.Message));
+                Logging.AgentLogger.LogWarning(string.Format("Could not start local TCP ping server on 14321: {0}", ex.Message));
             }
         }
 

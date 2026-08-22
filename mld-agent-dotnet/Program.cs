@@ -10,81 +10,87 @@ namespace MldAgent
 {
     internal static class Program
     {
-        private const string MutexName = "Global\\MLD_Desktop_Agent_SingleInstance_Mutex";
+        private const string MutexName = "Local\\MLD_Desktop_Agent_SingleInstance_Mutex";
 
         [STAThread]
         private static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            AgentLogger.LogInfo(string.Format("MLD Agent starting up. Arguments: {0}", string.Join(" ", args)));
-
-            var config = AgentConfiguration.Load();
-
-            HandleArguments(args, config);
-
-            bool isOnlyInstance;
-            using (var mutex = new Mutex(true, MutexName, out isOnlyInstance))
+            try
             {
-                if (!isOnlyInstance)
-                {
-                    AgentLogger.LogInfo("Another instance of MLD-Agent is already active. Config updated & exiting new launcher process.");
-                    
-                    // Send an immediate heartbeat in secondary process too
-                    if (!string.IsNullOrEmpty(config.Uuid))
-                    {
-                        try
-                        {
-                            var backend = new BackendClient();
-                            backend.SendHeartbeatAsync(config.ServerUrl, config.Uuid).Wait(2000);
-                        }
-                        catch {}
-                    }
-                    return;
-                }
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
 
-                try
-                {
-                    using (var tray = new TrayController(config))
-                    using (var agentApp = new AgentApplication(config, tray))
-                    {
-                        agentApp.Start();
+                AgentLogger.LogInfo(string.Format("MLD Agent starting up. Arguments: {0}", string.Join(" ", args)));
 
+                var config = AgentConfiguration.Load();
+
+                HandleArguments(args, config);
+
+                bool isOnlyInstance;
+                using (var mutex = new Mutex(true, MutexName, out isOnlyInstance))
+                {
+                    if (!isOnlyInstance)
+                    {
+                        AgentLogger.LogInfo("Another instance of MLD-Agent is already active. Config updated & exiting new launcher process.");
+                        
                         if (!string.IsNullOrEmpty(config.Uuid))
                         {
-                            tray.ShowNotification(
-                                "MLD Agent Active",
-                                "Connected and standing by in your Windows taskbar system tray.",
-                                ToolTipIcon.Info
-                            );
+                            try
+                            {
+                                var backend = new BackendClient();
+                                backend.SendHeartbeatAsync(config.ServerUrl, config.Uuid).Wait(3000);
+                            }
+                            catch {}
                         }
-                        else
-                        {
-                            tray.ShowNotification(
-                                "MLD Agent Ready",
-                                "Please link your employee account from the web dashboard.",
-                                ToolTipIcon.Warning
-                            );
-                        }
+                        return;
+                    }
 
-                        Application.Run(tray.Context);
+                    try
+                    {
+                        using (var tray = new TrayController(config))
+                        using (var agentApp = new AgentApplication(config, tray))
+                        {
+                            agentApp.Start();
+
+                            if (!string.IsNullOrEmpty(config.Uuid))
+                            {
+                                tray.ShowNotification(
+                                    "MLD Agent Active",
+                                    "Connected and standing by in your Windows taskbar system tray.",
+                                    ToolTipIcon.Info
+                                );
+                            }
+                            else
+                            {
+                                tray.ShowNotification(
+                                    "MLD Agent Ready",
+                                    "Please link your employee account from the web dashboard.",
+                                    ToolTipIcon.Warning
+                                );
+                            }
+
+                            Application.Run(tray.Context);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AgentLogger.LogError("Fatal crash in MLD Agent application loop", ex);
+                        MessageBox.Show(
+                            string.Format("MLD Agent encountered an unexpected error:\n\n{0}\n\nPlease check log at %TEMP%\\mld-agent.log", ex.Message),
+                            "MLD Agent Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                    finally
+                    {
+                        try { mutex.ReleaseMutex(); } catch {}
                     }
                 }
-                catch (Exception ex)
-                {
-                    AgentLogger.LogError("Fatal crash in MLD Agent application loop", ex);
-                    MessageBox.Show(
-                        string.Format("MLD Agent encountered an unexpected error:\n\n{0}\n\nPlease check log at %TEMP%\\mld-agent.log", ex.Message),
-                        "MLD Agent Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error
-                    );
-                }
-                finally
-                {
-                    mutex.ReleaseMutex();
-                }
+            }
+            catch (Exception ex)
+            {
+                AgentLogger.LogError("Fatal startup exception in Main", ex);
             }
         }
 
