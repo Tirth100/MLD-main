@@ -202,6 +202,11 @@ namespace MldAgent.Services
         private static string CombineUrl(string baseUrl, string relative)
         {
             if (string.IsNullOrEmpty(baseUrl)) baseUrl = "https://mld-server.onrender.com";
+            baseUrl = baseUrl.Replace("\\:", ":").Replace("\\=", "=").Replace("\\/", "/").Trim();
+            if (!baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !baseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                baseUrl = "https://mld-server.onrender.com";
+            }
             return baseUrl.TrimEnd('/') + "/" + relative.TrimStart('/');
         }
 

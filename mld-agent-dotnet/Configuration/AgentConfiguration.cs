@@ -49,12 +49,20 @@ namespace MldAgent.Configuration
                     if (splitIndex <= 0) continue;
 
                     string key = trimmed.Substring(0, splitIndex).Trim();
-                    string val = trimmed.Substring(splitIndex + 1).Trim();
+                    string val = trimmed.Substring(splitIndex + 1).Trim().Replace("\\:", ":").Replace("\\=", "=").Replace("\\/", "/");
 
                     switch (key.ToLowerInvariant())
                     {
                         case "serverurl":
-                            if (!string.IsNullOrEmpty(val)) config.ServerUrl = val;
+                            if (!string.IsNullOrEmpty(val))
+                            {
+                                val = val.Replace("\\:", ":").Replace("\\/", "/").Trim();
+                                if (!val.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !val.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    val = "https://mld-server.onrender.com";
+                                }
+                                config.ServerUrl = val;
+                            }
                             break;
                         case "uuid":
                             config.Uuid = val;
