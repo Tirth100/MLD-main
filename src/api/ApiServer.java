@@ -308,14 +308,7 @@ public class ApiServer {
                 try (java.util.Scanner s = new java.util.Scanner(is, java.nio.charset.StandardCharsets.UTF_8).useDelimiter("\\A")) {
                     body = s.hasNext() ? s.next() : "{}";
                 }
-                // Extract uuid from JSON body: {"uuid":"..."}
-                String uuid = "";
-                int idx = body.indexOf("\"uuid\":");
-                if (idx >= 0) {
-                    int q1 = body.indexOf('"', idx + 7);
-                    int q2 = body.indexOf('"', q1 + 1);
-                    if (q1 >= 0 && q2 > q1) uuid = body.substring(q1 + 1, q2);
-                }
+                String uuid = extractJsonField(body, "uuid").trim();
                 if (!uuid.isEmpty()) {
                     String cleanUuid = uuid.toLowerCase().trim();
                     lastAgentHeartbeats.put(cleanUuid, System.currentTimeMillis());
