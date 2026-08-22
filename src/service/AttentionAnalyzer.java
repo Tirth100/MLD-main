@@ -30,21 +30,10 @@ public class AttentionAnalyzer {
         
         // Comprehensive case-insensitive matching for valid meeting applications & authorized workspaces
         String lowerWin = window.toLowerCase();
-        if (lowerWin.contains("meet")
-         || lowerWin.contains("zoom")
-         || lowerWin.contains("teams")
+        if (lowerWin.contains("zoom")
+         || (lowerWin.contains("meet") && !lowerWin.contains("meeting leech detector") && !lowerWin.contains("mld employee"))
          || lowerWin.contains("powerpoint")
-         || lowerWin.contains("webex")
-         || lowerWin.contains("powerpnt")
-         || lowerWin.contains("slack")
-         || lowerWin.contains("discord")
-         || lowerWin.contains("huddle")
-         || lowerWin.contains("chime")
-         || lowerWin.contains("bluejeans")
-         || lowerWin.contains("skype")
-         || lowerWin.contains("gotomeeting")
-         || lowerWin.contains("keynote")
-         || lowerWin.contains("slides")) 
+         || lowerWin.contains("powerpnt")) 
         {
             // Must not be idle to be counted as focused
             if (idleSeconds < 8) {
@@ -127,5 +116,9 @@ public class AttentionAnalyzer {
     
     public boolean isWebcamActive() {
         return webcamActive;
+    }
+
+    public String getJoinTimeFormatted() {
+        return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(startTime));
     }
 }

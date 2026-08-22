@@ -13,6 +13,7 @@ public class Report {
     private double attentionScore;
     private String participationLevel;
     private String timestamp;
+    private String joinTime;
     private List<String> windowTimeline;
     private List<Boolean> focusTimeline;
 
@@ -50,6 +51,8 @@ public class Report {
     public List<String> getWindowTimeline() { return windowTimeline; }
     public List<Boolean> getFocusTimeline() { return focusTimeline; }
 
+    public void setJoinTime(String joinTime) { this.joinTime = joinTime; }
+
     public String toJson() {
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
@@ -60,6 +63,9 @@ public class Report {
         sb.append("  \"totalChecks\": ").append(totalChecks).append(",\n");
         sb.append("  \"focusedChecks\": ").append(focusedChecks).append(",\n");
         sb.append("  \"timestamp\": \"").append(timestamp).append("\",\n");
+        if (joinTime != null) {
+            sb.append("  \"joinTime\": \"").append(joinTime).append("\",\n");
+        }
         
         // Add timeline
         sb.append("  \"timeline\": [\n");

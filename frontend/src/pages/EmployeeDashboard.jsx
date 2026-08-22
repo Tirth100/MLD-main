@@ -4,7 +4,6 @@ import { api } from '../api';
 
 export default function EmployeeDashboard() {
   const [session, setSession] = useState({ active: false, code: '' });
-  const [orgSessionCode, setOrgSessionCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,12 +39,6 @@ export default function EmployeeDashboard() {
         setSession({ active: true, code: sessionRes.sessionCode });
       } else {
         setSession({ active: false, code: '' });
-      }
-      if (sessionRes && sessionRes.orgActiveCode) {
-        setOrgSessionCode(sessionRes.orgActiveCode);
-        if (!joinCode) setJoinCode(sessionRes.orgActiveCode); // Auto-fill the code
-      } else {
-        setOrgSessionCode('');
       }
 
       if (sessionRes && sessionRes.active) {
@@ -102,6 +95,12 @@ export default function EmployeeDashboard() {
       const response = await api.post('/join', { sessionCode: joinCode, uuid });
       if (response.success) {
         setSession({ active: true, code: joinCode });
+        
+        // Automatically trigger the agent deep link
+        if (uuid) {
+            window.location.href = `mld-agent://link?token=${uuid}`;
+        }
+        
         fetchStatus();
       } else {
         setError(response.message || 'Failed to join session.');
@@ -163,8 +162,6 @@ export default function EmployeeDashboard() {
                                 <p className="text-muted mb-0">Connecting to Server <div className="spinner-border spinner-border-sm ms-1" role="status"></div></p>
                               ) : session.active ? (
                                 <p className="text-success fw-bold mb-0">Monitoring Active for Session: {session.code}</p>
-                              ) : orgSessionCode ? (
-                                <p className="text-warning fw-bold mb-0">Meeting Started: {orgSessionCode} (Awaiting Join)</p>
                               ) : (
                                 <p className="text-muted mb-0">Waiting for Session Code...</p>
                               )}
@@ -191,14 +188,9 @@ export default function EmployeeDashboard() {
                                 <h5 className="fw-bold mb-0 text-success">
                                     <i className="bi bi-cpu-fill me-2"></i>MLD Desktop Agent Activated for Session <span className="badge bg-success">{session.code}</span>
                                 </h5>
-                                <div className="d-flex gap-2">
-                                    <a href={`mld-agent://link?token=${localStorage.getItem('uuid_token') || ''}`} className="btn btn-sm btn-primary shadow-sm">
-                                        <i className="bi bi-play-circle me-1"></i>Activate Agent
-                                    </a>
-                                    <button className="btn btn-sm btn-outline-danger shadow-sm" onClick={handleLeave}>
-                                        <i className="bi bi-box-arrow-right me-1"></i>Leave Session
-                                    </button>
-                                </div>
+                                <button className="btn btn-sm btn-outline-danger shadow-sm" onClick={handleLeave}>
+                                    <i className="bi bi-box-arrow-right me-1"></i>Leave Session
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -358,11 +350,9 @@ export default function EmployeeDashboard() {
                                             const lowerWin = winName.toLowerCase();
                                             const isMeetingOrWorkspace = check.focused || 
                                                 lowerWin.includes("zoom") || 
-                                                lowerWin.includes("meet") || 
-                                                lowerWin.includes("teams") || 
-                                                lowerWin.includes("powerpoint") || 
-                                                lowerWin.includes("webex") || 
-                                                lowerWin.includes("slack");
+                                                (lowerWin.includes("meet") && !lowerWin.includes("meeting leech detector") && !lowerWin.includes("mld employee")) || 
+                                                lowerWin.includes("powerpoint") ||
+                                                lowerWin.includes("powerpnt");
 
                                             return (
                                                 <tr key={index}>

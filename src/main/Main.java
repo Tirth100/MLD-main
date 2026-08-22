@@ -83,6 +83,7 @@ public class Main {
                     Report sessionReport = new Report(clientUuid, state.sessionCode, clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
                             clientAnalyzer.isWebcamActive(),
                             finalScore, status, clientAnalyzer.getWindowTimeline(), clientAnalyzer.getFocusTimeline());
+                    sessionReport.setJoinTime(clientAnalyzer.getJoinTimeFormatted());
                     report.ReportGenerator.saveReport(sessionReport);
                     
                     System.out.println("Saved report for " + clientUuid + " with score: " + (Math.round(finalScore * 100)) + "%");

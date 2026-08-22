@@ -364,16 +364,15 @@ public class ApiServer {
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                 orgActiveCode = Main.orgSessions.get(orgId).sessionCode;
-                active = true;
-                code = orgActiveCode;
-                if (!userUuid.isEmpty()) {
-                    activeJoinedSessions.put(userUuid, orgActiveCode);
-                    if (!Main.analyzers.containsKey(userUuid)) {
-                        Main.analyzers.put(userUuid, new service.AttentionAnalyzer());
+                if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
+                    String joinedCode = activeJoinedSessions.get(userUuid);
+                    if (joinedCode != null && joinedCode.equals(orgActiveCode)) {
+                        active = true;
+                        code = orgActiveCode;
                     }
                 }
             }
-            sendResponse(exchange, "{\"active\": " + active + ", \"sessionCode\": \"" + code + "\", \"orgActiveCode\": \"" + orgActiveCode + "\"}");
+            sendResponse(exchange, "{\"active\": " + active + ", \"sessionCode\": \"" + code + "\"}");
         }
     }
 
@@ -690,8 +689,8 @@ public class ApiServer {
                     String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace" : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
 
                     String liveJson = String.format(
-                        "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"isLive\": true}",
-                        escapeJson(empName), scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode
+                        "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"joinTime\": \"%s\", \"isLive\": true}",
+                        escapeJson(empName), scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode, analyzer.getJoinTimeFormatted()
                     );
                     
                     if (combinedJson.length() > 1) combinedJson.append(", ");

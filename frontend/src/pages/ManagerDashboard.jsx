@@ -321,6 +321,7 @@ export default function ManagerDashboard() {
                                           <th scope="col" className="ps-4">Employee</th>
                                           <th scope="col">Active Window</th>
                                           <th scope="col">Session Code</th>
+                                          <th scope="col">Joined At</th>
                                           <th scope="col">Webcam</th>
                                           <th scope="col">Idle Time</th>
                                           <th scope="col">Duration</th>
@@ -347,7 +348,8 @@ export default function ManagerDashboard() {
                                             const score = getEmpScore(emp);
                                             const scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
                                             const winStr = getEmpWindow(emp);
-                                            const isMeetingWin = ['meet', 'zoom', 'teams', 'webex', 'powerpoint', 'powerpnt', 'slack', 'discord', 'huddle', 'chime', 'skype', 'bluejeans', 'gotomeeting', 'keynote', 'slides'].some(k => winStr.toLowerCase().includes(k));
+                                            const isMeetingWin = ['zoom', 'powerpoint', 'powerpnt'].some(k => winStr.toLowerCase().includes(k)) || 
+                                                (winStr.toLowerCase().includes('meet') && !winStr.toLowerCase().includes('meeting leech detector') && !winStr.toLowerCase().includes('mld employee'));
                                             const windowBadge = isMeetingWin ? 'primary' : 'warning';
                                             const statusBadge = score < 50 ? 'danger' : 'success';
                                             const statusText = emp.status || (score < 50 ? 'Distracted' : 'Engaged');
@@ -360,6 +362,7 @@ export default function ManagerDashboard() {
                                                     <td className="ps-4 fw-medium">{emp.name || 'Employee'}</td>
                                                     <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{winStr}</span></td>
                                                     <td className="font-monospace text-muted">{emp.sessionCode || session.code || '-'}</td>
+                                                    <td className="text-muted small">{emp.joinTime || emp.timestamp || '-'}</td>
                                                     <td>
                                                         {isCam ? (
                                                             <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
