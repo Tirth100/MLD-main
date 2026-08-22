@@ -198,8 +198,10 @@ export default function EmployeeDashboard() {
             </div>
           )}
 
-          <div className="row g-4 mb-4">
-              {/* Overall Score Card */}
+          {session.active && (
+              <>
+                  <div className="row g-4 mb-4">
+                      {/* Overall Score Card */}
               <div className="col-lg-12">
                   <div className="card glass-card">
                       <div className="card-body text-center py-5">
@@ -265,6 +267,7 @@ export default function EmployeeDashboard() {
                   </div>
               </div>
           </div>
+          </>)}
 
           <div className="row mt-5 mb-4">
               <div className="col-12">
