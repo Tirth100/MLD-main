@@ -52,6 +52,8 @@ public class DatabaseHelper {
     private static final Map<String, UserRecord> usersByEmail = new ConcurrentHashMap<>();
     private static final Map<Integer, UserRecord> usersById = new ConcurrentHashMap<>();
     private static final Map<String, Integer> devicesToUserId = new ConcurrentHashMap<>();
+    private static final Map<String, Integer> devicesToOrgId = new ConcurrentHashMap<>();
+    private static final Map<String, String> devicesToRole = new ConcurrentHashMap<>();
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
     
     private static int nextOrgId = 1;
@@ -998,6 +1000,9 @@ public class DatabaseHelper {
     }
 
     private static int getUserIdFromToken(String token) {
+        Integer cachedUid = devicesToUserId.get(token);
+        if (cachedUid != null) return cachedUid;
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -1007,6 +1012,7 @@ public class DatabaseHelper {
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     int uid = rs.getInt("user_id");
+                    devicesToUserId.put(token, uid);
                     conn.close();
                     return uid;
                 }
@@ -1021,6 +1027,9 @@ public class DatabaseHelper {
     }
 
     public static int getOrgIdFromToken(String token) {
+        Integer cachedOrgId = devicesToOrgId.get(token);
+        if (cachedOrgId != null) return cachedOrgId;
+
         int uid = getUserIdFromToken(token);
         if (uid == -1) return -1;
         Connection conn = connect();
@@ -1032,6 +1041,7 @@ public class DatabaseHelper {
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     int orgId = rs.getInt("org_id");
+                    devicesToOrgId.put(token, orgId);
                     conn.close();
                     return orgId;
                 }
@@ -1044,8 +1054,10 @@ public class DatabaseHelper {
         UserRecord user = usersById.get(uid);
         return user != null ? user.orgId : -1;
     }
-
     public static String getUserRoleFromToken(String token) {
+        String cachedRole = devicesToRole.get(token);
+        if (cachedRole != null) return cachedRole;
+
         int uid = getUserIdFromToken(token);
         if (uid == -1) return null;
         Connection conn = connect();
@@ -1057,6 +1069,7 @@ public class DatabaseHelper {
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     String role = rs.getString("role");
+                    devicesToRole.put(token, role);
                     conn.close();
                     return role;
                 }
@@ -1065,9 +1078,11 @@ public class DatabaseHelper {
                 try { conn.close(); } catch (Exception ignore) {}
             }
         }
+        // Fallback
         UserRecord user = usersById.get(uid);
         return user != null ? user.role : null;
     }
+
 
     public static String loginWithGoogle(String email) {
         Connection conn = connect();
