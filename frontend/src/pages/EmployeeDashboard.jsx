@@ -61,7 +61,7 @@ export default function EmployeeDashboard() {
       if (Array.isArray(engData)) {
           const username = localStorage.getItem('username');
           const myHistory = engData.filter(emp => !username || emp.name === username);
-          setHistory(myHistory.reverse());
+          setHistory(myHistory);
       }
     } catch (err) {
       if (err.name !== 'AbortError' && err.message !== 'Failed to fetch') {

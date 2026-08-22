@@ -13,7 +13,7 @@ export default function Reports() {
     try {
       const result = await api.get('/engagement');
       if (Array.isArray(result)) {
-        setData([...result].reverse());
+        setData(result);
       }
     } catch (error) {
       console.error("Failed to load reports", error);
@@ -106,7 +106,7 @@ export default function Reports() {
                                   </tr>
                               ) : (
                                   filteredData.map((emp, i) => {
-                                      const score = Math.round((emp.attentionScore || 0) * 100);
+                                      const score = emp.score !== undefined ? (emp.score <= 1 ? Math.round(emp.score * 100) : emp.score) : 0;
                                       let statusBadge = score < 50 ? 'danger' : 'success';
                                       let statusText = score < 50 ? 'Distracted' : 'Engaged';
                                       
