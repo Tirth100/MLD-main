@@ -8,7 +8,7 @@ export default function ManagerDashboard() {
   const [alerts, setAlerts] = useState([]);
   const [session, setSession] = useState({ active: false, code: '' });
   const [loading, setLoading] = useState(true);
-  const [managerName, setManagerName] = useState('Loading...');
+  const [managerName, setManagerName] = useState('Manager');
   
   const navigate = useNavigate();
 
@@ -23,7 +23,7 @@ export default function ManagerDashboard() {
     try {
       const sessionRes = await api.get('/active-session');
       if (sessionRes && sessionRes.active) {
-        setSession({ active: true, code: sessionRes.sessionCode });
+        setSession({ active: true, code: sessionRes.sessionCode || '' });
       } else {
         setSession({ active: false, code: '' });
       }
@@ -34,7 +34,7 @@ export default function ManagerDashboard() {
         return;
       }
       if (Array.isArray(engRes)) {
-        setData(engRes.reverse());
+        setData([...engRes].reverse());
       }
 
       const alertsRes = await api.get('/alerts');
@@ -46,7 +46,7 @@ export default function ManagerDashboard() {
         console.error("Dashboard error:", err);
       }
     } finally {
-      if (loading) setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -71,8 +71,9 @@ export default function ManagerDashboard() {
       const response = await api.post('/start');
       if (response.success) {
         setSession({ active: true, code: response.sessionCode });
+        fetchData();
       } else {
-        alert("Failed to start session: " + response.message);
+        alert("Failed to start session: " + (response.message || "Unknown error"));
       }
     } catch (e) {
       alert("Error starting backend session.");
@@ -91,9 +92,47 @@ export default function ManagerDashboard() {
     }
   };
 
-  const uniqueEmployees = new Set(data.map(emp => emp.name)).size;
+  const getEmpScore = (emp) => {
+    if (!emp) return 0;
+    if (emp.score !== undefined && emp.score !== null) return Number(emp.score);
+    if (emp.attentionScore !== undefined && emp.attentionScore !== null) return Math.round(Number(emp.attentionScore) * 100);
+    return 0;
+  };
+
+  const getEmpDuration = (emp) => {
+    if (!emp) return 0;
+    if (emp.durationSeconds !== undefined && emp.durationSeconds !== null) return Number(emp.durationSeconds);
+    if (emp.duration !== undefined && emp.duration !== null) return Number(emp.duration);
+    return 0;
+  };
+
+  const getEmpWindow = (emp) => {
+    if (!emp) return 'Meeting Workspace';
+    return emp.activeWindow || emp.window || 'Meeting Workspace';
+  };
+
+  const getEmpWebcam = (emp) => {
+    if (!emp) return false;
+    if (emp.webcamActive !== undefined) return Boolean(emp.webcamActive);
+    if (emp.webcam !== undefined) return Boolean(emp.webcam);
+    return false;
+  };
+
+  const uniqueEmployees = new Set(data.map(emp => emp?.name || 'Employee')).size;
   const avgEngagement = data.length > 0 
-    ? Math.round(data.reduce((sum, emp) => sum + (emp.attentionScore * 100), 0) / data.length) 
+    ? Math.round(data.reduce((sum, emp) => sum + getEmpScore(emp), 0) / data.length) 
+    : 0;
+
+  const mostEngaged = data.length > 0 
+    ? [...data].sort((a, b) => getEmpScore(b) - getEmpScore(a))[0]?.name || '-' 
+    : '-';
+
+  const mostDistracted = data.length > 0 
+    ? [...data].sort((a, b) => getEmpScore(a) - getEmpScore(b))[0]?.name || '-' 
+    : '-';
+
+  const avgDurationMinutes = data.length > 0 
+    ? Math.floor((data.reduce((sum, emp) => sum + getEmpDuration(emp), 0) / data.length) / 60) 
     : 0;
 
   return (
@@ -142,8 +181,8 @@ export default function ManagerDashboard() {
                               alerts.map((a, i) => (
                                   <li key={i}>
                                       <span className="dropdown-item d-flex flex-column gap-1">
-                                          <span className="fw-bold text-dark">{a.name}</span>
-                                          <span className="small text-muted">{a.reason}</span>
+                                          <span className="fw-bold text-dark">{a?.name || 'Alert'}</span>
+                                          <span className="small text-muted">{a?.reason || a?.message || 'Low engagement detected'}</span>
                                       </span>
                                   </li>
                               ))
@@ -203,7 +242,7 @@ export default function ManagerDashboard() {
                               </div>
                           </div>
                           <h2 className="metric-value">{uniqueEmployees}</h2>
-                          <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Based on total records</span>
+                          <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Based on active records</span>
                       </div>
                   </div>
               </div>
@@ -217,7 +256,7 @@ export default function ManagerDashboard() {
                               </div>
                           </div>
                           <h2 className="metric-value">{avgEngagement}%</h2>
-                          <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Across all records</span>
+                          <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Across all active participants</span>
                       </div>
                   </div>
               </div>
@@ -280,41 +319,46 @@ export default function ManagerDashboard() {
                                         <tr>
                                             <td colSpan="8" className="text-center py-4 text-muted">
                                                 <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                                                Connecting to Backend Server (Waking up... takes ~50s)
+                                                Connecting to Backend Server...
                                             </td>
                                         </tr>
                                       ) : data.length === 0 ? (
                                         <tr>
                                             <td colSpan="8" className="text-center py-4 text-muted">
-                                                {session.active ? "Waiting for employee data..." : "No active session."}
+                                                {session.active ? "Waiting for employee telemetry data..." : "No active meeting session."}
                                             </td>
                                         </tr>
                                       ) : (
                                         data.map((emp, i) => {
-                                            let score = Math.round(emp.attentionScore * 100);
-                                            let scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
-                                            let windowBadge = emp.window.toLowerCase().includes('google meet') || emp.window.toLowerCase().includes('meet') || emp.window.toLowerCase().includes('zoom') ? 'primary' : 'secondary';
-                                            let statusBadge = score < 50 ? 'danger' : 'success';
-                                            let statusText = score < 50 ? 'Distracted' : 'Engaged';
+                                            const score = getEmpScore(emp);
+                                            const scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
+                                            const winStr = getEmpWindow(emp);
+                                            const isMeetingWin = winStr.toLowerCase().includes('google meet') || winStr.toLowerCase().includes('meet') || winStr.toLowerCase().includes('zoom') || winStr.toLowerCase().includes('teams');
+                                            const windowBadge = isMeetingWin ? 'primary' : 'secondary';
+                                            const statusBadge = score < 50 ? 'danger' : 'success';
+                                            const statusText = emp.status || (score < 50 ? 'Distracted' : 'Engaged');
+                                            const isCam = getEmpWebcam(emp);
+                                            const durSec = getEmpDuration(emp);
+                                            const idleSec = Number(emp.idleSeconds || 0);
                                             
                                             return (
                                                 <tr key={i}>
-                                                    <td className="ps-4 fw-medium">{emp.name}</td>
-                                                    <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{emp.window}</span></td>
-                                                    <td className="font-monospace text-muted">{emp.sessionCode}</td>
+                                                    <td className="ps-4 fw-medium">{emp.name || 'Employee'}</td>
+                                                    <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{winStr}</span></td>
+                                                    <td className="font-monospace text-muted">{emp.sessionCode || session.code || '-'}</td>
                                                     <td>
-                                                        {emp.webcam ? (
+                                                        {isCam ? (
                                                             <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
                                                         ) : (
                                                             <span className="badge-soft-danger px-2 py-1 rounded"><i className="bi bi-camera-video-off me-1"></i> OFF</span>
                                                         )}
                                                     </td>
-                                                    <td className={emp.idleSeconds > 10 ? 'text-danger fw-bold' : ''}>{emp.idleSeconds}s</td>
-                                                    <td>{Math.floor(emp.duration / 60)}m {emp.duration % 60}s</td>
+                                                    <td className={idleSec > 10 ? 'text-danger fw-bold' : ''}>{idleSec}s</td>
+                                                    <td>{Math.floor(durSec / 60)}m {durSec % 60}s</td>
                                                     <td>
                                                         <div className="d-flex align-items-center gap-2">
                                                             <div className="progress flex-grow-1" style={{height: '6px'}}>
-                                                                <div className={`progress-bar bg-${scoreColor}`} role="progressbar" style={{width: `${score}%`}}></div>
+                                                                <div className={`progress-bar bg-${scoreColor}`} role="progressbar" style={{width: `${Math.min(100, Math.max(0, score))}%`}}></div>
                                                             </div>
                                                             <span className={`fw-bold text-${scoreColor}`} style={{minWidth: '40px'}}>{score}%</span>
                                                         </div>
@@ -343,8 +387,8 @@ export default function ManagerDashboard() {
                               alerts.map((alert, i) => (
                                   <div key={i} className="alert-item">
                                       <div>
-                                          <strong>{alert.name}</strong>
-                                          <div className="small text-muted mt-1">{alert.message || alert.reason} (Score: {Math.round((alert.attentionScore || 0) * 100)}%)</div>
+                                          <strong>{alert.name || 'Participant'}</strong>
+                                          <div className="small text-muted mt-1">{alert.message || alert.reason || 'Low attention score'}</div>
                                       </div>
                                       <span className="badge bg-danger rounded-pill">New</span>
                                   </div>
@@ -376,21 +420,15 @@ export default function ManagerDashboard() {
                                   </div>
                                   <div className="col-md-3 border-end border-secondary">
                                       <h6 className="text-muted">Most Engaged</h6>
-                                      <h3 className="fw-bold text-success">
-                                          {[...data].sort((a,b) => b.attentionScore - a.attentionScore)[0]?.name || '-'}
-                                      </h3>
+                                      <h3 className="fw-bold text-success">{mostEngaged}</h3>
                                   </div>
                                   <div className="col-md-3 border-end border-secondary">
                                       <h6 className="text-muted">Most Distracted</h6>
-                                      <h3 className="fw-bold text-danger">
-                                          {[...data].sort((a,b) => a.attentionScore - b.attentionScore)[0]?.name || '-'}
-                                      </h3>
+                                      <h3 className="fw-bold text-danger">{mostDistracted}</h3>
                                   </div>
                                   <div className="col-md-3">
                                       <h6 className="text-muted">Average Duration</h6>
-                                      <h3 className="fw-bold text-primary">
-                                          {Math.floor((data.reduce((sum, e) => sum + e.duration, 0) / data.length) / 60)}m
-                                      </h3>
+                                      <h3 className="fw-bold text-primary">{avgDurationMinutes}m</h3>
                                   </div>
                               </div>
                           )}
@@ -421,7 +459,7 @@ export default function ManagerDashboard() {
                               </thead>
                               <tbody>
                                   <tr>
-                                      <td colSpan="4" className="text-center py-4 text-muted">Loading employees...</td>
+                                      <td colSpan="4" className="text-center py-4 text-muted">No employees registered yet.</td>
                                   </tr>
                               </tbody>
                           </table>
@@ -433,7 +471,6 @@ export default function ManagerDashboard() {
               </div>
           </div>
       </div>
-
     </>
   );
 }
