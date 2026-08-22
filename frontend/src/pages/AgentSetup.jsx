@@ -95,7 +95,7 @@ export default function AgentSetup() {
     }
   };
 
-  const downloadUrl = '/api/download-agent';
+  const downloadUrl = '/MLD-Agent.exe';
   const protocolLink = `mld-agent://link?token=${token}`;
 
   return (
