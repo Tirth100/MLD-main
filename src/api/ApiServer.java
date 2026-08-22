@@ -586,6 +586,16 @@ public class ApiServer {
                     int orgId = DatabaseHelper.getOrgIdFromToken(uuid);
                     if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                         String cleanUuid = uuid.toLowerCase();
+                        
+                        String userRole = DatabaseHelper.getUserRoleFromToken(uuid);
+                        boolean isManager = "MANAGER".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole);
+                        boolean isJoined = activeJoinedSessions.containsKey(cleanUuid) || activeJoinedSessions.containsKey(uuid);
+                        
+                        if (!isManager && !isJoined) {
+                            sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Standby\"}");
+                            return;
+                        }
+
                         service.AttentionAnalyzer analyzer = Main.analyzers.get(cleanUuid);
                         if (analyzer == null) {
                             analyzer = new service.AttentionAnalyzer();
