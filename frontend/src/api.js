@@ -5,7 +5,7 @@ export function getApiBaseUrl() {
     if (!origin || origin === 'null' || origin.startsWith('file:') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
         return 'http://localhost:3000/api';
     }
-    return 'https://mld-main.onrender.com/api';
+    return 'https://mld-server.onrender.com/api';
 }
 
 async function fetchWithTimeout(resource, options = {}, timeout = TIMEOUT_MS) {
@@ -48,7 +48,10 @@ export const api = {
                 return JSON.parse(text);
             } catch (e) {
                 console.error("Failed to parse API response as JSON", text);
-                return { success: false, status: 500, message: 'Backend server returned non-JSON response. It may be offline or starting up.' };
+                if (text.startsWith('<')) {
+                    return { success: false, status: 500, message: 'Backend server returned HTML instead of JSON. Server may be starting up or the API endpoint is unavailable.' };
+                }
+                return { success: false, status: 500, message: text || 'Backend server returned non-JSON response.' };
             }
         } catch (error) {
             console.error('API Get Error:', error);
@@ -78,10 +81,17 @@ export const api = {
             
             const text = await response.text();
             try {
+                if (!text || text.trim() === '') {
+                    return { success: response.ok, message: response.ok ? 'Success' : `HTTP Error ${response.status}` };
+                }
                 return JSON.parse(text);
             } catch (e) {
+                console.error("Failed to parse API response as JSON", text);
                 if (!response.ok && response.status === 401) {
-                    return { success: false, status: 401, message: 'Unauthorized' };
+                    return { success: false, status: 401, message: 'Invalid credentials or unauthorized' };
+                }
+                if (text.startsWith('<')) {
+                    return { success: false, status: response.status, message: 'Backend server returned HTML instead of JSON. Server may be starting up or unreachable.' };
                 }
                 return { success: response.ok, message: text || `HTTP Error ${response.status}` };
             }
