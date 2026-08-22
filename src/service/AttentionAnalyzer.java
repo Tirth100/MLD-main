@@ -19,6 +19,9 @@ public class AttentionAnalyzer {
     }
 
     public void analyzeWindow(String window, boolean webcam, int idleSeconds) {
+        if (System.currentTimeMillis() - startTime < 10000) {
+            return;
+        }
         if (window == null) window = "Unknown Window";
         totalCount++;
 
