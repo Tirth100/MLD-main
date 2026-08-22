@@ -438,6 +438,23 @@ public class ApiServer {
                 }
                 
                 if (!uuid.isEmpty()) {
+                    String sessionCode = activeJoinedSessions.get(uuid);
+                    if (sessionCode != null) {
+                        service.AttentionAnalyzer clientAnalyzer = Main.analyzers.get(uuid);
+                        if (clientAnalyzer != null) {
+                            try {
+                                double finalScore = clientAnalyzer.getAttentionScore();
+                                String status = new service.LeechDetector().checkLeech(finalScore);
+                                report.Report sessionReport = new report.Report(uuid, sessionCode, clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
+                                        clientAnalyzer.isWebcamActive(),
+                                        finalScore, status, clientAnalyzer.getWindowTimeline(), clientAnalyzer.getFocusTimeline());
+                                sessionReport.setJoinTime(clientAnalyzer.getJoinTimeFormatted());
+                                report.ReportGenerator.saveReport(sessionReport);
+                            } catch (Exception e) {
+                                System.err.println("Error saving client report on leave: " + e.getMessage());
+                            }
+                        }
+                    }
                     activeJoinedSessions.remove(uuid);
                     Main.analyzers.remove(uuid);
                 }
