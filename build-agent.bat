@@ -1,32 +1,32 @@
 @echo off
+
 echo ===================================================
-echo   Building MLD Desktop Agent (MLD-Agent.jar)
+echo   Building Native Windows MLD-Agent (MLD-Agent.exe)
 echo ===================================================
 echo.
 
-if not exist bin mkdir bin
+set CSC=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 
-echo Compiling Java Agent sources...
-javac -cp "lib/*;src" -d bin src/monitor/ActiveWindowTracker.java src/agent/MldAgent.java
+if not exist "%CSC%" goto NO_CSC
 
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Agent compilation failed.
-    pause
-    exit /b %ERRORLEVEL%
-)
+echo [INFO] Compiling using Windows Native C# Compiler (csc.exe)...
+"%CSC%" /target:winexe /platform:anycpu /optimize+ /out:MLD-Agent.exe /win32manifest:mld-agent-dotnet\app.manifest /r:System.dll,System.Core.dll,System.Drawing.dll,System.Windows.Forms.dll,System.Net.Http.dll,Microsoft.VisualBasic.dll /recurse:mld-agent-dotnet\*.cs
 
-echo Packaging executable MLD-Agent.jar...
-jar cvfe MLD-Agent.jar agent.MldAgent -C bin .
+if errorlevel 1 goto BUILD_ERROR
 
-echo Bundling minimal JRE...
-if exist jre rmdir /s /q jre
-jlink --no-header-files --no-man-pages --compress=2 --strip-debug --add-modules java.base,java.logging,java.desktop,java.management,java.naming,java.security.jgss,java.instrument,jdk.crypto.ec,jdk.crypto.mscapi,jdk.security.auth --output jre
-
-echo Packaging MLD-Agent.zip distribution...
-powershell -Command "Compress-Archive -Path 'MLD-Agent.jar', 'run-agent.bat', 'lib', 'jre' -DestinationPath 'MLD-Agent.zip' -Force"
+if not exist frontend\public mkdir frontend\public
+copy /y MLD-Agent.exe frontend\public\MLD-Agent.exe >nul
 
 echo.
 echo ===================================================
-echo [SUCCESS] MLD-Agent.jar & MLD-Agent.zip built successfully!
+echo  [SUCCESS] MLD-Agent.exe built successfully!
 echo ===================================================
 exit /b 0
+
+:NO_CSC
+echo [ERROR] csc.exe was not found at %CSC%
+exit /b 1
+
+:BUILD_ERROR
+echo [ERROR] MLD-Agent compilation failed.
+exit /b 1

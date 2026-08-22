@@ -95,7 +95,7 @@ export default function AgentSetup() {
     }
   };
 
-  const downloadUrl = '/MLDAgent.msi?v=10';
+  const downloadUrl = '/api/download-agent';
   const protocolLink = `mld-agent://link?token=${token}`;
 
   return (
@@ -133,12 +133,12 @@ export default function AgentSetup() {
               <div className="card-body p-4 p-md-5 d-flex justify-content-between align-items-center flex-wrap gap-4">
                 <div>
                   <div className="d-flex align-items-center gap-2 mb-2">
-                    <span className="badge bg-primary px-3 py-2 rounded-pill"><i className="bi bi-windows me-1"></i>Official Windows MSI Package</span>
-                    <span className="badge bg-light text-dark border px-3 py-2 rounded-pill"><i className="bi bi-cpu me-1"></i>Bundled JRE (No Java Setup Required)</span>
+                    <span className="badge bg-primary px-3 py-2 rounded-pill"><i className="bi bi-windows me-1"></i>Desktop Agent Package</span>
+                    <span className="badge bg-light text-dark border px-3 py-2 rounded-pill"><i className="bi bi-cpu me-1"></i>Seamless Pairing</span>
                   </div>
                   <h1 className="fw-bold mb-2 text-dark">Connect Your Desktop Workstation</h1>
                   <p className="text-muted mb-0" style={{ maxWidth: '650px' }}>
-                    Install the native <strong>MLD Agent</strong> to participate in real-time meeting telemetry sessions. Powered by Windows MSI technology and seamless one-click pairing.
+                    Install the native <strong>MLD Agent</strong> to participate in real-time meeting telemetry sessions with seamless one-click pairing.
                   </p>
                 </div>
                 <div className="text-end">
@@ -163,7 +163,7 @@ export default function AgentSetup() {
           </div>
         </div>
 
-        {/* 3-Step Guided MSI Setup Flow */}
+        {/* 3-Step Guided Setup Flow */}
         <div className="row mb-5">
           <div className="col-12">
             <h4 className="fw-bold mb-4 text-dark"><i className="bi bi-diagram-3 text-primary me-2"></i>Quick 3-Step Setup Process</h4>
@@ -178,12 +178,12 @@ export default function AgentSetup() {
                     1
                   </div>
                   <div>
-                    <h5 className="fw-bold mb-0">Download MSI</h5>
-                    <small className="text-muted">Single Windows Installer</small>
+                    <h5 className="fw-bold mb-0">Download Agent</h5>
+                    <small className="text-muted">Agent Package</small>
                   </div>
                 </div>
                 <p className="text-muted small flex-grow-1">
-                  Get the official <strong>MLDAgent.msi</strong> installer. Comes with a self-contained runtime so you don't need to install or configure Java manually.
+                  Get the official <strong>MLD Agent</strong> package to run on your workstation.
                 </p>
                 <div className="mt-3 pt-3 border-top">
                   <span className="badge bg-light text-muted border"><i className="bi bi-file-earmark-binary me-1"></i>Windows 10/11 (64-bit)</span>
@@ -201,12 +201,12 @@ export default function AgentSetup() {
                     2
                   </div>
                   <div>
-                    <h5 className="fw-bold mb-0">Install Package</h5>
-                    <small className="text-muted">Standard Setup Wizard</small>
+                    <h5 className="fw-bold mb-0">Run Agent</h5>
+                    <small className="text-muted">Desktop Service</small>
                   </div>
                 </div>
                 <p className="text-muted small flex-grow-1">
-                  Double-click the downloaded <strong>.msi</strong> file and install it. <strong>Important:</strong> After installation, open your Windows Start Menu, search for <strong>"MLD Agent"</strong>, and click it to run the agent in the background.
+                  Launch the <strong>MLD Agent</strong> to run in the background.
                 </p>
                 <div className="mt-3 pt-3 border-top">
                   <span className="badge bg-light text-muted border"><i className="bi bi-shield-check text-success me-1"></i>System Tray Background App</span>
@@ -229,7 +229,7 @@ export default function AgentSetup() {
                   </div>
                 </div>
                 <p className="text-muted small flex-grow-1">
-                  Click <strong>Link Agent Now</strong> below to pair your account automatically. <strong>Fallback:</strong> If the button doesn't open the agent, use the manual token fallback below and run <code>MLD Agent.exe</code> with it.
+                  Click <strong>Link Agent Now</strong> below to pair your account automatically. <strong>Fallback:</strong> If the button doesn't open the agent, use the manual token fallback below.
                 </p>
                 <div className="mt-3 pt-3 border-top">
                   <span className={`badge ${isConnected ? 'bg-success text-white' : 'bg-light text-primary border'}`}>
@@ -254,7 +254,7 @@ export default function AgentSetup() {
                 </div>
                 <h3 className="fw-bold mb-2">Get Started with MLD Agent</h3>
                 <p className="text-muted mb-4" style={{ maxWidth: '480px', margin: '0 auto' }}>
-                  Download the official Windows installer and pair your workstation in under 60 seconds.
+                  Download the agent package and pair your workstation in under 60 seconds.
                 </p>
 
                 {onMobile && (
@@ -269,10 +269,10 @@ export default function AgentSetup() {
                 <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center mb-4">
                   <a 
                     href={downloadUrl} 
-                    download="MLDAgent.msi" 
+                    download="MLD-Agent.exe"
                     className="btn btn-primary btn-lg px-4 py-3 shadow fs-6 fw-bold d-inline-flex align-items-center justify-content-center"
                   >
-                    <i className="bi bi-download me-2"></i>Download MLD Agent (.msi)
+                    <i className="bi bi-download me-2"></i>Download MLD-Agent (.exe)
                   </a>
 
                   <a 
@@ -285,7 +285,6 @@ export default function AgentSetup() {
 
                 <div className="d-flex align-items-center justify-content-center gap-4 text-muted small mb-4">
                   <span><i className="bi bi-shield-check text-success me-1"></i>Verified Safe</span>
-                  <span><i className="bi bi-patch-check text-primary me-1"></i>MSI Format</span>
                   <span><i className="bi bi-windows text-info me-1"></i>Win 10/11 Ready</span>
                 </div>
               </div>
@@ -424,12 +423,12 @@ export default function AgentSetup() {
                 <div className="accordion-item bg-transparent">
                   <h2 className="accordion-header">
                     <button className="accordion-button collapsed bg-transparent fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                      Do I need to install Java before running the MSI installer?
+                      Do I need to configure Java before running the Agent?
                     </button>
                   </h2>
                   <div id="faq1" className="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                     <div className="accordion-body text-muted small">
-                      No. The new <strong>MSI Package</strong> includes a dedicated, self-contained Java Runtime Environment (JRE). It runs seamlessly on any Windows 10 or Windows 11 machine without any prerequisites.
+                      No. The <strong>Agent Package</strong> includes a dedicated, self-contained runtime environment. It runs seamlessly on any Windows 10 or Windows 11 machine.
                     </div>
                   </div>
                 </div>

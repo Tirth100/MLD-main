@@ -5,17 +5,21 @@
 scratch/
 .env
 
-# Compiled Java class files
+# Compiled class & binary files
 *.class
 bin/
 build/
 dist/
+mld-agent-dotnet/bin/
+mld-agent-dotnet/obj/
 frontend/dist/
 frontend/node_modules/
 
 # Binaries and Archives
 *.jar
 *.zip
+*.msi
+installer/
 
 # Node modules
 node_modules/

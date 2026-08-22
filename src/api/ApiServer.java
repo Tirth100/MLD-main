@@ -74,7 +74,6 @@ public class ApiServer {
         
         server.createContext("/", new RootHandler());
         server.createContext("/download/mld-agent", new DownloadAgentHandler());
-        server.createContext("/MLDAgent.msi", new DownloadAgentHandler());
         server.createContext("/api/download-agent", new DownloadAgentHandler());
         server.createContext("/api/agent-status", new AgentStatusHandler());
         server.createContext("/api/heartbeat", new HeartbeatHandler());
@@ -184,12 +183,9 @@ public class ApiServer {
                 return;
             }
             try {
-                java.io.File fileToServe = new java.io.File("MLDAgent.msi");
+                java.io.File fileToServe = new java.io.File("MLD-Agent.exe");
                 if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("installer/MLDAgent.msi");
-                }
-                if (!fileToServe.exists()) {
-                    fileToServe = new java.io.File("mld-agent-app/installer/MLD Agent-1.0.0.msi");
+                    fileToServe = new java.io.File("frontend/public/MLD-Agent.exe");
                 }
                 if (!fileToServe.exists()) {
                     fileToServe = new java.io.File("MLD-Agent.zip");
@@ -206,7 +202,7 @@ public class ApiServer {
                         os.write(bytes);
                     }
                 } else {
-                    String msg = "MLD Agent MSI installer file not found on server.";
+                    String msg = "MLD Agent executable not found on server.";
                     exchange.sendResponseHeaders(404, msg.length());
                     try (OutputStream os = exchange.getResponseBody()) { os.write(msg.getBytes()); }
                 }
