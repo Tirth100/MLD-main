@@ -27,7 +27,9 @@ export default function ManagerDashboard() {
   const fetchEmployees = async () => {
     try {
       const res = await api.get('/employees');
-      if (res && res.employees) {
+      if (Array.isArray(res)) {
+        setEmployees(res);
+      } else if (res && res.employees) {
         setEmployees(res.employees);
       }
     } catch (err) {
