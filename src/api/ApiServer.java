@@ -1430,5 +1430,89 @@ public class ApiServer {
             }
         }
     }
+
+    class SendInvitesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+            String token = extractToken(exchange);
+            if (!requireManagerOrAdmin(exchange, token)) return;
+
+            try {
+                InputStream is = exchange.getRequestBody();
+                String body = new String(is.readAllBytes());
+                String sessionCode = extractJsonField(body, "sessionCode").trim().toUpperCase();
+                
+                // Parse userIds array using a simple string split
+                java.util.List<Integer> userIds = new java.util.ArrayList<>();
+                if (body.contains("\"userIds\":")) {
+                    String arr = body.split("\"userIds\":")[1].split("]")[0].replace("[", "").trim();
+                    if (!arr.isEmpty()) {
+                        String[] parts = arr.split(",");
+                        for (String p : parts) {
+                            try {
+                                userIds.add(Integer.parseInt(p.trim()));
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+                }
+                
+                if (sessionCode.isEmpty() || userIds.isEmpty()) {
+                    sendJsonError(exchange, 400, "Missing session code or user IDs.");
+                    return;
+                }
+
+                boolean success = DatabaseHelper.sendInvites(sessionCode, userIds);
+                sendResponse(exchange, "{\"success\": " + success + "}");
+            } catch (Exception e) {
+                sendJsonError(exchange, 500, "Failed to send invites: " + e.getMessage());
+            }
+        }
     }
 
+    class InvitesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+            String token = extractToken(exchange);
+            if (token == null || token.isEmpty()) {
+                exchange.sendResponseHeaders(401, -1);
+                exchange.close();
+                return;
+            }
+
+            try {
+                java.util.List<String> invites = DatabaseHelper.getPendingInvites(token);
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < invites.size(); i++) {
+                    sb.append("\"").append(escapeJson(invites.get(i))).append("\"");
+                    if (i < invites.size() - 1) sb.append(",");
+                }
+                sb.append("]");
+                sendResponse(exchange, "{\"success\": true, \"invites\": " + sb.toString() + "}");
+            } catch (Exception e) {
+                sendJsonError(exchange, 500, "Failed to fetch invites.");
+            }
+        }
+    }
+}
