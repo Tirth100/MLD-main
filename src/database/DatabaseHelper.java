@@ -55,6 +55,7 @@ public class DatabaseHelper {
     private static final Map<String, Integer> devicesToOrgId = new ConcurrentHashMap<>();
     private static final Map<String, String> devicesToRole = new ConcurrentHashMap<>();
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
+    private static final Map<Integer, List<String>> pendingInvites = new ConcurrentHashMap<>();
     
     private static int nextOrgId = 1;
     private static int nextUserId = 1;
@@ -175,12 +176,22 @@ public class DatabaseHelper {
                 + " FOREIGN KEY(session_code) REFERENCES sessions(session_code)"
                 + ");";
 
+        String createSessionInvitesTable = "CREATE TABLE IF NOT EXISTS session_invites ("
+                + " invite_id SERIAL PRIMARY KEY,"
+                + " session_code VARCHAR(20),"
+                + " user_id INTEGER,"
+                + " status VARCHAR(20) DEFAULT 'PENDING',"
+                + " created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+                + " FOREIGN KEY(user_id) REFERENCES users(user_id)"
+                + ");";
+
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createOrganizationsTable);
             stmt.execute(createUsersTable);
             stmt.execute(createDevicesTable);
             stmt.execute(createSessionsTable);
             stmt.execute(createEngagementLogsTable);
+            stmt.execute(createSessionInvitesTable);
             // Add last_heartbeat column if it doesn't exist (safe migration)
             stmt.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMP;");
             System.out.println("[Database] PostgreSQL tables initialized and ready for user registration.");
@@ -1246,6 +1257,103 @@ public class DatabaseHelper {
             }
         }
         return "{\"success\": true}";
+    }
+
+    public static boolean sendInvites(String sessionCode, List<Integer> userIds) {
+        if (sessionCode == null || userIds == null || userIds.isEmpty()) return false;
+        
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "INSERT INTO session_invites (session_code, user_id) VALUES (?, ?)";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    for (Integer uid : userIds) {
+                        pstmt.setString(1, sessionCode);
+                        pstmt.setInt(2, uid);
+                        pstmt.addBatch();
+                    }
+                    pstmt.executeBatch();
+                }
+                return true;
+            } catch (Exception e) {
+                System.err.println("Error sending invites: " + e.getMessage());
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+        
+        // Fallback
+        for (Integer uid : userIds) {
+            pendingInvites.computeIfAbsent(uid, k -> new java.util.ArrayList<>()).add(sessionCode);
+        }
+        return true;
+    }
+
+    public static List<String> getPendingInvites(String token) {
+        List<String> invites = new java.util.ArrayList<>();
+        if (token == null || token.isEmpty()) return invites;
+
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT s.session_code FROM session_invites s " +
+                             "JOIN devices d ON s.user_id = d.user_id " +
+                             "WHERE d.device_uuid = ? AND s.status = 'PENDING'";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, token);
+                    ResultSet rs = ps.executeQuery();
+                    while (rs.next()) {
+                        invites.add(rs.getString("session_code"));
+                    }
+                }
+                return invites;
+            } catch (Exception e) {
+                System.err.println("Error getting pending invites: " + e.getMessage());
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+
+        // Fallback
+        Integer userId = devicesToUserId.get(token);
+        if (userId != null) {
+            List<String> userInvites = pendingInvites.get(userId);
+            if (userInvites != null) {
+                invites.addAll(userInvites);
+            }
+        }
+        return invites;
+    }
+
+    public static void clearInvite(String token, String sessionCode) {
+        if (token == null || token.isEmpty() || sessionCode == null || sessionCode.isEmpty()) return;
+
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "UPDATE session_invites s SET status = 'ACCEPTED' " +
+                             "FROM devices d " +
+                             "WHERE s.user_id = d.user_id AND d.device_uuid = ? AND s.session_code = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, token);
+                    ps.setString(2, sessionCode);
+                    ps.executeUpdate();
+                }
+            } catch (Exception e) {
+                System.err.println("Error clearing invite: " + e.getMessage());
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        } else {
+            // Fallback
+            Integer userId = devicesToUserId.get(token);
+            if (userId != null) {
+                List<String> userInvites = pendingInvites.get(userId);
+                if (userInvites != null) {
+                    userInvites.remove(sessionCode);
+                }
+            }
+        }
     }
 }
 

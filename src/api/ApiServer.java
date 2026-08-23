@@ -87,6 +87,8 @@ public class ApiServer {
         server.createContext("/api/join", new JoinHandler());
         server.createContext("/api/leave-session", new LeaveSessionHandler());
         server.createContext("/api/login", new LoginHandler());
+        server.createContext("/api/send-invites", new SendInvitesHandler());
+        server.createContext("/api/invites", new InvitesHandler());
         server.createContext("/api/signup-org", new OrgSignupHandler());
         server.createContext("/api/signup-emp", new EmpSignupHandler());
         server.createContext("/api/track", new TrackHandler());
@@ -534,6 +536,7 @@ public class ApiServer {
                 if (DatabaseHelper.isValidSession(sessionCode)) {
                     activeJoinedSessions.put(uuid.toLowerCase(), sessionCode);
                     Main.analyzers.put(uuid.toLowerCase(), new service.AttentionAnalyzer());
+                    DatabaseHelper.clearInvite(uuid, sessionCode);
                     sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
                 } else {
                     sendResponse(exchange, "{\"success\": false, \"message\": \"Session is not currently active.\"}");

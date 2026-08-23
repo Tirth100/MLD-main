@@ -10,6 +10,9 @@ export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [managerName, setManagerName] = useState('Manager');
   const [expandedRows, setExpandedRows] = useState({});
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const toggleRow = (name) => setExpandedRows(prev => ({ ...prev, [name]: !prev[name] }));
   
   const navigate = useNavigate();
@@ -19,6 +22,17 @@ export default function ManagerDashboard() {
     localStorage.removeItem('user_role');
     localStorage.removeItem('username');
     navigate('/');
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await api.get('/employees');
+      if (res && res.employees) {
+        setEmployees(res.employees);
+      }
+    } catch (err) {
+      console.error("Failed to fetch employees", err);
+    }
   };
 
   const fetchData = async () => {
@@ -176,6 +190,9 @@ export default function ManagerDashboard() {
                     <>
                         <button className="btn btn-danger ms-4 shadow" onClick={handleStopSession}>
                             <i className="bi bi-stop-circle me-2"></i>Stop Meeting Session
+                        </button>
+                        <button className="btn btn-outline-primary ms-3 shadow" onClick={() => { fetchEmployees(); setShowInviteModal(true); }}>
+                            <i className="bi bi-envelope me-2"></i>Invite Employees
                         </button>
                         <div className="ms-4 px-3 py-1 bg-success bg-opacity-10 border border-success rounded text-success">
                             <span className="fw-bold">Session Code: </span>
@@ -588,6 +605,84 @@ export default function ManagerDashboard() {
               </div>
           </div>
       </div>
+
+      {/* Invite Employees Modal */}
+      {showInviteModal && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+              <div className="modal-dialog modal-dialog-centered">
+                  <div className="modal-content bg-white border-0 shadow">
+                      <div className="modal-header border-bottom">
+                          <h5 className="modal-title fw-bold"><i className="bi bi-envelope me-2 text-primary"></i>Invite Employees to Session</h5>
+                          <button type="button" className="btn-close" onClick={() => setShowInviteModal(false)}></button>
+                      </div>
+                      <div className="modal-body">
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                              <span className="fw-bold">Select employees to invite:</span>
+                              <div className="form-check">
+                                  <input className="form-check-input" type="checkbox" id="selectAll"
+                                      checked={selectedEmployees.size === employees.length && employees.length > 0}
+                                      onChange={(e) => {
+                                          if (e.target.checked) {
+                                              setSelectedEmployees(new Set(employees.map(emp => emp.id)));
+                                          } else {
+                                              setSelectedEmployees(new Set());
+                                          }
+                                      }}
+                                  />
+                                  <label className="form-check-label" htmlFor="selectAll">Select All</label>
+                              </div>
+                          </div>
+                          <div className="list-group" style={{maxHeight: '300px', overflowY: 'auto'}}>
+                              {employees.length === 0 ? (
+                                  <div className="text-center text-muted p-3">No employees found.</div>
+                              ) : (
+                                  employees.map(emp => (
+                                      <label key={emp.id} className="list-group-item d-flex align-items-center gap-3" style={{cursor: 'pointer'}}>
+                                          <input className="form-check-input flex-shrink-0" type="checkbox" 
+                                              checked={selectedEmployees.has(emp.id)}
+                                              onChange={(e) => {
+                                                  const newSet = new Set(selectedEmployees);
+                                                  if (e.target.checked) newSet.add(emp.id);
+                                                  else newSet.delete(emp.id);
+                                                  setSelectedEmployees(newSet);
+                                              }}
+                                          />
+                                          <div>
+                                              <div className="fw-bold">{emp.name}</div>
+                                              <div className="text-muted small">{emp.email}</div>
+                                          </div>
+                                      </label>
+                                  ))
+                              )}
+                          </div>
+                      </div>
+                      <div className="modal-footer border-top">
+                          <button className="btn btn-secondary" onClick={() => setShowInviteModal(false)}>Cancel</button>
+                          <button className="btn btn-primary" onClick={async () => {
+                              if (selectedEmployees.size === 0) {
+                                  alert("Please select at least one employee.");
+                                  return;
+                              }
+                              try {
+                                  const res = await api.post('/send-invites', {
+                                      sessionCode: session.code,
+                                      userIds: Array.from(selectedEmployees)
+                                  });
+                                  if (res.success) {
+                                      setShowInviteModal(false);
+                                      setSelectedEmployees(new Set());
+                                  } else {
+                                      alert("Failed to send invites.");
+                                  }
+                              } catch(e) {
+                                  alert("Error sending invites.");
+                              }
+                          }}>Send Invites</button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
     </>
   );
 }

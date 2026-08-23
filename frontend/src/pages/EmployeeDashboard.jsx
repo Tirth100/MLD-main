@@ -11,6 +11,7 @@ export default function EmployeeDashboard() {
   const [history, setHistory] = useState([]);
   const [timelineData, setTimelineData] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [invites, setInvites] = useState([]);
   
   const [dashboardData, setDashboardData] = useState({
     attentionScore: 0,
@@ -57,6 +58,11 @@ export default function EmployeeDashboard() {
         }
       }
 
+      const invitesRes = await api.get('/invites');
+      if (invitesRes && invitesRes.success && Array.isArray(invitesRes.invites)) {
+          setInvites(invitesRes.invites);
+      }
+
       const engData = await api.get('/engagement');
       if (Array.isArray(engData)) {
           const username = localStorage.getItem('username');
@@ -86,20 +92,21 @@ export default function EmployeeDashboard() {
     return () => clearInterval(interval);
   }, [navigate]);
 
-  const handleJoin = async (e) => {
-    e.preventDefault();
+  const joinSession = async (codeToJoin) => {
     setError('');
-    
     try {
       const uuid = localStorage.getItem('uuid_token') || '';
-      const response = await api.post('/join', { sessionCode: joinCode, uuid });
+      const response = await api.post('/join', { sessionCode: codeToJoin, uuid });
       if (response.success) {
-        setSession({ active: true, code: joinCode });
+        setSession({ active: true, code: codeToJoin });
         
         // Automatically trigger the agent deep link
         if (uuid) {
             window.location.href = `mld-agent://link?token=${uuid}`;
         }
+        
+        // Remove from invites if it was there
+        setInvites(prev => prev.filter(c => c !== codeToJoin));
         
         fetchStatus();
       } else {
@@ -108,6 +115,11 @@ export default function EmployeeDashboard() {
     } catch (err) {
       setError('Network error connecting to session.');
     }
+  };
+
+  const handleJoin = async (e) => {
+    e.preventDefault();
+    await joinSession(joinCode);
   };
 
   const handleLeave = async () => {
@@ -177,6 +189,34 @@ export default function EmployeeDashboard() {
                   </div>
               </div>
           </div>
+
+          {/* Pending Invitations */}
+          {!session.active && invites.length > 0 && (
+            <div className="row mb-4">
+                <div className="col-12">
+                    <div className="card glass-card border-info border-2 shadow-sm">
+                        <div className="card-header bg-transparent border-bottom border-info py-3">
+                            <h5 className="mb-0 fw-bold text-info"><i className="bi bi-envelope-open-fill me-2"></i>Pending Session Invitations</h5>
+                        </div>
+                        <div className="card-body">
+                            <div className="d-flex flex-column gap-3">
+                                {invites.map((code, idx) => (
+                                    <div key={idx} className="d-flex justify-content-between align-items-center bg-light p-3 rounded border">
+                                        <div>
+                                            <span className="fw-bold text-dark">You have been invited to session: </span>
+                                            <span className="badge bg-primary fs-6 tracking-widest">{code}</span>
+                                        </div>
+                                        <button className="btn btn-success shadow-sm" onClick={() => joinSession(code)}>
+                                            <i className="bi bi-box-arrow-in-right me-2"></i>Join Session
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          )}
 
           {/* Desktop Agent Activation Card */}
           {session.active && (
