@@ -37,6 +37,20 @@ export default function ManagerDashboard() {
     }
   };
 
+  const removeEmployee = async (empId) => {
+    if (!window.confirm("Are you sure you want to remove this employee from the organization?")) return;
+    try {
+      const res = await api.post('/employees/remove', { id: empId.toString() });
+      if (res && res.success) {
+        setEmployees(prev => prev.filter(e => e.id !== empId));
+      } else {
+        alert(res?.message || "Failed to remove employee.");
+      }
+    } catch (e) {
+      alert("Error communicating with server.");
+    }
+  };
+
   const fetchData = async () => {
     try {
       const sessionRes = await api.get('/active-session');
@@ -59,6 +73,8 @@ export default function ManagerDashboard() {
       if (Array.isArray(alertsRes)) {
         setAlerts(alertsRes);
       }
+      
+      fetchEmployees();
     } catch (err) {
       if (err.name !== 'AbortError' && err.message !== 'Failed to fetch') {
         console.error("Dashboard error:", err);
@@ -589,14 +605,29 @@ export default function ManagerDashboard() {
                                   <tr>
                                       <th className="ps-4">Employee Name</th>
                                       <th>Email</th>
-                                      <th>Joined At</th>
+                                      <th>ID</th>
                                       <th className="text-end pe-4">Actions</th>
                                   </tr>
                               </thead>
                               <tbody>
-                                  <tr>
-                                      <td colSpan="4" className="text-center py-4 text-muted">No employees registered yet.</td>
-                                  </tr>
+                                  {employees.length === 0 ? (
+                                      <tr>
+                                          <td colSpan="4" className="text-center py-4 text-muted">No employees registered yet.</td>
+                                      </tr>
+                                  ) : (
+                                      employees.map(emp => (
+                                          <tr key={emp.id}>
+                                              <td className="ps-4 fw-medium text-dark">{emp.name}</td>
+                                              <td className="text-muted">{emp.email}</td>
+                                              <td className="text-muted small">#{emp.id}</td>
+                                              <td className="text-end pe-4">
+                                                  <button className="btn btn-sm btn-outline-danger shadow-sm" onClick={() => removeEmployee(emp.id)}>
+                                                      <i className="bi bi-person-x-fill me-1"></i>Remove
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
                               </tbody>
                           </table>
                       </div>
