@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { api } from '../api';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 export default function Reports() {
   const [data, setData] = useState([]);
@@ -8,6 +10,10 @@ export default function Reports() {
   const [showModal, setShowModal] = useState(false);
   const [timelineData, setTimelineData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const fetchReports = async () => {
     try {
@@ -35,42 +41,81 @@ export default function Reports() {
 
   const filteredData = data.filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (filteredData.length === 0) {
       alert("No data to export.");
       return;
     }
 
-    const headers = ["Name", "Role", "Score (%)", "Status", "Date & Time"];
-    const csvRows = [];
-    csvRows.push(headers.join(","));
-
-    filteredData.forEach(emp => {
-      const score = emp.score !== undefined ? (emp.score <= 1 ? Math.round(emp.score * 100) : emp.score) : 0;
-      const statusText = score < 50 ? 'Distracted' : 'Engaged';
-      const timeStr = (emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString();
-      
-      const row = [
-        `"${emp.name || ''}"`,
-        `"${emp.role || ''}"`,
-        score,
-        statusText,
-        `"${timeStr}"`
-      ];
-      csvRows.push(row.join(","));
+    const [year, month] = selectedMonth.split('-');
+    const dataForMonth = filteredData.filter(emp => {
+      const timeStr = emp.joinTime || emp.timestamp || new Date().toISOString();
+      const date = new Date(timeStr);
+      return date.getFullYear() === parseInt(year) && (date.getMonth() + 1) === parseInt(month);
     });
 
-    const csvString = csvRows.join("\n");
-    const blob = new Blob([csvString], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.setAttribute('hidden', '');
-    a.setAttribute('href', url);
-    a.setAttribute('download', 'Engagement_Report.csv');
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (dataForMonth.length === 0) {
+      alert(`No data found for ${selectedMonth}`);
+      return;
+    }
+
+    const groupedByDay = {};
+    dataForMonth.forEach(emp => {
+      const timeStr = emp.joinTime || emp.timestamp || new Date().toISOString();
+      const date = new Date(timeStr);
+      const day = date.getDate();
+      if (!groupedByDay[day]) groupedByDay[day] = [];
+      groupedByDay[day].push({ ...emp, dateObj: date });
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short' });
+
+    Object.keys(groupedByDay).sort((a, b) => a - b).forEach(day => {
+      const sheetName = `${monthName} ${day}`;
+      const worksheet = workbook.addWorksheet(sheetName);
+
+      worksheet.columns = [
+        { header: 'Name', key: 'name', width: 20 },
+        { header: 'Role', key: 'role', width: 15 },
+        { header: 'Score (%)', key: 'score', width: 12 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Date & Time', key: 'dateTime', width: 25 },
+      ];
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+
+      groupedByDay[day].forEach(emp => {
+        const score = emp.score !== undefined ? (emp.score <= 1 ? Math.round(emp.score * 100) : emp.score) : 0;
+        const statusText = score < 50 ? 'Distracted' : 'Engaged';
+        
+        const row = worksheet.addRow({
+          name: emp.name,
+          role: emp.role,
+          score: score,
+          status: statusText,
+          dateTime: emp.dateObj.toLocaleString()
+        });
+
+        const fillColor = statusText === 'Distracted' ? 'FFFFCCCC' : 'FFCCFFCC';
+        row.eachCell((cell) => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: fillColor }
+          };
+        });
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `${monthName}_Engagement_Score.xlsx`);
   };
 
   return (
@@ -94,8 +139,8 @@ export default function Reports() {
                           </div>
                       </div>
                       <div className="col-md-3">
-                          <label className="form-label text-muted small">Date Range</label>
-                          <input type="date" className="form-control" />
+                          <label className="form-label text-muted small">Export Month</label>
+                          <input type="month" className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} />
                       </div>
                       <div className="col-md-3">
                           <label className="form-label text-muted small">Department / Role</label>
