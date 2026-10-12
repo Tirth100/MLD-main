@@ -946,12 +946,23 @@ public class ApiServer {
                     InputStream is = exchange.getRequestBody();
                     String body = new String(is.readAllBytes());
                     String orgName = extractJsonField(body, "orgName");
+                    if (orgName == null || orgName.isBlank()) {
+                        orgName = extractJsonField(body, "name");
+                    }
                     String managerName = extractJsonField(body, "managerName");
-                    String email = extractJsonField(body, "email").trim();
-                    String password = extractJsonField(body, "password").trim();
+                    String email = extractJsonField(body, "email") != null ? extractJsonField(body, "email").trim() : "";
+                    String password = extractJsonField(body, "password") != null ? extractJsonField(body, "password").trim() : "";
                     
-                    if (!InputValidator.isValidEmail(email) || !InputValidator.isValidPassword(password) || !InputValidator.isValidName(orgName)) {
-                        sendJsonError(exchange, 400, "Invalid input formats. Password must be 8+ chars, 1 uppercase, 1 lowercase, 1 number.");
+                    if (!InputValidator.isValidEmail(email)) {
+                        sendJsonError(exchange, 400, "Invalid email address format.");
+                        return;
+                    }
+                    if (!InputValidator.isValidPassword(password)) {
+                        sendJsonError(exchange, 400, "Password must be 8+ chars, 1 uppercase, 1 lowercase, 1 number.");
+                        return;
+                    }
+                    if (!InputValidator.isValidName(orgName)) {
+                        sendJsonError(exchange, 400, "Invalid organization name. Only letters, spaces, hyphens, and apostrophes allowed.");
                         return;
                     }
                     

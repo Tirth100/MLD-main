@@ -18,6 +18,7 @@ export default function OrganizationSignup() {
 
     try {
       const payload = {
+        orgName: orgName,
         name: orgName,
         managerName: managerName,
         email: orgEmail,
