@@ -65,7 +65,7 @@ public class DatabaseHelper {
             return null;
         }
         try {
-            DriverManager.setLoginTimeout(1);
+            DriverManager.setLoginTimeout(15);
             String rawUrl = System.getenv("DATABASE_URL");
             Connection conn;
             if (rawUrl != null && !rawUrl.isEmpty()) {
@@ -75,17 +75,21 @@ public class DatabaseHelper {
 
                 if (rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://")) {
                     String clean = rawUrl.substring(rawUrl.indexOf("://") + 3);
-                    if (clean.contains("@")) {
-                        String[] parts = clean.split("@", 2);
-                        String userInfo = parts[0];
-                        String hostInfo = parts[1];
-                        if (userInfo.contains(":")) {
-                            String[] userPass = userInfo.split(":", 2);
-                            dbUser = userPass[0];
-                            dbPass = userPass[1];
+                    int atIndex = clean.lastIndexOf('@');
+                    if (atIndex != -1) {
+                        String userInfo = clean.substring(0, atIndex);
+                        String hostInfo = clean.substring(atIndex + 1);
+                        int colonIndex = userInfo.indexOf(':');
+                        if (colonIndex != -1) {
+                            dbUser = userInfo.substring(0, colonIndex);
+                            dbPass = userInfo.substring(colonIndex + 1);
                         } else {
                             dbUser = userInfo;
                         }
+                        try {
+                            if (dbUser != null) dbUser = java.net.URLDecoder.decode(dbUser, java.nio.charset.StandardCharsets.UTF_8);
+                            if (dbPass != null) dbPass = java.net.URLDecoder.decode(dbPass, java.nio.charset.StandardCharsets.UTF_8);
+                        } catch (Exception ignored) {}
                         jdbcUrl = "jdbc:postgresql://" + hostInfo;
                     } else {
                         jdbcUrl = "jdbc:postgresql://" + clean;
@@ -96,13 +100,17 @@ public class DatabaseHelper {
                     jdbcUrl = "jdbc:postgresql://" + jdbcUrl;
                 }
 
+                if (!jdbcUrl.contains("sslmode=")) {
+                    jdbcUrl += (jdbcUrl.contains("?") ? "&" : "?") + "sslmode=require";
+                }
+
                 if (dbUser != null && dbPass != null) {
                     conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
                 } else {
                     conn = DriverManager.getConnection(jdbcUrl);
                 }
             } else {
-                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME, USER, PASSWORD);
+                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME + "?sslmode=require", USER, PASSWORD);
             }
             postgresAvailable = true;
             isDbChecked = true;
