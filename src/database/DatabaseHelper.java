@@ -67,6 +67,7 @@ public class DatabaseHelper {
         try {
             DriverManager.setLoginTimeout(15);
             String rawUrl = System.getenv("DATABASE_URL");
+            if (rawUrl != null) rawUrl = rawUrl.trim();
             Connection conn;
             if (rawUrl != null && !rawUrl.isEmpty()) {
                 String dbUser = null;

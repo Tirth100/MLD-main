@@ -6,10 +6,10 @@ COPY lib ./lib
 COPY src ./src
 
 # Compile Java backend source files
-RUN mkdir -p bin && javac -cp "lib/jna-5.14.0.jar:lib/jna-platform-5.14.0.jar:lib/postgresql-42.7.3.jar:src" -d bin src/main/Main.java src/api/*.java src/report/*.java src/service/*.java src/database/*.java
+RUN mkdir -p bin && javac -cp "lib/postgresql-42.7.3.jar:src" -d bin src/main/Main.java src/api/*.java src/report/*.java src/service/*.java src/database/*.java
 
 # Expose API server port
 EXPOSE 3000
 
 # Start Java backend server
-CMD ["java", "-cp", "lib/jna-5.14.0.jar:lib/jna-platform-5.14.0.jar:lib/postgresql-42.7.3.jar:bin:src", "main.Main"]
+CMD ["java", "-cp", "lib/postgresql-42.7.3.jar:bin:src", "main.Main"]
