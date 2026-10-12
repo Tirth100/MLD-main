@@ -105,6 +105,10 @@ public class DatabaseHelper {
                     jdbcUrl += (jdbcUrl.contains("?") ? "&" : "?") + "sslmode=require";
                 }
 
+                if (jdbcUrl.contains(":6543") && !jdbcUrl.contains("prepareThreshold=")) {
+                    jdbcUrl += "&prepareThreshold=0";
+                }
+
                 if (dbUser != null && dbPass != null) {
                     conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
                 } else {
