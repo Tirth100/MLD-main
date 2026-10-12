@@ -60,8 +60,10 @@ public class DatabaseHelper {
     private static int nextOrgId = 1;
     private static int nextUserId = 1;
 
+    private static long lastFailedConnectTime = 0;
+
     public static Connection connect() {
-        if (isDbChecked && !postgresAvailable) {
+        if (isDbChecked && !postgresAvailable && System.currentTimeMillis() - lastFailedConnectTime < 10000) {
             return null;
         }
         try {
@@ -109,18 +111,27 @@ public class DatabaseHelper {
                     jdbcUrl += "&prepareThreshold=0";
                 }
 
+                if (!jdbcUrl.contains("sslfactory=")) {
+                    jdbcUrl += "&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+                }
+
+                if (!jdbcUrl.contains("tcpKeepAlive=")) {
+                    jdbcUrl += "&tcpKeepAlive=true";
+                }
+
                 if (dbUser != null && dbPass != null) {
                     conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
                 } else {
                     conn = DriverManager.getConnection(jdbcUrl);
                 }
             } else {
-                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME + "?sslmode=require", USER, PASSWORD);
+                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME + "?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&tcpKeepAlive=true", USER, PASSWORD);
             }
             postgresAvailable = true;
             isDbChecked = true;
             return conn;
         } catch (SQLException e) {
+            lastFailedConnectTime = System.currentTimeMillis();
             if (!isDbChecked) {
                 System.err.println("[Database Connection Warning] PostgreSQL connection failed: " + e.getMessage() + ". Using fallback mode.");
             }
