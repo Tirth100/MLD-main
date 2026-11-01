@@ -1429,37 +1429,59 @@ public class DatabaseHelper {
     }
 
     public static String signupEmpWithGoogle(String email, String name, String orgCode) {
+        String safeCode = orgCode != null ? orgCode.trim() : "";
+        String safeEmail = email != null ? email.trim() : "";
         Connection conn = connect();
         if (conn != null) {
             try {
-                String selectOrg = "SELECT org_id FROM organizations WHERE org_code = ?";
+                String selectOrg = "SELECT org_id FROM organizations WHERE LOWER(TRIM(org_code)) = LOWER(TRIM(?))";
                 PreparedStatement pstmtOrg = conn.prepareStatement(selectOrg);
-                pstmtOrg.setString(1, orgCode);
+                pstmtOrg.setString(1, safeCode);
                 ResultSet rsOrg = pstmtOrg.executeQuery();
                 if (!rsOrg.next()) {
                     conn.close();
-                    return null;
+                    return "{\"success\": false, \"message\": \"Invalid Organization Code. Please verify with your manager.\"}";
                 }
                 int orgId = rsOrg.getInt("org_id");
 
-                String checkSql = "SELECT user_id FROM users WHERE email = ?";
+                String checkSql = "SELECT user_id, role, org_id, name FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))";
                 PreparedStatement checkStmt = conn.prepareStatement(checkSql);
-                checkStmt.setString(1, email);
-                if (checkStmt.executeQuery().next()) {
-                    conn.close();
-                    return null;
+                checkStmt.setString(1, safeEmail);
+                ResultSet checkRs = checkStmt.executeQuery();
+                if (checkRs.next()) {
+                    int existingOrgId = checkRs.getInt("org_id");
+                    int existingUserId = checkRs.getInt("user_id");
+                    String existingRole = checkRs.getString("role");
+                    String existingName = checkRs.getString("name");
+                    if (existingOrgId == orgId) {
+                        String uuid = UUID.randomUUID().toString();
+                        try {
+                            String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
+                            PreparedStatement dStmt = conn.prepareStatement(insertDevice);
+                            dStmt.setString(1, uuid);
+                            dStmt.setInt(2, existingUserId);
+                            dStmt.executeUpdate();
+                        } catch (Exception devErr) {}
+                        conn.close();
+                        return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + existingRole + "\", \"name\": \"" + escapeJson(existingName) + "\"}";
+                    } else {
+                        conn.close();
+                        return "{\"success\": false, \"message\": \"This Google email is already registered with another organization.\"}";
+                    }
                 }
 
                 String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
                 PreparedStatement uStmt = conn.prepareStatement(insertSql, java.sql.Statement.RETURN_GENERATED_KEYS);
                 uStmt.setString(1, name);
-                uStmt.setString(2, email);
+                uStmt.setString(2, safeEmail);
                 uStmt.setString(3, PasswordUtil.hashPassword(UUID.randomUUID().toString()));
                 uStmt.setString(4, "EMPLOYEE");
                 uStmt.setInt(5, orgId);
                 uStmt.executeUpdate();
                 ResultSet uRs = uStmt.getGeneratedKeys();
+                int newUserId = -1;
                 if (uRs.next()) {
+                    newUserId = uRs.getInt(1);
                     try {
                         String getManagerSql = "SELECT user_id FROM users WHERE org_id = ? AND role = 'ADMIN'";
                         PreparedStatement getManagerStmt = conn.prepareStatement(getManagerSql);
@@ -1473,31 +1495,57 @@ public class DatabaseHelper {
                             notifStmt.setString(2, "New employee " + name + " joined via Google.");
                             notifStmt.executeUpdate();
                         }
-                    } catch (Exception ignore) {
-                    }
+                    } catch (Exception ignore) {}
+                }
+
+                String uuid = UUID.randomUUID().toString();
+                if (newUserId > 0) {
+                    try {
+                        String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
+                        PreparedStatement dStmt = conn.prepareStatement(insertDevice);
+                        dStmt.setString(1, uuid);
+                        dStmt.setInt(2, newUserId);
+                        dStmt.executeUpdate();
+                    } catch (Exception devErr) {}
                 }
                 conn.close();
-                return "{\"success\": true}";
+                return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"EMPLOYEE\", \"name\": \"" + escapeJson(name) + "\"}";
             } catch (Exception e) {
-                try {
-                    conn.close();
-                } catch (Exception ignored) {
-                }
+                try { conn.close(); } catch (Exception ignored) {}
             }
         }
 
         // Fallback Employee Google Signup
-        if (usersByEmail.containsKey(email)) {
-            return null; // Already exists
+        UserRecord existing = usersByEmail.get(safeEmail);
+        OrgRecord org = orgsByCode.get(safeCode.toUpperCase());
+        if (org == null) {
+            for (OrgRecord o : orgsById.values()) {
+                if (o.orgCode.equalsIgnoreCase(safeCode)) {
+                    org = o;
+                    break;
+                }
+            }
         }
-        OrgRecord org = orgsByCode.get(orgCode.toUpperCase());
-        if (org == null)
-            return null; // Invalid code
+        if (org == null) {
+            return "{\"success\": false, \"message\": \"Invalid Organization Code. Please verify with your manager.\"}";
+        }
 
-        UserRecord newUser = new UserRecord(nextUserId++, name, email,
+        if (existing != null) {
+            if (existing.orgId == org.orgId) {
+                String uuid = UUID.randomUUID().toString();
+                devicesToUserId.put(uuid, existing.userId);
+                return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + existing.role + "\", \"name\": \"" + escapeJson(existing.name) + "\"}";
+            } else {
+                return "{\"success\": false, \"message\": \"This Google email is already registered with another organization.\"}";
+            }
+        }
+
+        UserRecord newUser = new UserRecord(nextUserId++, name, safeEmail,
                 PasswordUtil.hashPassword(UUID.randomUUID().toString()), "EMPLOYEE", org.orgId);
-        usersByEmail.put(email, newUser);
+        usersByEmail.put(safeEmail, newUser);
         usersById.put(newUser.userId, newUser);
+        String uuid = UUID.randomUUID().toString();
+        devicesToUserId.put(uuid, newUser.userId);
 
         // Notify manager
         for (UserRecord u : usersById.values()) {
@@ -1507,8 +1555,9 @@ public class DatabaseHelper {
                 notifs.add(n);
             }
         }
-        return "{\"success\": true}";
+        return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"EMPLOYEE\", \"name\": \"" + escapeJson(name) + "\"}";
     }
+
 
     public static boolean sendInvites(String sessionCode, List<Integer> userIds) {
         if (sessionCode == null || userIds == null || userIds.isEmpty())
