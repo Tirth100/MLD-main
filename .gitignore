@@ -1,6 +1,8 @@
 # Temporary & System files
 *.log
 *.tmp
+~$*
+*_backup.*
 .system_generated/
 scratch/
 .env

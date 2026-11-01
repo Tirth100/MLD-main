@@ -61,6 +61,8 @@ public class ApiServer {
         }
     }
 
+    private HttpServer serverInstance;
+
     public void startServer() throws IOException {
         int port = 3000;
         String portEnv = System.getenv("PORT");
@@ -69,8 +71,18 @@ public class ApiServer {
                 port = Integer.parseInt(portEnv);
             } catch (NumberFormatException ignored) {}
         }
+        startServer(port);
+    }
 
+    public void stopServer() {
+        if (serverInstance != null) {
+            serverInstance.stop(0);
+        }
+    }
+
+    public void startServer(int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        this.serverInstance = server;
         
         server.createContext("/", new RootHandler());
         server.createContext("/download/mld-agent", new DownloadAgentHandler());

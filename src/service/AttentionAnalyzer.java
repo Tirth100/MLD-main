@@ -35,6 +35,7 @@ public class AttentionAnalyzer {
         String lowerWin = window.toLowerCase();
         if (lowerWin.contains("zoom")
          || (lowerWin.contains("meet") && !lowerWin.contains("meeting leech detector") && !lowerWin.contains("mld employee"))
+         || lowerWin.contains("teams")
          || lowerWin.contains("powerpoint")
          || lowerWin.contains("powerpnt")) 
         {
