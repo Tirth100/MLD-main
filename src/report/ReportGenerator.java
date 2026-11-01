@@ -124,16 +124,32 @@ public class ReportGenerator {
     }
 
     public static String getAllReportsAsJsonArray(int orgId) {
+        return getAllReportsAsJsonArray(orgId, -1, null);
+    }
+
+    public static String getAllReportsAsJsonArray(int orgId, int userId, String filterName) {
         Connection conn = DatabaseHelper.connect();
         if (conn != null) {
             StringBuilder jsonArray = new StringBuilder("[");
-            String sql = "SELECT e.*, u.name as user_name FROM engagement_logs e " +
-                         "LEFT JOIN devices d ON e.device_uuid = d.device_uuid " +
-                         "LEFT JOIN users u ON d.user_id = u.user_id " +
-                         "WHERE u.org_id = ? AND (e.is_live IS FALSE OR e.is_live IS NULL) AND e.total_checks > 0 " +
-                         "ORDER BY e.timestamp DESC";
+            String sql;
+            if (userId > 0) {
+                sql = "SELECT e.*, u.name as user_name FROM engagement_logs e " +
+                      "LEFT JOIN devices d ON e.device_uuid = d.device_uuid " +
+                      "LEFT JOIN users u ON d.user_id = u.user_id " +
+                      "WHERE u.org_id = ? AND u.user_id = ? AND (e.is_live IS FALSE OR e.is_live IS NULL) AND e.total_checks > 0 " +
+                      "ORDER BY e.timestamp DESC";
+            } else {
+                sql = "SELECT e.*, u.name as user_name FROM engagement_logs e " +
+                      "LEFT JOIN devices d ON e.device_uuid = d.device_uuid " +
+                      "LEFT JOIN users u ON d.user_id = u.user_id " +
+                      "WHERE u.org_id = ? AND (e.is_live IS FALSE OR e.is_live IS NULL) AND e.total_checks > 0 " +
+                      "ORDER BY e.timestamp DESC";
+            }
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, orgId);
+                if (userId > 0) {
+                    pstmt.setInt(2, userId);
+                }
                 try (ResultSet rs = pstmt.executeQuery()) {
                     boolean first = true;
                     Set<String> seenUserSessions = new HashSet<>();
@@ -195,6 +211,9 @@ public class ReportGenerator {
                 int s = rep.indexOf("\"name\": \"") + 9;
                 int e = rep.indexOf("\"", s);
                 if (e != -1) name = rep.substring(s, e);
+            }
+            if (filterName != null && !filterName.isBlank() && !name.equalsIgnoreCase(filterName.trim())) {
+                continue;
             }
             String key = sessionCode + "_" + name;
             if (!key.equals("_") && !seenFallback.add(key)) {

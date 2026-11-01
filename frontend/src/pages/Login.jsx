@@ -42,6 +42,9 @@ export default function Login() {
       if (response.success && response.token) {
         localStorage.setItem('uuid_token', response.token);
         localStorage.setItem('user_role', response.role || 'EMPLOYEE');
+        if (response.name) {
+          localStorage.setItem('username', response.name);
+        }
         
         if (response.role === 'MANAGER' || response.role === 'ADMIN') {
           navigate('/manager-dashboard');

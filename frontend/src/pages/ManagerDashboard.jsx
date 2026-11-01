@@ -93,7 +93,16 @@ export default function ManagerDashboard() {
     }
     
     const name = localStorage.getItem('username');
-    if (name) setManagerName(name);
+    if (name) {
+      setManagerName(name);
+    } else {
+      api.get('/profile').then(res => {
+        if (res && res.name) {
+          setManagerName(res.name);
+          localStorage.setItem('username', res.name);
+        }
+      }).catch(() => {});
+    }
 
     fetchData();
     const interval = setInterval(fetchData, 5000);

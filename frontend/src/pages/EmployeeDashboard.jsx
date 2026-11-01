@@ -45,8 +45,8 @@ export default function EmployeeDashboard() {
       if (sessionRes && sessionRes.active) {
         const engRes = await api.get('/engagement');
         if (Array.isArray(engRes) && engRes.length > 0) {
-          const username = localStorage.getItem('username');
-          const currentEmp = engRes.find(emp => (username && emp.name === username) || emp.isLive) || engRes[0];
+          const username = localStorage.getItem('username') || profileName;
+          const currentEmp = engRes.find(emp => (username && username !== 'Loading...' && emp.name && emp.name.toLowerCase() === username.toLowerCase()) || emp.isLive) || engRes[0];
           setDashboardData({
             attentionScore: currentEmp.score !== undefined ? (Number(currentEmp.score) > 1 ? Number(currentEmp.score) / 100 : Number(currentEmp.score)) : (currentEmp.attentionScore !== undefined ? Number(currentEmp.attentionScore) : 1.0),
             webcam: currentEmp.webcamActive !== undefined ? Boolean(currentEmp.webcamActive) : Boolean(currentEmp.webcam),
@@ -65,8 +65,12 @@ export default function EmployeeDashboard() {
 
       const engData = await api.get('/engagement');
       if (Array.isArray(engData)) {
-          const username = localStorage.getItem('username');
-          const myHistory = engData.filter(emp => !username || emp.name === username);
+          const username = localStorage.getItem('username') || profileName;
+          const currentName = (username || profileName || '').trim().toLowerCase();
+          const myHistory = engData.filter(emp => {
+              if (!currentName || currentName === 'loading...') return true;
+              return (emp.name || '').trim().toLowerCase() === currentName;
+          });
           setHistory(myHistory);
       }
     } catch (err) {
@@ -85,7 +89,16 @@ export default function EmployeeDashboard() {
       return;
     }
     const name = localStorage.getItem('username');
-    if (name) setProfileName(name);
+    if (name) {
+      setProfileName(name);
+    } else {
+      api.get('/profile').then(res => {
+        if (res && res.name) {
+          setProfileName(res.name);
+          localStorage.setItem('username', res.name);
+        }
+      }).catch(() => {});
+    }
 
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);

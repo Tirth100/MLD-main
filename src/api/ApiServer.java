@@ -780,7 +780,15 @@ public class ApiServer {
 
             // Retrieve actual JSON Array generated strictly from local file storage removing all placeholders
             StringBuilder combinedJson = new StringBuilder("[");
-            String localReports = ReportGenerator.getAllReportsAsJsonArray(orgId);
+            String role = DatabaseHelper.getUserRoleFromToken(token);
+            int userId = DatabaseHelper.getUserIdFromToken(token);
+            String userName = DatabaseHelper.getUserNameFromToken(token);
+            boolean isEmployee = "EMPLOYEE".equalsIgnoreCase(role);
+
+            int filterUserId = isEmployee ? userId : -1;
+            String filterName = isEmployee ? userName : null;
+
+            String localReports = ReportGenerator.getAllReportsAsJsonArray(orgId, filterUserId, filterName);
             if (localReports.length() > 2) {
                 combinedJson.append(localReports.substring(1, localReports.length() - 1));
             }
@@ -795,6 +803,11 @@ public class ApiServer {
                     
                     String empName = getEmployeeNameByUuid(uuid);
                     if (empName == null) continue; // Skip managers/admins from employee engagement table
+                    if (isEmployee) {
+                        if (!uuid.equals(token) && DatabaseHelper.getUserIdFromToken(uuid) != userId) {
+                            continue;
+                        }
+                    }
 
                     double score = analyzer.getTotalCount() > 0 ? analyzer.getAttentionScore() : 1.0;
                     int scorePct = (int) Math.round(score * 100);

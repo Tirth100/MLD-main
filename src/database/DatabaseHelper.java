@@ -1034,7 +1034,7 @@ public class DatabaseHelper {
         return false;
     }
 
-    private static int getUserIdFromToken(String token) {
+    public static int getUserIdFromToken(String token) {
         Integer cachedUid = devicesToUserId.get(token);
         if (cachedUid != null) return cachedUid;
 
@@ -1059,6 +1059,39 @@ public class DatabaseHelper {
         // Fallback
         Integer uid = devicesToUserId.get(token);
         return uid != null ? uid : -1;
+    }
+
+    public static String getUserNameFromToken(String token) {
+        if (token == null || token.isBlank()) return null;
+        int userId = getUserIdFromToken(token);
+        if (userId == -1) return null;
+
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT name FROM users WHERE user_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, userId);
+                    ResultSet rs = ps.executeQuery();
+                    if (rs.next()) {
+                        String name = rs.getString("name");
+                        conn.close();
+                        return name;
+                    }
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { conn.close(); } catch (Exception ignored) {}
+            }
+        }
+
+        // Fallback
+        UserRecord user = usersById.get(userId);
+        if (user != null) return user.name;
+        for (UserRecord u : usersByEmail.values()) {
+            if (u.userId == userId) return u.name;
+        }
+        return null;
     }
 
     public static int getOrgIdFromToken(String token) {

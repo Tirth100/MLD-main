@@ -201,6 +201,22 @@ public class MldIntegrationTestSuite {
                        !alertsNewMeeting.contains("Dev Leech Employee"));
             sendHttpRequest("POST", "/api/stop", "{}", managerToken);
 
+            // Test 18: Strict employee report isolation: employee only sees their own reports on /api/engagement
+            String empLoginPayload = String.format("{\"email\":\"%s\",\"password\":\"EmpPass#2026\"}", empEmail);
+            String empLoginResp = sendHttpRequest("POST", "/api/login", empLoginPayload, null);
+            String empToken = extractJsonField(empLoginResp, "token");
+            assertTrue("Employee logs in and receives token", empToken != null && !empToken.isEmpty());
+
+            report.Report rSarah = new report.Report("sarah-device-uuid-1", "SESS-ISOLATION", 10, 8, true, 0.8, "Focused", java.util.List.of("Zoom"), java.util.List.of(true));
+            report.ReportGenerator.saveReport(rSarah);
+
+            report.Report rKrishna = new report.Report("krishna-device-uuid-9", "SESS-ISOLATION", 10, 0, false, 0.0, "Low Engagement", java.util.List.of("Browser"), java.util.List.of(false));
+            report.ReportGenerator.saveReport(rKrishna);
+
+            String empEngageResp = sendHttpRequest("GET", "/api/engagement", null, empToken);
+            assertTrue("Employee cannot see other employees' reports (Krishna is isolated and not visible to Sarah)", 
+                       !empEngageResp.contains("KRISHNA") && !empEngageResp.contains("krishna-device-uuid-9"));
+
         } catch (Exception e) {
             System.err.println("Fatal Integration Test Error: " + e.getMessage());
             e.printStackTrace();
