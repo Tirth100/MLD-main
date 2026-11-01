@@ -46,9 +46,10 @@ public class ReportGenerator {
         });
 
         int fallbackId = nextFallbackId++;
+        int durSec = report.getTotalChecks() * 5;
         String jsonRecord = String.format(
-            "{\"id\": %d, \"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"sessionCode\": \"%s\", \"timestamp\": \"%s\", \"timeline\": %s}",
-            fallbackId, DatabaseHelper.escapeJson(empName), scorePct, report.getParticipationLevel(), report.getTotalChecks(), report.getFocusedChecks(), report.isWebcamActive(), sessionCode, report.getTimestamp(), timelineStr
+            "{\"id\": %d, \"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"durationSeconds\": %d, \"webcamActive\": %b, \"sessionCode\": \"%s\", \"timestamp\": \"%s\", \"timeline\": %s}",
+            fallbackId, DatabaseHelper.escapeJson(empName), scorePct, report.getParticipationLevel(), report.getTotalChecks(), report.getFocusedChecks(), durSec, report.isWebcamActive(), sessionCode, report.getTimestamp(), timelineStr
         );
         fallbackReports.add(0, jsonRecord);
 
@@ -160,6 +161,7 @@ public class ReportGenerator {
                         jsonArray.append("\"status\": \"").append(rs.getString("status")).append("\",");
                         jsonArray.append("\"totalChecks\": ").append(totalChecks).append(",");
                         jsonArray.append("\"focusedChecks\": ").append(focusedChecks).append(",");
+                        jsonArray.append("\"durationSeconds\": ").append(totalChecks * 5).append(",");
                         jsonArray.append("\"webcamActive\": ").append(rs.getBoolean("webcam_active")).append(",");
                         jsonArray.append("\"sessionCode\": \"").append(sessionCode != null ? sessionCode : "").append("\",");
                         jsonArray.append("\"timestamp\": \"").append(rs.getString("timestamp") != null ? rs.getString("timestamp") : "").append("\",");

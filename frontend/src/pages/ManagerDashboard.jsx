@@ -135,9 +135,28 @@ export default function ManagerDashboard() {
 
   const getEmpDuration = (emp) => {
     if (!emp) return 0;
-    if (emp.durationSeconds !== undefined && emp.durationSeconds !== null) return Number(emp.durationSeconds);
-    if (emp.duration !== undefined && emp.duration !== null) return Number(emp.duration);
+    if (emp.durationSeconds !== undefined && emp.durationSeconds !== null && Number(emp.durationSeconds) > 0) {
+      return Number(emp.durationSeconds);
+    }
+    if (emp.duration !== undefined && emp.duration !== null && Number(emp.duration) > 0) {
+      return Number(emp.duration);
+    }
+    if (emp.totalChecks && Number(emp.totalChecks) > 0) {
+      return Number(emp.totalChecks) * 5;
+    }
+    if (Array.isArray(emp.timeline) && emp.timeline.length > 0) {
+      return emp.timeline.length * 5;
+    }
     return 0;
+  };
+
+  const formatDuration = (totalSec) => {
+    if (!totalSec || totalSec <= 0) return '-';
+    const mins = Math.floor(totalSec / 60);
+    const secs = Math.floor(totalSec % 60);
+    if (mins === 0) return `${secs}s`;
+    if (secs === 0) return `${mins}m`;
+    return `${mins}m ${secs}s`;
   };
 
   const getEmpWindow = (emp) => {
@@ -377,27 +396,22 @@ export default function ManagerDashboard() {
                                   <thead className="bg-transparent text-nowrap">
                                       <tr>
                                           <th scope="col" className="ps-4">Employee</th>
-                                          <th scope="col">Active Window</th>
                                           <th scope="col">Session Code</th>
-                                          <th scope="col">Joined At</th>
-                                          <th scope="col">Webcam</th>
-                                          <th scope="col">Idle Time</th>
                                           <th scope="col">Duration</th>
                                           <th scope="col">Engagement Score</th>
-                                          <th scope="col">Status</th>
                                       </tr>
                                   </thead>
                                   <tbody>
                                       {loading && data.length === 0 ? (
                                         <tr>
-                                            <td colSpan="8" className="text-center py-4 text-muted">
+                                            <td colSpan="4" className="text-center py-4 text-muted">
                                                 <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                                 Connecting to Backend Server...
                                             </td>
                                         </tr>
                                       ) : data.length === 0 ? (
                                         <tr>
-                                            <td colSpan="8" className="text-center py-4 text-muted">
+                                            <td colSpan="4" className="text-center py-4 text-muted">
                                                 {session.active ? "Waiting for employee telemetry data..." : "No active meeting session."}
                                             </td>
                                         </tr>
@@ -405,31 +419,13 @@ export default function ManagerDashboard() {
                                         data.map((emp, i) => {
                                             const score = getEmpScore(emp);
                                             const scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
-                                            const winStr = getEmpWindow(emp);
-                                            const isMeetingWin = ['zoom', 'powerpoint', 'powerpnt'].some(k => winStr.toLowerCase().includes(k)) || 
-                                                (winStr.toLowerCase().includes('meet') && !winStr.toLowerCase().includes('meeting leech detector') && !winStr.toLowerCase().includes('mld employee'));
-                                            const windowBadge = isMeetingWin ? 'primary' : 'warning';
-                                            const statusBadge = score < 50 ? 'danger' : 'success';
-                                            const statusText = emp.status || (score < 50 ? 'Distracted' : 'Engaged');
-                                            const isCam = getEmpWebcam(emp);
                                             const durSec = getEmpDuration(emp);
-                                            const idleSec = Number(emp.idleSeconds || 0);
                                             
                                             return (
                                                 <tr key={i}>
                                                     <td className="ps-4 fw-medium">{emp.name || 'Employee'}</td>
-                                                    <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{winStr}</span></td>
                                                     <td className="font-monospace text-muted">{emp.sessionCode || session.code || '-'}</td>
-                                                    <td className="text-muted small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : '-'}</td>
-                                                    <td>
-                                                        {isCam ? (
-                                                            <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
-                                                        ) : (
-                                                            <span className="badge-soft-danger px-2 py-1 rounded"><i className="bi bi-camera-video-off me-1"></i> OFF</span>
-                                                        )}
-                                                    </td>
-                                                    <td className={idleSec > 10 ? 'text-danger fw-bold' : ''}>{idleSec}s</td>
-                                                    <td>{Math.floor(durSec / 60)}m {durSec % 60}s</td>
+                                                    <td className="fw-medium text-primary">{formatDuration(durSec)}</td>
                                                     <td>
                                                         <div className="d-flex align-items-center gap-2">
                                                             <div className="progress flex-grow-1" style={{height: '6px'}}>
@@ -438,7 +434,6 @@ export default function ManagerDashboard() {
                                                             <span className={`fw-bold text-${scoreColor}`} style={{minWidth: '40px'}}>{score}%</span>
                                                         </div>
                                                     </td>
-                                                    <td><span className={`badge bg-${statusBadge}`}>{statusText}</span></td>
                                                 </tr>
                                             );
                                         })
@@ -446,8 +441,6 @@ export default function ManagerDashboard() {
                                         historicalGroups.map((group, i) => {
                                             const avgScore = Math.round(group.totalScore / group.sessions.length);
                                             const scoreColor = avgScore < 50 ? 'danger' : (avgScore < 80 ? 'warning' : 'success');
-                                            const statusBadge = avgScore < 50 ? 'danger' : 'success';
-                                            const statusText = avgScore < 50 ? 'Needs Attention' : 'Good';
                                             const durSec = group.totalDuration;
                                             const isExpanded = expandedRows[group.name];
                                             
@@ -458,12 +451,8 @@ export default function ManagerDashboard() {
                                                             <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-2 text-muted`}></i>
                                                             {group.name}
                                                         </td>
-                                                        <td><span className="text-muted small">{group.sessions.length} sessions</span></td>
                                                         <td className="font-monospace text-muted">{group.lastSessionCode || '-'}</td>
-                                                        <td className="text-muted small">{group.lastJoinedAt ? new Date(group.lastJoinedAt).toLocaleString() : '-'}</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td className="fw-medium text-primary">{Math.floor(durSec / 60)}m {durSec % 60}s (Total)</td>
+                                                        <td className="fw-medium text-primary">{formatDuration(durSec)}</td>
                                                         <td>
                                                             <div className="d-flex align-items-center gap-2">
                                                                 <div className="progress flex-grow-1" style={{height: '6px'}}>
@@ -472,36 +461,17 @@ export default function ManagerDashboard() {
                                                                 <span className={`fw-bold text-${scoreColor}`} style={{minWidth: '40px'}}>{avgScore}%</span>
                                                             </div>
                                                         </td>
-                                                        <td><span className={`badge bg-${statusBadge}`}>{statusText}</span></td>
                                                     </tr>
                                                     {isExpanded && group.sessions.map((emp, j) => {
                                                         const score = getEmpScore(emp);
                                                         const sColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
-                                                        const winStr = getEmpWindow(emp);
-                                                        const isMeetingWin = ['zoom', 'powerpoint', 'powerpnt'].some(k => winStr.toLowerCase().includes(k)) || 
-                                                            (winStr.toLowerCase().includes('meet') && !winStr.toLowerCase().includes('meeting leech detector') && !winStr.toLowerCase().includes('mld employee'));
-                                                        const windowBadge = isMeetingWin ? 'primary' : 'warning';
-                                                        const sBadge = score < 50 ? 'danger' : 'success';
-                                                        const sText = emp.status || (score < 50 ? 'Distracted' : 'Engaged');
-                                                        const isCam = getEmpWebcam(emp);
                                                         const empDur = getEmpDuration(emp);
-                                                        const idleSec = Number(emp.idleSeconds || 0);
                                                         
                                                         return (
                                                             <tr key={`sub-${i}-${j}`} className="bg-white">
                                                                 <td className="ps-5 border-start border-3 border-primary text-secondary">└─ Session {j+1}</td>
-                                                                <td><span className={`badge bg-${windowBadge} bg-opacity-10 text-${windowBadge}`}>{winStr}</span></td>
                                                                 <td className="font-monospace text-muted">{emp.sessionCode || '-'}</td>
-                                                                <td className="text-muted small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : '-'}</td>
-                                                                <td>
-                                                                    {isCam ? (
-                                                                        <span className="badge-soft-success px-2 py-1 rounded"><i className="bi bi-camera-video me-1"></i> ON</span>
-                                                                    ) : (
-                                                                        <span className="badge-soft-danger px-2 py-1 rounded"><i className="bi bi-camera-video-off me-1"></i> OFF</span>
-                                                                    )}
-                                                                </td>
-                                                                <td className={idleSec > 10 ? 'text-danger fw-bold' : ''}>{idleSec}s</td>
-                                                                <td>{Math.floor(empDur / 60)}m {empDur % 60}s</td>
+                                                                <td className="fw-medium text-primary">{formatDuration(empDur)}</td>
                                                                 <td>
                                                                     <div className="d-flex align-items-center gap-2">
                                                                         <div className="progress flex-grow-1" style={{height: '6px'}}>
@@ -510,7 +480,6 @@ export default function ManagerDashboard() {
                                                                         <span className={`fw-bold text-${sColor}`} style={{minWidth: '40px'}}>{score}%</span>
                                                                     </div>
                                                                 </td>
-                                                                <td><span className={`badge bg-${sBadge}`}>{sText}</span></td>
                                                             </tr>
                                                         );
                                                     })}
@@ -518,8 +487,7 @@ export default function ManagerDashboard() {
                                             );
                                         })
                                       )}
-                                  </tbody>
-                              </table>
+                                  </tbody></table>
                           </div>
                       </div>
                   </div>
