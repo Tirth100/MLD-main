@@ -61,6 +61,51 @@ public class ApiServer {
         }
     }
 
+        public static class AlertRecord {
+        public String name;
+        public String sessionCode;
+        public int score;
+        public String reason;
+        public String time;
+
+        public AlertRecord(String name, String sessionCode, int score, String reason, String time) {
+            this.name = name;
+            this.sessionCode = sessionCode;
+            this.score = score;
+            this.reason = reason;
+            this.time = time;
+        }
+
+        public String toJson() {
+            return String.format(
+                "{\"name\": \"%s\", \"sessionCode\": \"%s\", \"score\": %d, \"reason\": \"%s\", \"time\": \"%s\"}",
+                ApiServer.escapeJson(name),
+                ApiServer.escapeJson(sessionCode),
+                score,
+                ApiServer.escapeJson(reason),
+                ApiServer.escapeJson(time)
+            );
+        }
+    }
+
+    private static final java.util.Map<Integer, java.util.List<AlertRecord>> orgAlerts = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void addOrgAlert(int orgId, String name, String sessionCode, int score, String reason, String time) {
+        orgAlerts.computeIfAbsent(orgId, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
+                 .add(new AlertRecord(name, sessionCode, score, reason, time));
+    }
+
+    public static void clearOrgAlerts(int orgId) {
+        java.util.List<AlertRecord> list = orgAlerts.get(orgId);
+        if (list != null) {
+            list.clear();
+        }
+    }
+
+    public static java.util.List<AlertRecord> getOrgAlerts(int orgId) {
+        return orgAlerts.getOrDefault(orgId, java.util.Collections.emptyList());
+    }
+
     private HttpServer serverInstance;
 
     public void startServer() throws IOException {
@@ -775,18 +820,37 @@ public class ApiServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+
             String token = extractToken(exchange);
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (orgId == -1) {
                 exchange.sendResponseHeaders(401, -1);
+                exchange.close();
                 return;
             }
 
-            // Strict < 0.5 threshold logic
+            if ("DELETE".equals(exchange.getRequestMethod())) {
+                clearOrgAlerts(orgId);
+                sendResponse(exchange, "{\"success\": true, \"message\": \"Alerts cleared.\"}");
+                return;
+            }
+
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+
             StringBuilder combinedJson = new StringBuilder("[");
-            boolean hasLocal = false;
+            boolean first = true;
             
             if (Main.isMonitoringActive(orgId)) {
+                // Live meeting in progress: stream real-time focus alerts under 50%
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
                     if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
@@ -795,11 +859,25 @@ public class ApiServer {
                     if (analyzer.getTotalCount() > 0) {
                         double score = analyzer.getAttentionScore();
                         if (score < 0.5) {
-                            if (hasLocal) combinedJson.append(",");
+                            if (!first) combinedJson.append(",");
                             String empName = getEmployeeNameByUuid(uuid);
-                            combinedJson.append("\n{ \"name\": \"").append(escapeJson(empName)).append("\", \"reason\": \"Tracking detected low window focus under 50% (< 0.5)\", \"time\": \"Current Session\" }\n");
-                            hasLocal = true;
+                            int scorePct = (int) Math.round(score * 100);
+                            combinedJson.append(String.format(
+                                "{\"name\": \"%s\", \"sessionCode\": \"%s\", \"score\": %d, \"reason\": \"Live low focus score of %d%% (< 50%% threshold) detected\", \"time\": \"Current Live Session\"}",
+                                escapeJson(empName), Main.orgSessions.get(orgId).sessionCode, scorePct, scorePct
+                            ));
+                            first = false;
                         }
+                    }
+                }
+            } else {
+                // Meeting terminated: show the leech founded employees alerts recorded upon termination
+                java.util.List<AlertRecord> postMeetingAlerts = getOrgAlerts(orgId);
+                if (postMeetingAlerts != null && !postMeetingAlerts.isEmpty()) {
+                    for (AlertRecord alert : postMeetingAlerts) {
+                        if (!first) combinedJson.append(",");
+                        combinedJson.append(alert.toJson());
+                        first = false;
                     }
                 }
             }

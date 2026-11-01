@@ -187,6 +187,20 @@ public class MldIntegrationTestSuite {
             String deleteAuthorized = sendHttpRequest("DELETE", "/api/engagement?sessionCode=SESS-101&timestamp=" + encodedTs, null, managerToken);
             assertTrue("Authorized Manager can delete specific report", deleteAuthorized.contains("true") || deleteAuthorized.contains("deleted"));
 
+            // Test 16: Leech founded employees alert shown as soon as meeting terminates
+            int managerOrgId = database.DatabaseHelper.getOrgIdFromToken(managerToken);
+            api.ApiServer.addOrgAlert(managerOrgId, "Dev Leech Employee", "MLD-TERM-1", 35, "Leech detected: Low engagement of 35% (< 50% threshold)", "10:00:00 AM");
+            String alertsPostMeeting = sendHttpRequest("GET", "/api/alerts", null, managerToken);
+            assertTrue("Leech founded employee alert shown as soon as meeting terminates", 
+                       alertsPostMeeting.contains("Dev Leech Employee") && alertsPostMeeting.contains("Leech detected"));
+
+            // Test 17: Delete all previously shown alerts as soon as new meeting starts
+            sendHttpRequest("POST", "/api/start", "{\"sessionCode\":\"NEW-SESS-99\"}", managerToken);
+            String alertsNewMeeting = sendHttpRequest("GET", "/api/alerts", null, managerToken);
+            assertTrue("All previously shown alerts deleted as soon as a new meeting gets started", 
+                       !alertsNewMeeting.contains("Dev Leech Employee"));
+            sendHttpRequest("POST", "/api/stop", "{}", managerToken);
+
         } catch (Exception e) {
             System.err.println("Fatal Integration Test Error: " + e.getMessage());
             e.printStackTrace();

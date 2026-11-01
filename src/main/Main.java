@@ -47,6 +47,9 @@ public class Main {
     public static void startMonitoring(int orgId, String sessionCode) {
         SessionState state = orgSessions.get(orgId);
         if (state == null || state.scheduler.isShutdown()) {
+            // Delete all previously shown alerts as soon as a new meeting gets started
+            api.ApiServer.clearOrgAlerts(orgId);
+
             state = new SessionState(sessionCode);
             orgSessions.put(orgId, state);
             
@@ -54,7 +57,7 @@ public class Main {
                 currentSessionCode = sessionCode;
             }
             
-            System.out.println("Distributed monitoring session started for Org " + orgId + " with session " + sessionCode);
+            System.out.println("Distributed monitoring session started for Org " + orgId + " with session " + sessionCode + " (previous alerts cleared)");
         }
     }
 
@@ -87,6 +90,19 @@ public class Main {
                     report.ReportGenerator.saveReport(sessionReport);
                     
                     System.out.println("Saved report for " + clientUuid + " with score: " + (Math.round(finalScore * 100)) + "%");
+
+                    // Immediately record alert for Leech detected employee (< 50% focus threshold)
+                    if (finalScore < 0.50 || "Low Engagement".equalsIgnoreCase(status)) {
+                        String empName = DatabaseHelper.getEmployeeNameByUuid(clientUuid);
+                        if (empName == null || empName.isBlank()) {
+                            empName = "Employee (" + (clientUuid.length() > 6 ? clientUuid.substring(0, 6) : clientUuid) + ")";
+                        }
+                        int scorePct = (int) Math.round(finalScore * 100);
+                        String reason = String.format("Leech detected: Low engagement of %d%% (< 50%% threshold) in meeting session %s", scorePct, state.sessionCode);
+                        String timeStr = new java.text.SimpleDateFormat("hh:mm:ss a").format(new java.util.Date());
+                        api.ApiServer.addOrgAlert(orgId, empName, state.sessionCode, scorePct, reason, timeStr);
+                        System.out.println("[Alert] Leech alert recorded for " + empName + " (" + scorePct + "%) in session " + state.sessionCode);
+                    }
                 } catch (Exception e) {
                     System.err.println("Error saving client report: " + e.getMessage());
                 }

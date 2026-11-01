@@ -29,7 +29,10 @@ export default function Alerts() {
     setAlerts(newAlerts);
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
+    try {
+      await api.delete('/alerts');
+    } catch (ignored) {}
     setAlerts([]);
   };
 
