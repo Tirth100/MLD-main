@@ -9,6 +9,8 @@ export default function ManagerDashboard() {
     const [session, setSession] = useState({ active: false, code: '' });
     const [loading, setLoading] = useState(true);
     const [managerName, setManagerName] = useState('Manager');
+    const [orgCode, setOrgCode] = useState(localStorage.getItem('org_code') || '');
+    const [copied, setCopied] = useState(false);
     const [expandedRows, setExpandedRows] = useState({});
     const [employees, setEmployees] = useState([]);
     const [selectedEmployees, setSelectedEmployees] = useState(new Set());
@@ -21,6 +23,7 @@ export default function ManagerDashboard() {
         localStorage.removeItem('uuid_token');
         localStorage.removeItem('user_role');
         localStorage.removeItem('username');
+        localStorage.removeItem('org_code');
         navigate('/');
     };
 
@@ -93,7 +96,24 @@ export default function ManagerDashboard() {
         }
 
         const name = localStorage.getItem('username');
-        if (name) {
+        if (name) setManagerName(name);
+        const cachedOrg = localStorage.getItem('org_code');
+        if (cachedOrg) setOrgCode(cachedOrg);
+
+        api.get('/profile').then(res => {
+            if (res) {
+                if (res.name) {
+                    setManagerName(res.name);
+                    localStorage.setItem('username', res.name);
+                }
+                if (res.orgCode) {
+                    setOrgCode(res.orgCode);
+                    localStorage.setItem('org_code', res.orgCode);
+                }
+            }
+        }).catch(() => { });
+
+        /*
             setManagerName(name);
         } else {
             api.get('/profile').then(res => {
@@ -101,7 +121,7 @@ export default function ManagerDashboard() {
                     setManagerName(res.name);
                     localStorage.setItem('username', res.name);
                 }
-            }).catch(() => { });
+            }).catch(() => { }); */ if (false) {
         }
 
         fetchData();
@@ -227,6 +247,23 @@ export default function ManagerDashboard() {
                 <header className="top-navbar mb-4 rounded-3 glass-card">
                     <div className="d-flex align-items-center">
                         <h4 className="mb-0 fw-bold">Overview</h4>
+                        {orgCode && (
+                            <div 
+                                className="badge bg-light text-primary border px-3 py-2 ms-3 d-inline-flex align-items-center rounded-pill shadow-sm"
+                                style={{ cursor: 'pointer', fontSize: '0.82rem' }}
+                                title="Click to copy Org Code"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(orgCode);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2000);
+                                }}
+                            >
+                                <i className="bi bi-building me-1 text-primary"></i>
+                                <span className="text-muted fw-normal me-1">Org Code:</span>
+                                <strong className="tracking-widest text-primary">{orgCode}</strong>
+                                <i className={`bi ${copied ? 'bi-check2 text-success' : 'bi-clipboard'} ms-2 text-muted`} style={{ fontSize: '0.75rem' }}></i>
+                            </div>
+                        )}
 
                         {!session.active ? (
                             <button className="btn btn-primary ms-4 shadow" onClick={handleStartSession}>
@@ -292,10 +329,10 @@ export default function ManagerDashboard() {
                                     <div className="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 mb-3 border">
                                         <div>
                                             <h6 className="text-muted small text-uppercase fw-bold mb-1" style={{ fontSize: '0.7rem' }}>Org Code</h6>
-                                            <span className="fw-bold tracking-widest text-dark" id="profileOrgCode">MLD-ORG-X</span>
+                                            <span className="fw-bold tracking-widest text-dark" id="profileOrgCode">{orgCode || 'Loading...'}</span>
                                         </div>
-                                        <button className="btn btn-outline-primary btn-sm rounded-pill px-3" style={{ fontSize: '0.75rem' }} onClick={() => alert('Copied!')}>
-                                            <i className="bi bi-clipboard me-1"></i>Copy
+                                        <button className="btn btn-outline-primary btn-sm rounded-pill px-3" style={{ fontSize: '0.75rem' }} onClick={() => { if (orgCode) { navigator.clipboard.writeText(orgCode); setCopied(true); setTimeout(() => setCopied(false), 2000); } }}>
+                                            <i className={`bi ${copied ? 'bi-check2 text-success' : 'bi-clipboard'} me-1`}></i>{copied ? 'Copied!' : 'Copy'}
                                         </button>
                                     </div>
 
