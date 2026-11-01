@@ -161,7 +161,7 @@ export default function EmployeeDashboard() {
                 <div className="container-fluid px-4 py-1">
                     <a className="navbar-brand d-flex align-items-center text-dark" href="#">
                         <i className="bi bi-radar text-primary fs-3 me-2"></i>
-                        <span className="fs-5 fw-bold">MLD Employee</span>
+                        <span className="fs-5 fw-bold">MLD Participant</span>
                     </a>
                     <div className="d-flex align-items-center gap-4">
                         <Link to="/agent-setup" className="btn btn-sm btn-outline-primary shadow-sm"><i className="bi bi-download me-1"></i>Agent Setup</Link>
@@ -182,7 +182,7 @@ export default function EmployeeDashboard() {
                         <div className="card glass-card bg-primary bg-opacity-10 border-primary border-opacity-25">
                             <div className="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
                                 <div>
-                                    <h5 className="fw-bold mb-1"><i className="bi bi-camera-video-fill text-warning me-2"></i>Meeting Status</h5>
+                                    <h5 className="fw-bold mb-1"><i className="bi bi-camera-video-fill text-warning me-2"></i>Session Status</h5>
                                     {loading ? (
                                         <p className="text-muted mb-0">Connecting to Server <div className="spinner-border spinner-border-sm ms-1" role="status"></div></p>
                                     ) : session.active ? (
@@ -324,7 +324,7 @@ export default function EmployeeDashboard() {
 
                 <div className="row mt-5 mb-4">
                     <div className="col-12">
-                        <h4 className="fw-bold mb-3">My Meeting History</h4>
+                        <h4 className="fw-bold mb-3">My Session History</h4>
                         <div className="card glass-card border-0">
                             <div className="card-body p-0">
                                 <div className="table-responsive">

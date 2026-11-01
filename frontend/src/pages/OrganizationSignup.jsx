@@ -24,7 +24,7 @@ export default function OrganizationSignup() {
     }
     const currentOrg = orgNameRef.current ? orgNameRef.current.trim() : '';
     if (!currentOrg) {
-      setError('Please enter your Organization Name in the field above before registering with Google.');
+      setError('Please enter your Workspace Name in the field above before registering with Google.');
       return;
     }
 
@@ -45,10 +45,10 @@ export default function OrganizationSignup() {
           setSuccessCode(res.orgCode);
         }
       } else {
-        setError(res.message || 'Failed to register organization with Google. Email might already be in use.');
+        setError(res.message || 'Failed to register workspace with Google. Email might already be in use.');
       }
     } catch (err) {
-      setError('Failed to register organization with Google. Please try again.');
+      setError('Failed to register workspace with Google. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,7 @@ export default function OrganizationSignup() {
       if (response.success && response.orgCode) {
         setSuccessCode(response.orgCode);
       } else {
-        setError(response.message || 'Failed to register organization.');
+        setError(response.message || 'Failed to register workspace.');
       }
     } catch (err) {
       setError('A network error occurred. Please try again.');
@@ -125,44 +125,44 @@ export default function OrganizationSignup() {
                 <div className="auth-brand-icon">
                     <i className="bi bi-building"></i>
                 </div>
-                <h1 className="fw-bold display-5 mb-3">Enterprise Setup</h1>
+                <h1 className="fw-bold display-5 mb-3">Workspace Setup</h1>
                 <p className="auth-tagline">
-                    Create your organization space in seconds. Invite your employees, track engagement metrics instantly, and optimize your company's meetings across the board.
+                    Create your workspace in seconds. Invite your participants, track engagement metrics instantly, and optimize your sessions across the board.
                 </p>
             </div>
         </div>
 
         <div className="auth-form-panel">
             <div className="auth-form-card text-center">
-                <h3 className="fw-bold mb-1">Create Organization</h3>
-                <p className="text-muted mb-4">Register your company to get started</p>
+                <h3 className="fw-bold mb-1">Create Workspace</h3>
+                <p className="text-muted mb-4">Register your workspace to get started</p>
 
                 {error && <div className="alert alert-danger text-start small mb-3">{error}</div>}
 
                 {successCode ? (
                   <div className="alert alert-success text-center rounded-3 mt-4" role="alert">
                       <div className="mb-2"><i className="bi bi-check-circle-fill fs-2 text-success"></i></div>
-                      <strong>Success!</strong> Your Organization Code is: <br />
+                      <strong>Success!</strong> Your Workspace Code is: <br />
                       <h3 className="fw-bold mt-2 text-success tracking-widest" style={{letterSpacing: '2px'}}>{successCode}</h3>
-                      <p className="mb-0 small mt-2">Save this code! Your employees need it to join.</p>
+                      <p className="mb-0 small mt-2">Save this code! Your participants need it to join.</p>
                       <Link to="/" className="btn btn-success w-100 mt-3 fw-semibold">Go to Login</Link>
                   </div>
                 ) : (
                   <>
                     <form className="text-start" onSubmit={handleSubmit}>
                         <div className="mb-3">
-                            <label htmlFor="orgName" className="form-label fw-semibold text-muted small mb-1">ORGANIZATION NAME</label>
-                            <input type="text" className="form-control auth-input" id="orgName" placeholder="Enter organization name" required
+                            <label htmlFor="orgName" className="form-label fw-semibold text-muted small mb-1">WORKSPACE NAME</label>
+                            <input type="text" className="form-control auth-input" id="orgName" placeholder="Enter workspace name" required
                                    value={orgName} onChange={e => setOrgName(e.target.value)} />
                         </div>
                         <div className="mb-3">
-                            <label htmlFor="managerName" className="form-label fw-semibold text-muted small mb-1">MANAGER NAME</label>
-                            <input type="text" className="form-control auth-input" id="managerName" placeholder="Enter manager name" required
+                            <label htmlFor="managerName" className="form-label fw-semibold text-muted small mb-1">HOST / ORGANIZER NAME</label>
+                            <input type="text" className="form-control auth-input" id="managerName" placeholder="Enter host / organizer name" required
                                    value={managerName} onChange={e => setManagerName(e.target.value)} />
                         </div>
                         <div className="mb-3">
-                            <label htmlFor="orgEmail" className="form-label fw-semibold text-muted small mb-1">MANAGER EMAIL</label>
-                            <input type="email" className="form-control auth-input" id="orgEmail" placeholder="Enter manager email" required
+                            <label htmlFor="orgEmail" className="form-label fw-semibold text-muted small mb-1">HOST EMAIL</label>
+                            <input type="email" className="form-control auth-input" id="orgEmail" placeholder="Enter host email" required
                                    value={orgEmail} onChange={e => setOrgEmail(e.target.value)} />
                         </div>
                         <div className="mb-3">
@@ -171,7 +171,7 @@ export default function OrganizationSignup() {
                                    value={orgPassword} onChange={e => setOrgPassword(e.target.value)} />
                         </div>
                         <button type="submit" className="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-3" disabled={loading}>
-                            <i className="bi bi-building-add me-1"></i> {loading ? 'Registering...' : 'Register Organization'}
+                            <i className="bi bi-building-add me-1"></i> {loading ? 'Registering...' : 'Register Workspace'}
                         </button>
                     </form>
 

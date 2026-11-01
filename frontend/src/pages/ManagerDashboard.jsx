@@ -41,13 +41,13 @@ export default function ManagerDashboard() {
     };
 
     const removeEmployee = async (empId) => {
-        if (!window.confirm("Are you sure you want to remove this employee from the organization?")) return;
+        if (!window.confirm("Are you sure you want to remove this participant from the workspace?")) return;
         try {
             const res = await api.post('/employees/remove', { id: empId.toString() });
             if (res && res.success) {
                 setEmployees(prev => prev.filter(e => e.id !== empId));
             } else {
-                alert(res?.message || "Failed to remove employee.");
+                alert(res?.message || "Failed to remove participant.");
             }
         } catch (e) {
             alert("Error communicating with server.");
@@ -267,15 +267,15 @@ export default function ManagerDashboard() {
 
                         {!session.active ? (
                             <button className="btn btn-primary ms-4 shadow" onClick={handleStartSession}>
-                                <i className="bi bi-play-circle me-2"></i>Start Meeting Session
+                                <i className="bi bi-play-circle me-2"></i>Start Session
                             </button>
                         ) : (
                             <>
                                 <button className="btn btn-danger ms-4 shadow" onClick={handleStopSession}>
-                                    <i className="bi bi-stop-circle me-2"></i>Stop Meeting Session
+                                    <i className="bi bi-stop-circle me-2"></i>Stop Session
                                 </button>
                                 <button className="btn btn-outline-primary ms-3 shadow" onClick={() => { fetchEmployees(); setShowInviteModal(true); }}>
-                                    <i className="bi bi-envelope me-2"></i>Invite Employees
+                                    <i className="bi bi-envelope me-2"></i>Invite Participants
                                 </button>
                                 <div className="ms-4 px-3 py-1 bg-success bg-opacity-10 border border-success rounded text-success">
                                     <span className="fw-bold">Session Code: </span>
@@ -322,13 +322,13 @@ export default function ManagerDashboard() {
                                 <div className="text-center p-4 bg-light border-bottom">
                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(managerName)}&background=7c3aed&color=fff&size=80`} alt="Profile" className="rounded-circle shadow-sm mb-3 border border-3 border-white" />
                                     <h5 className="fw-bold mb-1">{managerName}</h5>
-                                    <p className="text-primary fw-medium small tracking-widest mb-0">MANAGER</p>
+                                    <p className="text-primary fw-medium small tracking-widest mb-0">HOST</p>
                                 </div>
 
                                 <div className="p-3 bg-white">
                                     <div className="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 mb-3 border">
                                         <div>
-                                            <h6 className="text-muted small text-uppercase fw-bold mb-1" style={{ fontSize: '0.7rem' }}>Org Code</h6>
+                                            <h6 className="text-muted small text-uppercase fw-bold mb-1" style={{ fontSize: '0.7rem' }}>Workspace Code</h6>
                                             <span className="fw-bold tracking-widest text-dark" id="profileOrgCode">{orgCode || 'Loading...'}</span>
                                         </div>
                                         <button className="btn btn-outline-primary btn-sm rounded-pill px-3" style={{ fontSize: '0.75rem' }} onClick={() => { if (orgCode) { navigator.clipboard.writeText(orgCode); setCopied(true); setTimeout(() => setCopied(false), 2000); } }}>
@@ -337,7 +337,7 @@ export default function ManagerDashboard() {
                                     </div>
 
                                     <button className="dropdown-item py-2 px-3 rounded-2 mb-1 fw-medium" data-bs-toggle="modal" data-bs-target="#manageEmployeesModal">
-                                        <i className="bi bi-people-fill text-primary me-3 fs-5 align-middle"></i>Manage Employees
+                                        <i className="bi bi-people-fill text-primary me-3 fs-5 align-middle"></i>Manage Participants
                                     </button>
                                     <button className="dropdown-item py-2 px-3 rounded-2 fw-medium" onClick={() => alert('Settings module coming soon!')}>
                                         <i className="bi bi-gear-fill text-muted me-3 fs-5 align-middle"></i>Account Settings
@@ -359,8 +359,8 @@ export default function ManagerDashboard() {
                             <div className="card glass-card border-primary shadow-sm py-5" style={{ borderWidth: '2px' }}>
                                 <div className="card-body">
                                     <div className="spinner-grow text-primary mb-4" style={{ width: '4rem', height: '4rem' }} role="status"></div>
-                                    <h2 className="fw-bold mb-3">Meeting Session in Progress...</h2>
-                                    <p className="text-muted fs-5 mb-0">Employee telemetry is being actively recorded on their local machines.</p>
+                                    <h2 className="fw-bold mb-3">Session in Progress...</h2>
+                                    <p className="text-muted fs-5 mb-0">Participant telemetry is being actively recorded on their local machines.</p>
                                     <p className="text-muted fs-5">Full analytics will be aggregated and displayed here automatically once you stop the session.</p>
                                 </div>
                             </div>
@@ -401,7 +401,7 @@ export default function ManagerDashboard() {
                                 <div className="card glass-card h-100">
                                     <div className="card-body">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="card-subtitle text-muted">Active Meetings</h6>
+                                            <h6 className="card-subtitle text-muted">Active Sessions</h6>
                                             <div className="bg-warning bg-opacity-10 p-2 rounded text-warning">
                                                 <i className="bi bi-camera-video-fill"></i>
                                             </div>
@@ -431,7 +431,7 @@ export default function ManagerDashboard() {
                             <div className="col-lg-8">
                                 <div className="card glass-card h-100">
                                     <div className="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
-                                        <h5 className="mb-0 fw-bold">{session.active ? "Live Employee Engagement" : "Historical Session Engagement"}</h5>
+                                        <h5 className="mb-0 fw-bold">{session.active ? "Live Participant Engagement" : "Historical Session Engagement"}</h5>
                                         <div className="d-flex gap-2">
                                             <a href="#/reports" className="btn btn-sm btn-outline-primary shadow-sm">View Reports</a>
                                         </div>
@@ -441,7 +441,7 @@ export default function ManagerDashboard() {
                                             <table className="table table-hover align-middle mb-0">
                                                 <thead className="bg-transparent text-nowrap">
                                                     <tr>
-                                                        <th scope="col" className="ps-4">Employee</th>
+                                                        <th scope="col" className="ps-4">Participant</th>
                                                         <th scope="col">Session Code</th>
                                                         <th scope="col">Duration</th>
                                                         <th scope="col">Engagement Score</th>
@@ -458,7 +458,7 @@ export default function ManagerDashboard() {
                                                     ) : data.length === 0 ? (
                                                         <tr>
                                                             <td colSpan="4" className="text-center py-4 text-muted">
-                                                                {session.active ? "Waiting for employee telemetry data..." : "No active meeting session."}
+                                                                {session.active ? "Waiting for participant telemetry data..." : "No active session."}
                                                             </td>
                                                         </tr>
                                                     ) : session.active ? (
@@ -469,7 +469,7 @@ export default function ManagerDashboard() {
 
                                                             return (
                                                                 <tr key={i}>
-                                                                    <td className="ps-4 fw-medium">{emp.name || 'Employee'}</td>
+                                                                    <td className="ps-4 fw-medium">{emp.name || 'Participant'}</td>
                                                                     <td className="font-monospace text-muted">{emp.sessionCode || session.code || '-'}</td>
                                                                     <td className="fw-medium text-primary">{formatDuration(durSec)}</td>
                                                                     <td>
@@ -571,11 +571,11 @@ export default function ManagerDashboard() {
                             <div className="col-12">
                                 <div className="card glass-card">
                                     <div className="card-header bg-transparent border-bottom border-secondary py-3">
-                                        <h5 className="mb-0 fw-bold">Latest Meeting Summary <span className="badge bg-primary ms-2">{avgEngagement}%</span></h5>
+                                        <h5 className="mb-0 fw-bold">Latest Session Summary <span className="badge bg-primary ms-2">{avgEngagement}%</span></h5>
                                     </div>
                                     <div className="card-body">
                                         {data.length === 0 ? (
-                                            <div className="text-muted text-center py-4">Waiting for meeting data...</div>
+                                            <div className="text-muted text-center py-4">Waiting for session data...</div>
                                         ) : (
                                             <div className="row text-center">
                                                 <div className="col-md-3 border-end border-secondary">
@@ -609,7 +609,7 @@ export default function ManagerDashboard() {
                 <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                     <div className="modal-content bg-white border-0 shadow">
                         <div className="modal-header border-bottom">
-                            <h5 className="modal-title fw-bold"><i className="bi bi-people me-2 text-primary"></i>Manage Employees</h5>
+                            <h5 className="modal-title fw-bold"><i className="bi bi-people me-2 text-primary"></i>Manage Participants</h5>
                             <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div className="modal-body p-0">
@@ -617,7 +617,7 @@ export default function ManagerDashboard() {
                                 <table className="table table-hover align-middle mb-0">
                                     <thead className="bg-light">
                                         <tr>
-                                            <th className="ps-4">Employee Name</th>
+                                            <th className="ps-4">Participant Name</th>
                                             <th>Email</th>
                                             <th>ID</th>
                                             <th className="text-end pe-4">Actions</th>
@@ -626,7 +626,7 @@ export default function ManagerDashboard() {
                                     <tbody>
                                         {employees.length === 0 ? (
                                             <tr>
-                                                <td colSpan="4" className="text-center py-4 text-muted">No employees registered yet.</td>
+                                                <td colSpan="4" className="text-center py-4 text-muted">No participants registered yet.</td>
                                             </tr>
                                         ) : (
                                             employees.map(emp => (
@@ -659,12 +659,12 @@ export default function ManagerDashboard() {
                     <div className="modal-dialog modal-dialog-centered">
                         <div className="modal-content bg-white border-0 shadow">
                             <div className="modal-header border-bottom">
-                                <h5 className="modal-title fw-bold"><i className="bi bi-envelope me-2 text-primary"></i>Invite Employees to Session</h5>
+                                <h5 className="modal-title fw-bold"><i className="bi bi-envelope me-2 text-primary"></i>Invite Participants to Session</h5>
                                 <button type="button" className="btn-close" onClick={() => setShowInviteModal(false)}></button>
                             </div>
                             <div className="modal-body">
                                 <div className="d-flex justify-content-between align-items-center mb-3">
-                                    <span className="fw-bold">Select employees to invite:</span>
+                                    <span className="fw-bold">Select participants to invite:</span>
                                     <div className="form-check">
                                         <input className="form-check-input" type="checkbox" id="selectAll"
                                             checked={selectedEmployees.size === employees.length && employees.length > 0}
@@ -681,7 +681,7 @@ export default function ManagerDashboard() {
                                 </div>
                                 <div className="list-group" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                     {employees.length === 0 ? (
-                                        <div className="text-center text-muted p-3">No employees found.</div>
+                                        <div className="text-center text-muted p-3">No participants found.</div>
                                     ) : (
                                         employees.map(emp => (
                                             <label key={emp.id} className="list-group-item d-flex align-items-center gap-3" style={{ cursor: 'pointer' }}>
@@ -707,7 +707,7 @@ export default function ManagerDashboard() {
                                 <button className="btn btn-secondary" onClick={() => setShowInviteModal(false)}>Cancel</button>
                                 <button className="btn btn-primary" onClick={async () => {
                                     if (selectedEmployees.size === 0) {
-                                        alert("Please select at least one employee.");
+                                        alert("Please select at least one participant.");
                                         return;
                                     }
                                     try {

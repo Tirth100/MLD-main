@@ -46,7 +46,7 @@ export default function Login() {
           navigate('/employee-dashboard');
         }
       } else {
-        setError(res.message || 'No registered account found for this Google email. Please register your organization or join as an employee first.');
+        setError(res.message || 'No registered account found for this Google email. Please register your workspace or join as a participant first.');
       }
     } catch (err) {
       setError('Failed to sign in with Google. Please try again.');
@@ -174,8 +174,8 @@ export default function Login() {
 
                 <div className="mt-3 pt-3 border-top">
                     <p className="text-muted small mb-2">Don't have an account?</p>
-                    <Link to="/organization-signup" className="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your Organization</Link>
-                    <Link to="/employee-signup" className="btn btn-link text-decoration-none w-100">Join as an Employee</Link>
+                    <Link to="/organization-signup" className="btn btn-outline-primary w-100 mb-2 fw-semibold">Register your Workspace</Link>
+                    <Link to="/employee-signup" className="btn btn-link text-decoration-none w-100">Join as a Participant</Link>
                 </div>
             </div>
         </div>

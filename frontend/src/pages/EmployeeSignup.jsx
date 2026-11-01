@@ -23,7 +23,7 @@ export default function EmployeeSignup() {
     }
     const currentCode = orgCodeRef.current ? orgCodeRef.current.trim() : '';
     if (!currentCode) {
-      setError('Please enter your Organization Code in the field above before joining with Google.');
+      setError('Please enter your Workspace Code in the field above before joining with Google.');
       return;
     }
 
@@ -40,10 +40,10 @@ export default function EmployeeSignup() {
         if (res.name) localStorage.setItem('username', res.name);
         navigate('/employee-dashboard');
       } else {
-        setError(res.message || 'Failed to join organization with Google. Please check your Organization Code.');
+        setError(res.message || 'Failed to join workspace with Google. Please check your Workspace Code.');
       }
     } catch (err) {
-      setError('Failed to join organization with Google. Please try again.');
+      setError('Failed to join workspace with Google. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ export default function EmployeeSignup() {
       if (response.success) {
         navigate('/');
       } else {
-        setError(response.message || 'Failed to join organization.');
+        setError(response.message || 'Failed to join workspace.');
       }
     } catch (err) {
       setError('A network error occurred. Please try again.');
@@ -118,29 +118,28 @@ export default function EmployeeSignup() {
                 <div className="auth-brand-icon">
                     <i className="bi bi-people-fill text-secondary"></i>
                 </div>
-                <h1 className="fw-bold display-5 mb-3">Join Your Team</h1>
+                <h1 className="fw-bold display-5 mb-3">Join Your Workspace</h1>
                 <p className="auth-tagline">
-                    Connect your MLD agent to your organization's workspace. Your engagement, focus, and participation
-                    metrics will be automatically securely synced.
+                    Connect your MLD agent to your workspace. Your engagement, focus, and participation metrics will be automatically securely synced.
                 </p>
             </div>
         </div>
 
         <div className="auth-form-panel">
             <div className="auth-form-card text-center">
-                <h3 className="fw-bold mb-1">Employee Signup</h3>
-                <p className="text-muted mb-4">Join your organization's workspace</p>
+                <h3 className="fw-bold mb-1">Participant Signup</h3>
+                <p className="text-muted mb-4">Join your workspace</p>
                 
                 {error && <div className="alert alert-danger text-start small mb-3">{error}</div>}
 
                 <form className="text-start" onSubmit={handleSubmit}>
                     <div className="mb-3">
-                        <label htmlFor="orgCodeInput" className="form-label fw-semibold text-muted small mb-1">ORGANIZATION CODE</label>
+                        <label htmlFor="orgCodeInput" className="form-label fw-semibold text-muted small mb-1">WORKSPACE CODE</label>
                         <input type="text" className="form-control auth-input fw-bold text-center text-primary"
-                            id="orgCodeInput" placeholder="Enter Org Code" style={{letterSpacing: '2px', fontSize: '1.1rem'}}
+                            id="orgCodeInput" placeholder="Enter Workspace Code" style={{letterSpacing: '2px', fontSize: '1.1rem'}}
                             required
                             value={orgCode} onChange={e => setOrgCode(e.target.value)} />
-                        <div className="form-text mt-1"><i className="bi bi-info-circle me-1"></i> Ask your manager for the Org Code.</div>
+                        <div className="form-text mt-1"><i className="bi bi-info-circle me-1"></i> Ask your Host / Organizer for the Workspace Code.</div>
                     </div>
 
                     <div className="mb-3">
@@ -150,8 +149,8 @@ export default function EmployeeSignup() {
                     </div>
 
                     <div className="mb-3">
-                        <label htmlFor="empEmail" className="form-label fw-semibold text-muted small mb-1">WORK EMAIL</label>
-                        <input type="email" className="form-control auth-input" id="empEmail" placeholder="Enter work email" required
+                        <label htmlFor="empEmail" className="form-label fw-semibold text-muted small mb-1">EMAIL ADDRESS</label>
+                        <input type="email" className="form-control auth-input" id="empEmail" placeholder="Enter your email" required
                                value={empEmail} onChange={e => setEmpEmail(e.target.value)} />
                     </div>
 
@@ -162,7 +161,7 @@ export default function EmployeeSignup() {
                     </div>
 
                     <button type="submit" className="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-3" disabled={loading}>
-                        <i className="bi bi-person-plus me-1"></i> {loading ? 'Joining...' : 'Join Organization'}
+                        <i className="bi bi-person-plus me-1"></i> {loading ? 'Joining...' : 'Join Workspace'}
                     </button>
                 </form>
 

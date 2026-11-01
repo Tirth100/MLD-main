@@ -168,7 +168,7 @@ export default function Reports() {
               <div className="card-body">
                   <div className="row align-items-center g-3">
                       <div className="col-md-4">
-                          <label className="form-label text-muted small">Search Employee</label>
+                          <label className="form-label text-muted small">Search Participant</label>
                           <div className="input-group">
                               <span className="input-group-text bg-transparent border-secondary text-muted"><i className="bi bi-search"></i></span>
                               <input type="text" className="form-control" placeholder="Search by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -199,7 +199,7 @@ export default function Reports() {
                       <table className="table table-hover align-middle mb-0">
                           <thead className="bg-transparent">
                               <tr>
-                                  <th scope="col" className="ps-4">Name</th>
+                                  <th scope="col" className="ps-4">Participant</th>
                                   <th scope="col">Role</th>
                                   <th scope="col">Avg Score</th>
                                   <th scope="col">General Status</th>
