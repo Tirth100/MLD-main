@@ -126,7 +126,7 @@ export default function AgentSetup() {
           </Link>
           <div className="d-flex align-items-center gap-3">
             <Link to="/employee-dashboard" className="btn btn-sm btn-outline-primary shadow-sm">
-              <i className="bi bi-speedometer2 me-1"></i>Employee Dashboard
+              <i className="bi bi-speedometer2 me-1"></i>Participant Dashboard
             </Link>
             <Link 
               to="/" 
@@ -173,85 +173,6 @@ export default function AgentSetup() {
                       </small>
                     )}
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 3-Step Guided Setup Flow */}
-        <div className="row mb-5">
-          <div className="col-12">
-            <h4 className="fw-bold mb-4 text-dark"><i className="bi bi-diagram-3 text-primary me-2"></i>Quick 3-Step Setup Process</h4>
-          </div>
-
-          {/* Step 1 Card */}
-          <div className="col-md-4 mb-4 mb-md-0">
-            <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow transition-all bg-white">
-              <div className="card-body p-4 d-flex flex-column">
-                <div className="d-flex align-items-center gap-3 mb-3">
-                  <div className="badge bg-primary bg-opacity-10 text-primary rounded-circle p-3 fs-5" style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    1
-                  </div>
-                  <div>
-                    <h5 className="fw-bold mb-0">Download Agent</h5>
-                    <small className="text-muted">Agent Package</small>
-                  </div>
-                </div>
-                <p className="text-muted small flex-grow-1">
-                  Get the official <strong>MLD Agent</strong> package to run on your workstation.
-                </p>
-                <div className="mt-3 pt-3 border-top">
-                  <span className="badge bg-light text-muted border"><i className="bi bi-file-earmark-binary me-1"></i>Windows 10/11 (64-bit)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Step 2 Card */}
-          <div className="col-md-4 mb-4 mb-md-0">
-            <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow transition-all bg-white">
-              <div className="card-body p-4 d-flex flex-column">
-                <div className="d-flex align-items-center gap-3 mb-3">
-                  <div className="badge bg-primary bg-opacity-10 text-primary rounded-circle p-3 fs-5" style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    2
-                  </div>
-                  <div>
-                    <h5 className="fw-bold mb-0">Run Agent</h5>
-                    <small className="text-muted">Desktop Service</small>
-                  </div>
-                </div>
-                <p className="text-muted small flex-grow-1">
-                  Launch the <strong>MLD Agent</strong> to run in the background.
-                </p>
-                <div className="mt-3 pt-3 border-top">
-                  <span className="badge bg-light text-muted border"><i className="bi bi-shield-check text-success me-1"></i>System Tray Background App</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Step 3 Card */}
-          <div className="col-md-4">
-            <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow transition-all bg-white">
-              <div className="card-body p-4 d-flex flex-column">
-                <div className="d-flex align-items-center gap-3 mb-3">
-                  <div className={`badge ${isConnected ? 'bg-success' : 'bg-primary'} bg-opacity-10 ${isConnected ? 'text-success' : 'text-primary'} rounded-circle p-3 fs-5`} style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    3
-                  </div>
-                  <div>
-                    <h5 className="fw-bold mb-0">1-Click Link</h5>
-                    <small className="text-muted">Instant Account Pairing</small>
-                  </div>
-                </div>
-                <p className="text-muted small flex-grow-1">
-                  Click <strong>Link Agent Now</strong> below to pair your account automatically. <strong>Fallback:</strong> If the button doesn't open the agent, use the manual token fallback below.
-                </p>
-                <div className="mt-3 pt-3 border-top">
-                  <span className={`badge ${isConnected ? 'bg-success text-white' : 'bg-light text-primary border'}`}>
-                    <i className={`bi ${isConnected ? 'bi-check-circle-fill' : 'bi-link-45deg'} me-1`}></i>
-                    {isConnected ? 'Paired & Verified' : 'One-Click Trigger'}
-                  </span>
                 </div>
               </div>
             </div>
@@ -390,6 +311,85 @@ export default function AgentSetup() {
 
         </div>
 
+        {/* 3-Step Guided Setup Flow */}
+        <div className="row mb-5">
+          <div className="col-12">
+            <h4 className="fw-bold mb-4 text-dark"><i className="bi bi-diagram-3 text-primary me-2"></i>Quick 3-Step Setup Process</h4>
+          </div>
+
+          {/* Step 1 Card */}
+          <div className="col-md-4 mb-4 mb-md-0">
+            <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow transition-all bg-white">
+              <div className="card-body p-4 d-flex flex-column">
+                <div className="d-flex align-items-center gap-3 mb-3">
+                  <div className="badge bg-primary bg-opacity-10 text-primary rounded-circle p-3 fs-5" style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    1
+                  </div>
+                  <div>
+                    <h5 className="fw-bold mb-0">Download Agent</h5>
+                    <small className="text-muted">Agent Package</small>
+                  </div>
+                </div>
+                <p className="text-muted small flex-grow-1">
+                  Get the official <strong>MLD Agent</strong> package to run on your workstation.
+                </p>
+                <div className="mt-3 pt-3 border-top">
+                  <span className="badge bg-light text-muted border"><i className="bi bi-file-earmark-binary me-1"></i>Windows 10/11 (64-bit)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2 Card */}
+          <div className="col-md-4 mb-4 mb-md-0">
+            <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow transition-all bg-white">
+              <div className="card-body p-4 d-flex flex-column">
+                <div className="d-flex align-items-center gap-3 mb-3">
+                  <div className="badge bg-primary bg-opacity-10 text-primary rounded-circle p-3 fs-5" style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    2
+                  </div>
+                  <div>
+                    <h5 className="fw-bold mb-0">Run Agent</h5>
+                    <small className="text-muted">Desktop Service</small>
+                  </div>
+                </div>
+                <p className="text-muted small flex-grow-1">
+                  Launch the <strong>MLD Agent</strong> to run in the background.
+                </p>
+                <div className="mt-3 pt-3 border-top">
+                  <span className="badge bg-light text-muted border"><i className="bi bi-shield-check text-success me-1"></i>System Tray Background App</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3 Card */}
+          <div className="col-md-4">
+            <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow transition-all bg-white">
+              <div className="card-body p-4 d-flex flex-column">
+                <div className="d-flex align-items-center gap-3 mb-3">
+                  <div className={`badge ${isConnected ? 'bg-success' : 'bg-primary'} bg-opacity-10 ${isConnected ? 'text-success' : 'text-primary'} rounded-circle p-3 fs-5`} style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    3
+                  </div>
+                  <div>
+                    <h5 className="fw-bold mb-0">1-Click Link</h5>
+                    <small className="text-muted">Instant Account Pairing</small>
+                  </div>
+                </div>
+                <p className="text-muted small flex-grow-1">
+                  Click <strong>Link Agent Now</strong> above to pair your account automatically. <strong>Fallback:</strong> If the button doesn't open the agent, use the manual token fallback above.
+                </p>
+                <div className="mt-3 pt-3 border-top">
+                  <span className={`badge ${isConnected ? 'bg-success text-white' : 'bg-light text-primary border'}`}>
+                    <i className={`bi ${isConnected ? 'bi-check-circle-fill' : 'bi-link-45deg'} me-1`}></i>
+                    {isConnected ? 'Paired & Verified' : 'One-Click Trigger'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Privacy & Enterprise Security Guarantees */}
         <div className="row g-4 mb-5">
           <div className="col-md-4">
@@ -399,7 +399,7 @@ export default function AgentSetup() {
                 <h6 className="fw-bold mb-0">Session-Restricted Tracking</h6>
               </div>
               <p className="text-muted small mb-0">
-                Zero tracking outside authorized meetings. Telemetry begins strictly when your manager starts a session and ends immediately when finished.
+                Zero tracking outside authorized meetings. Telemetry begins strictly when your host starts a session and ends immediately when finished.
               </p>
             </div>
           </div>
@@ -465,7 +465,7 @@ export default function AgentSetup() {
                 <div className="accordion-item bg-transparent">
                   <h2 className="accordion-header">
                     <button className="accordion-button collapsed bg-transparent fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                      Does the agent monitor activities when there is no meeting?
+                      Does the agent monitor activities when there is no active session?
                     </button>
                   </h2>
                   <div id="faq3" className="accordion-collapse collapse" data-bs-parent="#faqAccordion">
