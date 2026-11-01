@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+
+const GOOGLE_CLIENT_ID = '117803210601-81apks2hhlv1p4og1g5knp85375r69em.apps.googleusercontent.com';
 
 export default function OrganizationSignup() {
   const [orgName, setOrgName] = useState('');
@@ -10,7 +12,82 @@ export default function OrganizationSignup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successCode, setSuccessCode] = useState('');
+  const navigate = useNavigate();
   
+  const orgNameRef = useRef(orgName);
+  orgNameRef.current = orgName;
+
+  const handleGoogleCallback = async (googleResponse) => {
+    if (!googleResponse || !googleResponse.credential) {
+      setError('Google verification failed.');
+      return;
+    }
+    const currentOrg = orgNameRef.current ? orgNameRef.current.trim() : '';
+    if (!currentOrg) {
+      setError('Please enter your Organization Name in the field above before registering with Google.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.post('/google-signup-org', {
+        token: googleResponse.credential,
+        orgName: currentOrg
+      });
+      if (res && res.success) {
+        if (res.token) {
+          localStorage.setItem('uuid_token', res.token);
+          localStorage.setItem('user_role', res.role || 'ADMIN');
+          if (res.name) localStorage.setItem('username', res.name);
+          navigate('/manager-dashboard');
+        } else if (res.orgCode) {
+          setSuccessCode(res.orgCode);
+        }
+      } else {
+        setError(res.message || 'Failed to register organization with Google. Email might already be in use.');
+      }
+    } catch (err) {
+      setError('Failed to register organization with Google. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (successCode) return;
+    const initGoogle = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+          auto_select: false
+        });
+        const btnContainer = document.getElementById('googleOrgSignupBtn');
+        if (btnContainer) {
+          btnContainer.innerHTML = '';
+          window.google.accounts.id.renderButton(btnContainer, {
+            theme: 'outline',
+            size: 'large',
+            width: '100%',
+            text: 'signup_with',
+            shape: 'rectangular'
+          });
+        }
+      }
+    };
+
+    initGoogle();
+    const timer = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        initGoogle();
+        clearInterval(timer);
+      }
+    }, 400);
+
+    return () => clearInterval(timer);
+  }, [successCode]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -104,10 +181,8 @@ export default function OrganizationSignup() {
                         <hr className="flex-grow-1 text-muted opacity-25" />
                     </div>
                     
-                    <div className="d-flex justify-content-center mb-3">
-                        <button className="btn btn-outline-secondary w-100 py-2 fw-bold">
-                            <i className="bi bi-google me-2"></i> Sign Up with Google
-                        </button>
+                    <div className="d-flex justify-content-center mb-3 mt-2" style={{ minHeight: '44px' }}>
+                        <div id="googleOrgSignupBtn" className="w-100 d-flex justify-content-center"></div>
                     </div>
                   </>
                 )}

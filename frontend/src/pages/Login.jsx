@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 
+const GOOGLE_CLIENT_ID = '117803210601-81apks2hhlv1p4og1g5knp85375r69em.apps.googleusercontent.com';
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,20 +24,76 @@ export default function Login() {
     }
   }, [navigate]);
 
+  const handleGoogleCallback = async (googleResponse) => {
+    if (!googleResponse || !googleResponse.credential) {
+      setError('Google sign-in could not be completed.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.post('/google-login', { token: googleResponse.credential });
+      if (res && res.success && res.token) {
+        localStorage.setItem('uuid_token', res.token);
+        localStorage.setItem('user_role', res.role || 'EMPLOYEE');
+        if (res.name) {
+          localStorage.setItem('username', res.name);
+        }
+        
+        if (res.role === 'MANAGER' || res.role === 'ADMIN') {
+          navigate('/manager-dashboard');
+        } else {
+          navigate('/employee-dashboard');
+        }
+      } else {
+        setError(res.message || 'No registered account found for this Google email. Please register your organization or join as an employee first.');
+      }
+    } catch (err) {
+      setError('Failed to sign in with Google. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const initGoogle = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+          auto_select: false
+        });
+        const btnContainer = document.getElementById('googleSignInBtn');
+        if (btnContainer) {
+          btnContainer.innerHTML = '';
+          window.google.accounts.id.renderButton(btnContainer, {
+            theme: 'outline',
+            size: 'large',
+            width: '100%',
+            text: 'signin_with',
+            shape: 'rectangular'
+          });
+        }
+      }
+    };
+
+    initGoogle();
+    const timer = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        initGoogle();
+        clearInterval(timer);
+      }
+    }, 400);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // In the original, they only had one form for both, but the JS would hit /login/manager or /login/employee?
-      // Wait, original JS for login:
-      // it just sent to /login with email and password?
-      // Let's assume /login handles it if the API is smart, or I can just use /login/manager as fallback if it's not specified.
-      // Wait, original main.js login logic:
-      // e.preventDefault();
-      // const data = { email, password };
-      // api.post('/login', data).then(...)
       const payload = { email, password };
       const response = await api.post('/login', payload);
       
@@ -110,11 +168,8 @@ export default function Login() {
                     <hr className="flex-grow-1 text-muted opacity-25" />
                 </div>
 
-                <div className="d-flex justify-content-center mb-3 mt-2">
-                    {/* Google Sign-in placeholder */}
-                    <button className="btn btn-outline-secondary w-100 py-2 fw-bold">
-                        <i className="bi bi-google me-2"></i> Sign In with Google
-                    </button>
+                <div className="d-flex justify-content-center mb-3 mt-2" style={{ minHeight: '44px' }}>
+                    <div id="googleSignInBtn" className="w-100 d-flex justify-content-center"></div>
                 </div>
 
                 <div className="mt-3 pt-3 border-top">

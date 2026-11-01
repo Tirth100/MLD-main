@@ -19,9 +19,7 @@ public class DatabaseHelper {
     private static final String DB_NAME = System.getenv("DB_NAME") != null ? System.getenv("DB_NAME") : "MLD_DB";
     private static final String USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "postgres";
     private static final String PASSWORD = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
-    
-    
-    
+
     private static boolean postgresAvailable = false;
     private static boolean isDbChecked = false;
 
@@ -33,8 +31,14 @@ public class DatabaseHelper {
         public String password;
         public String role;
         public int orgId;
+
         public UserRecord(int userId, String name, String email, String password, String role, int orgId) {
-            this.userId = userId; this.name = name; this.email = email; this.password = password; this.role = role; this.orgId = orgId;
+            this.userId = userId;
+            this.name = name;
+            this.email = email;
+            this.password = password;
+            this.role = role;
+            this.orgId = orgId;
         }
     }
 
@@ -42,8 +46,11 @@ public class DatabaseHelper {
         public int orgId;
         public String orgName;
         public String orgCode;
+
         public OrgRecord(int orgId, String orgName, String orgCode) {
-            this.orgId = orgId; this.orgName = orgName; this.orgCode = orgCode;
+            this.orgId = orgId;
+            this.orgName = orgName;
+            this.orgCode = orgCode;
         }
     }
 
@@ -56,7 +63,7 @@ public class DatabaseHelper {
     private static final Map<String, String> devicesToRole = new ConcurrentHashMap<>();
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
     private static final Map<Integer, List<String>> pendingInvites = new ConcurrentHashMap<>();
-    
+
     private static int nextOrgId = 1;
     private static int nextUserId = 1;
 
@@ -69,7 +76,8 @@ public class DatabaseHelper {
         try {
             DriverManager.setLoginTimeout(15);
             String rawUrl = System.getenv("DATABASE_URL");
-            if (rawUrl != null) rawUrl = rawUrl.trim();
+            if (rawUrl != null)
+                rawUrl = rawUrl.trim();
             Connection conn;
             if (rawUrl != null && !rawUrl.isEmpty()) {
                 String dbUser = null;
@@ -90,15 +98,18 @@ public class DatabaseHelper {
                             dbUser = userInfo;
                         }
                         try {
-                            if (dbUser != null) dbUser = java.net.URLDecoder.decode(dbUser, java.nio.charset.StandardCharsets.UTF_8);
-                            if (dbPass != null) dbPass = java.net.URLDecoder.decode(dbPass, java.nio.charset.StandardCharsets.UTF_8);
-                        } catch (Exception ignored) {}
+                            if (dbUser != null)
+                                dbUser = java.net.URLDecoder.decode(dbUser, java.nio.charset.StandardCharsets.UTF_8);
+                            if (dbPass != null)
+                                dbPass = java.net.URLDecoder.decode(dbPass, java.nio.charset.StandardCharsets.UTF_8);
+                        } catch (Exception ignored) {
+                        }
                         jdbcUrl = "jdbc:postgresql://" + hostInfo;
                     } else {
                         jdbcUrl = "jdbc:postgresql://" + clean;
                     }
                 }
-                
+
                 if (!jdbcUrl.startsWith("jdbc:postgresql://")) {
                     jdbcUrl = "jdbc:postgresql://" + jdbcUrl;
                 }
@@ -125,7 +136,9 @@ public class DatabaseHelper {
                     conn = DriverManager.getConnection(jdbcUrl);
                 }
             } else {
-                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME + "?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&tcpKeepAlive=true", USER, PASSWORD);
+                conn = DriverManager.getConnection("jdbc:postgresql://" + HOST + ":" + PORT + "/" + DB_NAME
+                        + "?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&tcpKeepAlive=true", USER,
+                        PASSWORD);
             }
             postgresAvailable = true;
             isDbChecked = true;
@@ -133,7 +146,8 @@ public class DatabaseHelper {
         } catch (SQLException e) {
             lastFailedConnectTime = System.currentTimeMillis();
             if (!isDbChecked) {
-                System.err.println("[Database Connection Warning] PostgreSQL connection failed: " + e.getMessage() + ". Using fallback mode.");
+                System.err.println("[Database Connection Warning] PostgreSQL connection failed: " + e.getMessage()
+                        + ". Using fallback mode.");
             }
             postgresAvailable = false;
             isDbChecked = true;
@@ -144,7 +158,8 @@ public class DatabaseHelper {
     public static void initializeDatabase() {
         Connection conn = connect();
         if (conn == null) {
-            System.out.println("[Database] PostgreSQL server not connected. Running with high-performance In-Memory DB mode.");
+            System.out.println(
+                    "[Database] PostgreSQL server not connected. Running with high-performance In-Memory DB mode.");
             seedDefaultAccounts();
             return;
         }
@@ -222,17 +237,24 @@ public class DatabaseHelper {
         } catch (SQLException e) {
             System.err.println("PostgreSQL initialization failed: " + e.getMessage());
         } finally {
-            try { conn.close(); } catch (Exception ignored) {}
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+            }
         }
 
         seedDefaultAccounts();
     }
 
-    /** Persist agent heartbeat to DB so connection status survives server restarts. */
+    /**
+     * Persist agent heartbeat to DB so connection status survives server restarts.
+     */
     public static void updateAgentHeartbeat(String deviceUuid) {
-        if (deviceUuid == null || deviceUuid.isEmpty()) return;
+        if (deviceUuid == null || deviceUuid.isEmpty())
+            return;
         Connection conn = connect();
-        if (conn == null) return;
+        if (conn == null)
+            return;
         try (PreparedStatement ps = conn.prepareStatement(
                 "UPDATE devices SET last_heartbeat = NOW() WHERE device_uuid = ?")) {
             ps.setString(1, deviceUuid.toLowerCase().trim());
@@ -240,31 +262,44 @@ public class DatabaseHelper {
         } catch (SQLException e) {
             System.err.println("[Heartbeat DB Error] " + e.getMessage());
         } finally {
-            try { conn.close(); } catch (Exception ignored) {}
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+            }
         }
     }
 
     /** Returns epoch ms of last heartbeat for this device UUID, or -1 if never. */
     public static long getAgentLastHeartbeat(String deviceUuid) {
-        if (deviceUuid == null || deviceUuid.isEmpty()) return -1;
+        if (deviceUuid == null || deviceUuid.isEmpty())
+            return -1;
         Connection conn = connect();
-        if (conn == null) return -1;
+        if (conn == null)
+            return -1;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT EXTRACT(EPOCH FROM last_heartbeat) * 1000 AS ms FROM devices WHERE device_uuid = ? AND last_heartbeat IS NOT NULL")) {
             ps.setString(1, deviceUuid.toLowerCase().trim());
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getLong("ms");
+            if (rs.next())
+                return rs.getLong("ms");
         } catch (SQLException e) {
             System.err.println("[Heartbeat Query Error] " + e.getMessage());
         } finally {
-            try { conn.close(); } catch (Exception ignored) {}
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+            }
         }
         return -1;
     }
 
-    /** Returns epoch ms of last heartbeat for ANY device belonging to the same user as the provided UUID */
+    /**
+     * Returns epoch ms of last heartbeat for ANY device belonging to the same user
+     * as the provided UUID
+     */
     public static long getAnyDeviceLastHeartbeat(String webUuid) {
-        if (webUuid == null || webUuid.isEmpty()) return -1;
+        if (webUuid == null || webUuid.isEmpty())
+            return -1;
         Connection conn = connect();
         if (conn == null) {
             // Fallback to in-memory check
@@ -275,23 +310,28 @@ public class DatabaseHelper {
             return -1;
         }
         try {
-            // Find the user_id for this uuid, then find the max heartbeat of any device for that user
+            // Find the user_id for this uuid, then find the max heartbeat of any device for
+            // that user
             String sql = "SELECT EXTRACT(EPOCH FROM MAX(d2.last_heartbeat)) * 1000 AS ms " +
-                         "FROM devices d1 " +
-                         "JOIN devices d2 ON d1.user_id = d2.user_id " +
-                         "WHERE d1.device_uuid = ? AND d2.last_heartbeat IS NOT NULL";
+                    "FROM devices d1 " +
+                    "JOIN devices d2 ON d1.user_id = d2.user_id " +
+                    "WHERE d1.device_uuid = ? AND d2.last_heartbeat IS NOT NULL";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, webUuid.toLowerCase().trim());
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     long ms = rs.getLong("ms");
-                    if (!rs.wasNull()) return ms;
+                    if (!rs.wasNull())
+                        return ms;
                 }
             }
         } catch (SQLException e) {
             System.err.println("[AnyDeviceHeartbeat Error] " + e.getMessage());
         } finally {
-            try { conn.close(); } catch (Exception ignored) {}
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+            }
         }
         return -1;
     }
@@ -308,8 +348,10 @@ public class DatabaseHelper {
             orgsByCode.putIfAbsent("ORG1000", demoOrg);
             orgsById.putIfAbsent(1, demoOrg);
 
-            usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com", PasswordUtil.hashPassword("admin123"), "ADMIN", 1));
-            usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com", PasswordUtil.hashPassword("emp123"), "EMPLOYEE", 1));
+            usersByEmail.putIfAbsent("admin@mld.com", new UserRecord(1, "Manager User", "admin@mld.com",
+                    PasswordUtil.hashPassword("admin123"), "ADMIN", 1));
+            usersByEmail.putIfAbsent("employee@mld.com", new UserRecord(2, "Employee User", "employee@mld.com",
+                    PasswordUtil.hashPassword("emp123"), "EMPLOYEE", 1));
             System.out.println("[Database] No DATABASE_URL reachable - seeded demo accounts into the in-memory store.");
             return;
         }
@@ -330,8 +372,10 @@ public class DatabaseHelper {
                         String insOrg = "INSERT INTO organizations (org_id, org_name, org_code) VALUES (1, 'Demo Organization', 'ORG1000')";
                         st.executeUpdate(insOrg);
 
-                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '" + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
-                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '" + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
+                        String insAdmin = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Manager User', 'admin@mld.com', '"
+                                + PasswordUtil.hashPassword("admin123") + "', 'ADMIN', 1)";
+                        String insEmp = "INSERT INTO users (name, email, password, role, org_id) VALUES ('Employee User', 'employee@mld.com', '"
+                                + PasswordUtil.hashPassword("emp123") + "', 'EMPLOYEE', 1)";
                         st.executeUpdate(insAdmin);
                         st.executeUpdate(insEmp);
                         System.out.println("[Database] Default seed accounts initialized in PostgreSQL.");
@@ -343,24 +387,27 @@ public class DatabaseHelper {
         } catch (Exception e) {
             System.err.println("[Database Seed Note] " + e.getMessage());
         } finally {
-            try { conn.close(); } catch (Exception ignored) {}
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+            }
         }
     }
 
-
-    // --- High Level DAO Methods supporting both PostgreSQL & In-Memory Fallback ---
+    // --- High Level DAO Methods supporting both PostgreSQL & In-Memory Fallback
+    // ---
 
     public static String escapeJson(String input) {
-        if (input == null) return "";
+        if (input == null)
+            return "";
         return input.replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\b", "\\b")
-                    .replace("\f", "\\f")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
+                .replace("\"", "\\\"")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
-
 
     public static class LoginResult {
         public boolean success;
@@ -368,8 +415,13 @@ public class DatabaseHelper {
         public String role;
         public String name;
         public String message;
+
         public LoginResult(boolean success, String token, String role, String name, String message) {
-            this.success = success; this.token = token; this.role = role; this.name = name; this.message = message;
+            this.success = success;
+            this.token = token;
+            this.role = role;
+            this.name = name;
+            this.message = message;
         }
     }
 
@@ -394,7 +446,10 @@ public class DatabaseHelper {
 
                     try {
                         String ensureCol = "ALTER TABLE devices ADD COLUMN IF NOT EXISTS user_id INTEGER";
-                        try (Statement st = conn.createStatement()) { st.executeUpdate(ensureCol); } catch (Exception ignored) {}
+                        try (Statement st = conn.createStatement()) {
+                            st.executeUpdate(ensureCol);
+                        } catch (Exception ignored) {
+                        }
 
                         String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
                         PreparedStatement dStmt = conn.prepareStatement(insertDevice);
@@ -411,7 +466,10 @@ public class DatabaseHelper {
                 conn.close();
                 return new LoginResult(false, null, null, null, "Invalid email or password.");
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -421,7 +479,7 @@ public class DatabaseHelper {
 
         for (UserRecord user : usersByEmail.values()) {
             if (user.email != null && user.email.trim().equalsIgnoreCase(cleanEmail) &&
-                PasswordUtil.verifyPassword(cleanPass, user.password)) {
+                    PasswordUtil.verifyPassword(cleanPass, user.password)) {
                 String uuid = UUID.randomUUID().toString();
                 devicesToUserId.put(uuid, user.userId);
                 return new LoginResult(true, uuid, user.role, user.name, "Login successful");
@@ -434,14 +492,18 @@ public class DatabaseHelper {
         public boolean success;
         public String orgCode;
         public String message;
+
         public OrgSignupResult(boolean success, String orgCode, String message) {
-            this.success = success; this.orgCode = orgCode; this.message = message;
+            this.success = success;
+            this.orgCode = orgCode;
+            this.message = message;
         }
     }
 
     public static OrgSignupResult signupOrg(String orgName, String managerName, String email, String password) {
         String orgCode = "ORG" + (1000 + new java.security.SecureRandom().nextInt(9000));
-        if (orgName == null || orgName.trim().isEmpty() || managerName == null || managerName.trim().isEmpty() || email == null || email.trim().isEmpty() || password == null || password.trim().isEmpty()) {
+        if (orgName == null || orgName.trim().isEmpty() || managerName == null || managerName.trim().isEmpty()
+                || email == null || email.trim().isEmpty() || password == null || password.trim().isEmpty()) {
             return new OrgSignupResult(false, null, "All fields are required.");
         }
         if (password.length() < 6) {
@@ -460,12 +522,14 @@ public class DatabaseHelper {
                     ResultSet rs = checkStmt.executeQuery();
                     if (rs.next()) {
                         conn.close();
-                        return new OrgSignupResult(false, null, "Email address is already registered. Please login or use a different email.");
+                        return new OrgSignupResult(false, null,
+                                "Email address is already registered. Please login or use a different email.");
                     }
                 }
 
                 String insertOrg = "INSERT INTO organizations(org_name, org_code) VALUES (?, ?)";
-                try (PreparedStatement pstmt = conn.prepareStatement(insertOrg, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                try (PreparedStatement pstmt = conn.prepareStatement(insertOrg,
+                        java.sql.Statement.RETURN_GENERATED_KEYS)) {
                     pstmt.setString(1, orgName);
                     pstmt.setString(2, orgCode);
                     pstmt.executeUpdate();
@@ -486,36 +550,44 @@ public class DatabaseHelper {
                 conn.close();
                 return new OrgSignupResult(true, orgCode, "Organization registered successfully.");
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
         // Fallback Org Signup
         if (usersByEmail.containsKey(email)) {
-            return new OrgSignupResult(false, null, "Email address is already registered. Please login or use a different email.");
+            return new OrgSignupResult(false, null,
+                    "Email address is already registered. Please login or use a different email.");
         }
 
         OrgRecord newOrg = new OrgRecord(nextOrgId++, orgName, orgCode);
         orgsByCode.put(orgCode, newOrg);
         orgsById.put(newOrg.orgId, newOrg);
 
-        UserRecord newAdmin = new UserRecord(nextUserId++, managerName, email, PasswordUtil.hashPassword(password), "ADMIN", newOrg.orgId);
+        UserRecord newAdmin = new UserRecord(nextUserId++, managerName, email, PasswordUtil.hashPassword(password),
+                "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
         usersById.put(newAdmin.userId, newAdmin);
-        
+
         return new OrgSignupResult(true, orgCode, "Organization registered successfully. Manager account created.");
     }
 
     public static class EmpSignupResult {
         public boolean success;
         public String message;
+
         public EmpSignupResult(boolean success, String message) {
-            this.success = success; this.message = message;
+            this.success = success;
+            this.message = message;
         }
     }
 
     public static EmpSignupResult signupEmp(String name, String email, String password, String orgCode) {
-        if (name == null || name.trim().isEmpty() || email == null || email.trim().isEmpty() || password == null || password.trim().isEmpty() || orgCode == null || orgCode.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty() || email == null || email.trim().isEmpty() || password == null
+                || password.trim().isEmpty() || orgCode == null || orgCode.trim().isEmpty()) {
             return new EmpSignupResult(false, "All fields are required.");
         }
         if (password.length() < 6) {
@@ -540,7 +612,8 @@ public class DatabaseHelper {
                             ResultSet rsCheck = checkStmt.executeQuery();
                             if (rsCheck.next()) {
                                 conn.close();
-                                return new EmpSignupResult(false, "Account already exists with this email! Please log in.");
+                                return new EmpSignupResult(false,
+                                        "Account already exists with this email! Please log in.");
                             }
                         }
                         String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
@@ -560,7 +633,10 @@ public class DatabaseHelper {
                     }
                 }
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -574,7 +650,8 @@ public class DatabaseHelper {
             return new EmpSignupResult(false, "Account already exists with this email! Please log in.");
         }
 
-        UserRecord newEmp = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(password), "EMPLOYEE", org.orgId);
+        UserRecord newEmp = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(password), "EMPLOYEE",
+                org.orgId);
         usersByEmail.put(email, newEmp);
         usersById.put(newEmp.userId, newEmp);
         return new EmpSignupResult(true, "Employee registered successfully.");
@@ -583,6 +660,7 @@ public class DatabaseHelper {
     public static class JoinValidationResult {
         public boolean allowed;
         public String message;
+
         public JoinValidationResult(boolean allowed, String message) {
             this.allowed = allowed;
             this.message = message;
@@ -605,13 +683,15 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                int userId = -1; int orgId = -1;
+                int userId = -1;
+                int orgId = -1;
                 String getUserSql = "SELECT u.user_id, u.org_id FROM devices d JOIN users u ON d.user_id = u.user_id WHERE d.device_uuid = ?";
                 try (PreparedStatement ps = conn.prepareStatement(getUserSql)) {
                     ps.setString(1, token);
                     ResultSet rs = ps.executeQuery();
-                    if(rs.next()) {
-                        userId = rs.getInt("user_id"); orgId = rs.getInt("org_id");
+                    if (rs.next()) {
+                        userId = rs.getInt("user_id");
+                        orgId = rs.getInt("org_id");
                     }
                 }
                 if (orgId != -1) {
@@ -621,13 +701,22 @@ public class DatabaseHelper {
                 String sql = "INSERT INTO sessions(session_code, created_by, org_id, status, expires_at) VALUES (?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP + INTERVAL '12 hours')";
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setString(1, sessionCode);
-                    if (userId != -1) pstmt.setInt(2, userId); else pstmt.setNull(2, java.sql.Types.INTEGER);
-                    if (orgId != -1) pstmt.setInt(3, orgId); else pstmt.setNull(3, java.sql.Types.INTEGER);
+                    if (userId != -1)
+                        pstmt.setInt(2, userId);
+                    else
+                        pstmt.setNull(2, java.sql.Types.INTEGER);
+                    if (orgId != -1)
+                        pstmt.setInt(3, orgId);
+                    else
+                        pstmt.setNull(3, java.sql.Types.INTEGER);
                     pstmt.executeUpdate();
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
         return sessionCode;
@@ -645,14 +734,18 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
         return activeSessions.containsKey(code.toUpperCase());
     }
 
     public static void invalidateSession(String sessionCode) {
-        if (sessionCode == null) return;
+        if (sessionCode == null)
+            return;
         activeSessions.remove(sessionCode.toUpperCase());
         activeSessionsOrgMap.remove(sessionCode.toUpperCase());
         Connection conn = connect();
@@ -665,7 +758,10 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
     }
@@ -687,7 +783,8 @@ public class DatabaseHelper {
                     ResultSet rs = ps.executeQuery();
                     if (rs.next()) {
                         Object obj = rs.getObject("org_id");
-                        if (obj != null) sessionOrgId = ((Number) obj).intValue();
+                        if (obj != null)
+                            sessionOrgId = ((Number) obj).intValue();
                     } else {
                         conn.close();
                         return new JoinValidationResult(false, "Invalid or expired session code.");
@@ -702,7 +799,8 @@ public class DatabaseHelper {
                     ResultSet rs = ps.executeQuery();
                     if (rs.next()) {
                         Object obj = rs.getObject("org_id");
-                        if (obj != null) empOrgId = ((Number) obj).intValue();
+                        if (obj != null)
+                            empOrgId = ((Number) obj).intValue();
                     }
                 }
 
@@ -710,13 +808,17 @@ public class DatabaseHelper {
 
                 // 3. Enforce Organization Security Boundary
                 if (sessionOrgId != null && empOrgId != null && !sessionOrgId.equals(empOrgId)) {
-                    return new JoinValidationResult(false, "Access denied: This session code was generated by another organization.");
+                    return new JoinValidationResult(false,
+                            "Access denied: This session code was generated by another organization.");
                 }
 
                 return new JoinValidationResult(true, "Session validated successfully.");
 
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -728,7 +830,8 @@ public class DatabaseHelper {
                 for (UserRecord u : usersByEmail.values()) {
                     if (u.userId == empUserId) {
                         if (u.orgId != sessionOrgId) {
-                            return new JoinValidationResult(false, "Access denied: This session code was generated by another organization.");
+                            return new JoinValidationResult(false,
+                                    "Access denied: This session code was generated by another organization.");
                         }
                     }
                 }
@@ -740,8 +843,10 @@ public class DatabaseHelper {
     }
 
     public static boolean isValidDeviceUuid(String uuid) {
-        if (uuid == null || uuid.isEmpty()) return false;
-        if (devicesToUserId.containsKey(uuid)) return true;
+        if (uuid == null || uuid.isEmpty())
+            return false;
+        if (devicesToUserId.containsKey(uuid))
+            return true;
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -756,17 +861,22 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
         return false;
     }
 
     public static boolean isValidSession(String sessionCode) {
-        if (sessionCode == null || sessionCode.isEmpty()) return false;
+        if (sessionCode == null || sessionCode.isEmpty())
+            return false;
         String upperCode = sessionCode.trim().toUpperCase();
 
-        if (activeSessions.containsKey(upperCode)) return true;
+        if (activeSessions.containsKey(upperCode))
+            return true;
 
         Connection conn = connect();
         if (conn != null) {
@@ -782,14 +892,18 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
         return false;
     }
 
     public static String getEmployeeNameByUuid(String uuid) {
-        if (uuid == null || uuid.isEmpty()) return "Employee";
+        if (uuid == null || uuid.isEmpty())
+            return "Employee";
 
         Connection conn = connect();
         if (conn != null) {
@@ -812,7 +926,10 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -821,7 +938,8 @@ public class DatabaseHelper {
         if (userId != null) {
             for (UserRecord u : usersByEmail.values()) {
                 if (u.userId == userId) {
-                    if ("ADMIN".equalsIgnoreCase(u.role) || "MANAGER".equalsIgnoreCase(u.role)) return null;
+                    if ("ADMIN".equalsIgnoreCase(u.role) || "MANAGER".equalsIgnoreCase(u.role))
+                        return null;
                     return u.name;
                 }
             }
@@ -829,7 +947,8 @@ public class DatabaseHelper {
         return "Employee (" + (uuid.length() > 6 ? uuid.substring(0, 6) : uuid) + ")";
     }
 
-    public static void saveEngagementLog(String sessionCode, String uuid, double score, String status, int totalChecks, int focusedChecks, boolean webcamActive, String timelineJson) {
+    public static void saveEngagementLog(String sessionCode, String uuid, double score, String status, int totalChecks,
+            int focusedChecks, boolean webcamActive, String timelineJson) {
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -847,24 +966,33 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
     }
+
     public static class NotifRecord {
         public int userId;
         public String message;
         public long timestamp;
+
         public NotifRecord(int userId, String message, long timestamp) {
-            this.userId = userId; this.message = message; this.timestamp = timestamp;
+            this.userId = userId;
+            this.message = message;
+            this.timestamp = timestamp;
         }
     }
+
     private static List<NotifRecord> notifs = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public static String getRecentNotifications(String token) {
         int userId = getUserIdFromToken(token);
-        if (userId == -1) return "[]";
-        
+        if (userId == -1)
+            return "[]";
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -873,23 +1001,28 @@ public class DatabaseHelper {
                 ps.setInt(1, userId);
                 ResultSet rs = ps.executeQuery();
                 StringBuilder json = new StringBuilder("[");
-                while(rs.next()) {
-                    if(json.length() > 1) json.append(",");
+                while (rs.next()) {
+                    if (json.length() > 1)
+                        json.append(",");
                     json.append("{\"message\":\"").append(escapeJson(rs.getString("message"))).append("\"}");
                 }
                 json.append("]");
                 conn.close();
                 return json.toString();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
-        
+
         // Fallback
         StringBuilder json = new StringBuilder("[");
         for (NotifRecord n : notifs) {
             if (n.userId == userId) {
-                if(json.length() > 1) json.append(",");
+                if (json.length() > 1)
+                    json.append(",");
                 json.append("{\"message\":\"").append(escapeJson(n.message)).append("\"}");
             }
         }
@@ -899,8 +1032,9 @@ public class DatabaseHelper {
 
     public static String getEmployeesByManagerToken(String token) {
         int orgId = getOrgIdFromToken(token);
-        if (orgId == -1) return "[]";
-        
+        if (orgId == -1)
+            return "[]";
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -910,27 +1044,32 @@ public class DatabaseHelper {
                 ResultSet rs = ps.executeQuery();
                 StringBuilder json = new StringBuilder("[");
                 while (rs.next()) {
-                    if (json.length() > 1) json.append(",");
+                    if (json.length() > 1)
+                        json.append(",");
                     json.append("{\"id\":").append(rs.getInt("user_id"))
-                        .append(",\"name\":\"").append(escapeJson(rs.getString("name")))
-                        .append("\",\"email\":\"").append(escapeJson(rs.getString("email"))).append("\"}");
+                            .append(",\"name\":\"").append(escapeJson(rs.getString("name")))
+                            .append("\",\"email\":\"").append(escapeJson(rs.getString("email"))).append("\"}");
                 }
                 json.append("]");
                 conn.close();
                 return json.toString();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
-        
+
         // Fallback
         StringBuilder json = new StringBuilder("[");
         for (UserRecord u : usersById.values()) {
             if (u.orgId == orgId && "EMPLOYEE".equals(u.role)) {
-                if (json.length() > 1) json.append(",");
+                if (json.length() > 1)
+                    json.append(",");
                 json.append("{\"id\":").append(u.userId)
-                    .append(",\"name\":\"").append(escapeJson(u.name))
-                    .append("\",\"email\":\"").append(escapeJson(u.email)).append("\"}");
+                        .append(",\"name\":\"").append(escapeJson(u.name))
+                        .append("\",\"email\":\"").append(escapeJson(u.email)).append("\"}");
             }
         }
         json.append("]");
@@ -943,8 +1082,9 @@ public class DatabaseHelper {
             return false;
         }
         int orgId = getOrgIdFromToken(token);
-        if (orgId == -1) return false;
-        
+        if (orgId == -1)
+            return false;
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -956,10 +1096,13 @@ public class DatabaseHelper {
                 conn.close();
                 return rows > 0;
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
-        
+
         // Fallback
         UserRecord emp = usersById.get(empId);
         if (emp != null && emp.orgId == orgId && "EMPLOYEE".equals(emp.role)) {
@@ -972,8 +1115,9 @@ public class DatabaseHelper {
 
     public static String getManagerProfile(String token) {
         int userId = getUserIdFromToken(token);
-        if (userId == -1) return "{}";
-        
+        if (userId == -1)
+            return "{}";
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -982,34 +1126,43 @@ public class DatabaseHelper {
                 ps.setInt(1, userId);
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
-                    String json = "{\"name\":\"" + escapeJson(rs.getString("name")) + "\",\"email\":\"" + escapeJson(rs.getString("email"))
-                        + "\",\"orgName\":\"" + escapeJson(rs.getString("org_name")) + "\",\"orgCode\":\"" + escapeJson(rs.getString("org_code")) + "\"}";
+                    String json = "{\"name\":\"" + escapeJson(rs.getString("name")) + "\",\"email\":\""
+                            + escapeJson(rs.getString("email"))
+                            + "\",\"orgName\":\"" + escapeJson(rs.getString("org_name")) + "\",\"orgCode\":\""
+                            + escapeJson(rs.getString("org_code")) + "\"}";
                     conn.close();
                     return json;
                 }
                 conn.close();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
-        
+
         // Fallback
         UserRecord manager = usersById.get(userId);
         if (manager != null) {
             OrgRecord org = orgsById.get(manager.orgId);
             if (org != null) {
-                return "{\"name\":\"" + escapeJson(manager.name) + "\",\"email\":\"" + escapeJson(manager.email) + "\",\"orgName\":\"" + escapeJson(org.orgName) + "\",\"orgCode\":\"" + escapeJson(org.orgCode) + "\"}";
+                return "{\"name\":\"" + escapeJson(manager.name) + "\",\"email\":\"" + escapeJson(manager.email)
+                        + "\",\"orgName\":\"" + escapeJson(org.orgName) + "\",\"orgCode\":\"" + escapeJson(org.orgCode)
+                        + "\"}";
             }
         }
         return "{}";
     }
 
     public static boolean resetPassword(String token, String newPass) {
-        if (!api.InputValidator.isValidPassword(newPass)) return false;
-        
+        if (!api.InputValidator.isValidPassword(newPass))
+            return false;
+
         int userId = getUserIdFromToken(token);
-        if (userId == -1) return false;
-        
+        if (userId == -1)
+            return false;
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -1021,10 +1174,13 @@ public class DatabaseHelper {
                 conn.close();
                 return rows > 0;
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
-        
+
         // Fallback
         UserRecord user = usersById.get(userId);
         if (user != null) {
@@ -1036,7 +1192,8 @@ public class DatabaseHelper {
 
     public static int getUserIdFromToken(String token) {
         Integer cachedUid = devicesToUserId.get(token);
-        if (cachedUid != null) return cachedUid;
+        if (cachedUid != null)
+            return cachedUid;
 
         Connection conn = connect();
         if (conn != null) {
@@ -1053,7 +1210,10 @@ public class DatabaseHelper {
                 }
                 conn.close();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
         // Fallback
@@ -1062,9 +1222,11 @@ public class DatabaseHelper {
     }
 
     public static String getUserNameFromToken(String token) {
-        if (token == null || token.isBlank()) return null;
+        if (token == null || token.isBlank())
+            return null;
         int userId = getUserIdFromToken(token);
-        if (userId == -1) return null;
+        if (userId == -1)
+            return null;
 
         Connection conn = connect();
         if (conn != null) {
@@ -1081,25 +1243,32 @@ public class DatabaseHelper {
                 }
             } catch (Exception ignored) {
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
         // Fallback
         UserRecord user = usersById.get(userId);
-        if (user != null) return user.name;
+        if (user != null)
+            return user.name;
         for (UserRecord u : usersByEmail.values()) {
-            if (u.userId == userId) return u.name;
+            if (u.userId == userId)
+                return u.name;
         }
         return null;
     }
 
     public static int getOrgIdFromToken(String token) {
         Integer cachedOrgId = devicesToOrgId.get(token);
-        if (cachedOrgId != null) return cachedOrgId;
+        if (cachedOrgId != null)
+            return cachedOrgId;
 
         int uid = getUserIdFromToken(token);
-        if (uid == -1) return -1;
+        if (uid == -1)
+            return -1;
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -1115,19 +1284,25 @@ public class DatabaseHelper {
                 }
                 conn.close();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
         // Fallback
         UserRecord user = usersById.get(uid);
         return user != null ? user.orgId : -1;
     }
+
     public static String getUserRoleFromToken(String token) {
         String cachedRole = devicesToRole.get(token);
-        if (cachedRole != null) return cachedRole;
+        if (cachedRole != null)
+            return cachedRole;
 
         int uid = getUserIdFromToken(token);
-        if (uid == -1) return null;
+        if (uid == -1)
+            return null;
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -1143,14 +1318,16 @@ public class DatabaseHelper {
                 }
                 conn.close();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignore) {}
+                try {
+                    conn.close();
+                } catch (Exception ignore) {
+                }
             }
         }
         // Fallback
         UserRecord user = usersById.get(uid);
         return user != null ? user.role : null;
     }
-
 
     public static String loginWithGoogle(String email) {
         Connection conn = connect();
@@ -1171,22 +1348,28 @@ public class DatabaseHelper {
                         dStmt.setString(1, uuid);
                         dStmt.setInt(2, userId);
                         dStmt.executeUpdate();
-                    } catch (Exception devErr) {}
+                    } catch (Exception devErr) {
+                    }
                     conn.close();
-                    return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + role + "\", \"name\": \"" + name + "\"}";
+                    return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + role + "\", \"name\": \""
+                            + name + "\"}";
                 }
                 conn.close();
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
-        
+
         // Fallback Store Login
         UserRecord user = usersByEmail.get(email);
         if (user != null) {
             String uuid = UUID.randomUUID().toString();
             devicesToUserId.put(uuid, user.userId);
-            return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + user.role + "\", \"name\": \"" + user.name + "\"}";
+            return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + user.role + "\", \"name\": \""
+                    + user.name + "\"}";
         }
         return null;
     }
@@ -1224,10 +1407,13 @@ public class DatabaseHelper {
                 conn.close();
                 return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
-        
+
         // Fallback Org Signup
         if (usersByEmail.containsKey(email)) {
             return null;
@@ -1235,7 +1421,8 @@ public class DatabaseHelper {
         OrgRecord newOrg = new OrgRecord(nextOrgId++, orgName, orgCode);
         orgsByCode.put(orgCode, newOrg);
         orgsById.put(newOrg.orgId, newOrg);
-        UserRecord newAdmin = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(UUID.randomUUID().toString()), "ADMIN", newOrg.orgId);
+        UserRecord newAdmin = new UserRecord(nextUserId++, name, email,
+                PasswordUtil.hashPassword(UUID.randomUUID().toString()), "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
         usersById.put(newAdmin.userId, newAdmin);
         return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
@@ -1254,7 +1441,7 @@ public class DatabaseHelper {
                     return null;
                 }
                 int orgId = rsOrg.getInt("org_id");
-                
+
                 String checkSql = "SELECT user_id FROM users WHERE email = ?";
                 PreparedStatement checkStmt = conn.prepareStatement(checkSql);
                 checkStmt.setString(1, email);
@@ -1262,7 +1449,7 @@ public class DatabaseHelper {
                     conn.close();
                     return null;
                 }
-                
+
                 String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
                 PreparedStatement uStmt = conn.prepareStatement(insertSql, java.sql.Statement.RETURN_GENERATED_KEYS);
                 uStmt.setString(1, name);
@@ -1278,7 +1465,7 @@ public class DatabaseHelper {
                         PreparedStatement getManagerStmt = conn.prepareStatement(getManagerSql);
                         getManagerStmt.setInt(1, orgId);
                         ResultSet manRs = getManagerStmt.executeQuery();
-                        while(manRs.next()) {
+                        while (manRs.next()) {
                             int managerId = manRs.getInt("user_id");
                             String insertNotif = "INSERT INTO notifications (user_id, message) VALUES (?, ?)";
                             PreparedStatement notifStmt = conn.prepareStatement(insertNotif);
@@ -1286,30 +1473,37 @@ public class DatabaseHelper {
                             notifStmt.setString(2, "New employee " + name + " joined via Google.");
                             notifStmt.executeUpdate();
                         }
-                    } catch (Exception ignore) {}
+                    } catch (Exception ignore) {
+                    }
                 }
                 conn.close();
                 return "{\"success\": true}";
             } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
-        
+
         // Fallback Employee Google Signup
         if (usersByEmail.containsKey(email)) {
             return null; // Already exists
         }
         OrgRecord org = orgsByCode.get(orgCode.toUpperCase());
-        if (org == null) return null; // Invalid code
+        if (org == null)
+            return null; // Invalid code
 
-        UserRecord newUser = new UserRecord(nextUserId++, name, email, PasswordUtil.hashPassword(UUID.randomUUID().toString()), "EMPLOYEE", org.orgId);
+        UserRecord newUser = new UserRecord(nextUserId++, name, email,
+                PasswordUtil.hashPassword(UUID.randomUUID().toString()), "EMPLOYEE", org.orgId);
         usersByEmail.put(email, newUser);
         usersById.put(newUser.userId, newUser);
-        
+
         // Notify manager
         for (UserRecord u : usersById.values()) {
             if (u.orgId == org.orgId && "ADMIN".equals(u.role)) {
-                NotifRecord n = new NotifRecord(u.userId, "New employee " + name + " joined via Google.", System.currentTimeMillis());
+                NotifRecord n = new NotifRecord(u.userId, "New employee " + name + " joined via Google.",
+                        System.currentTimeMillis());
                 notifs.add(n);
             }
         }
@@ -1317,8 +1511,9 @@ public class DatabaseHelper {
     }
 
     public static boolean sendInvites(String sessionCode, List<Integer> userIds) {
-        if (sessionCode == null || userIds == null || userIds.isEmpty()) return false;
-        
+        if (sessionCode == null || userIds == null || userIds.isEmpty())
+            return false;
+
         Connection conn = connect();
         if (conn != null) {
             try {
@@ -1335,10 +1530,13 @@ public class DatabaseHelper {
             } catch (Exception e) {
                 System.err.println("Error sending invites: " + e.getMessage());
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
-        
+
         // Fallback
         for (Integer uid : userIds) {
             pendingInvites.computeIfAbsent(uid, k -> new java.util.ArrayList<>()).add(sessionCode);
@@ -1348,14 +1546,15 @@ public class DatabaseHelper {
 
     public static List<String> getPendingInvites(String token) {
         List<String> invites = new java.util.ArrayList<>();
-        if (token == null || token.isEmpty()) return invites;
+        if (token == null || token.isEmpty())
+            return invites;
 
         Connection conn = connect();
         if (conn != null) {
             try {
                 String sql = "SELECT s.session_code FROM session_invites s " +
-                             "JOIN devices d ON s.user_id = d.user_id " +
-                             "WHERE d.device_uuid = ? AND s.status = 'PENDING'";
+                        "JOIN devices d ON s.user_id = d.user_id " +
+                        "WHERE d.device_uuid = ? AND s.status = 'PENDING'";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, token);
                     ResultSet rs = ps.executeQuery();
@@ -1367,7 +1566,10 @@ public class DatabaseHelper {
             } catch (Exception e) {
                 System.err.println("Error getting pending invites: " + e.getMessage());
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -1383,14 +1585,15 @@ public class DatabaseHelper {
     }
 
     public static void clearInvite(String token, String sessionCode) {
-        if (token == null || token.isEmpty() || sessionCode == null || sessionCode.isEmpty()) return;
+        if (token == null || token.isEmpty() || sessionCode == null || sessionCode.isEmpty())
+            return;
 
         Connection conn = connect();
         if (conn != null) {
             try {
                 String sql = "UPDATE session_invites s SET status = 'ACCEPTED' " +
-                             "FROM devices d " +
-                             "WHERE s.user_id = d.user_id AND d.device_uuid = ? AND s.session_code = ?";
+                        "FROM devices d " +
+                        "WHERE s.user_id = d.user_id AND d.device_uuid = ? AND s.session_code = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, token);
                     ps.setString(2, sessionCode);
@@ -1399,7 +1602,10 @@ public class DatabaseHelper {
             } catch (Exception e) {
                 System.err.println("Error clearing invite: " + e.getMessage());
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         } else {
             // Fallback
@@ -1413,4 +1619,3 @@ public class DatabaseHelper {
         }
     }
 }
-
