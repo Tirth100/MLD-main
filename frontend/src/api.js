@@ -103,4 +103,35 @@ export const api = {
             throw error;
         }
     }
+,
+    async delete(endpoint) {
+        try {
+            const baseUrl = getApiBaseUrl();
+            const token = localStorage.getItem('uuid_token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            const response = await fetchWithTimeout(`${baseUrl}${endpoint}`, {
+                method: 'DELETE',
+                headers,
+                cache: 'no-store'
+            }, 30000);
+            
+            const text = await response.text();
+            try {
+                if (!text || text.trim() === '') {
+                    return { success: response.ok, message: response.ok ? 'Success' : `HTTP Error ${response.status}` };
+                }
+                return JSON.parse(text);
+            } catch (e) {
+                return { success: response.ok, message: text || `HTTP Error ${response.status}` };
+            }
+        } catch (error) {
+            console.error('API Delete Error:', error);
+            throw error;
+        }
+    }
 };

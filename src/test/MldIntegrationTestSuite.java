@@ -166,6 +166,27 @@ public class MldIntegrationTestSuite {
             assertTrue("Org 2 session remains active (multi-tenant isolation verified)", main.Main.isMonitoringActive(2));
             main.Main.stopMonitoring(2);
 
+            // Test 14: Single Report per User per Meeting Session Verification
+            report.Report r1 = new report.Report("dev-uuid-test", "SESS-101", 10, 8, true, 0.8, "Focused", java.util.List.of("Zoom"), java.util.List.of(true));
+            report.Report r2 = new report.Report("dev-uuid-test", "SESS-101", 20, 18, true, 0.9, "Engaged", java.util.List.of("Zoom", "Meet"), java.util.List.of(true, true));
+            report.ReportGenerator.saveReport(r1);
+            report.ReportGenerator.saveReport(r2); // Update existing session report
+            
+            String reportsJson = sendHttpRequest("GET", "/api/engagement", null, managerToken);
+            int countInSess101 = 0;
+            for (String part : reportsJson.split("\"sessionCode\": \"SESS-101\"")) {
+                countInSess101++;
+            }
+            assertTrue("Exactly one single report per user per meeting session recorded", (countInSess101 - 1) == 1);
+
+            // Test 15: Manager Report Deletion Rights Verification
+            String deleteUnauthorized = sendHttpRequest("DELETE", "/api/engagement?sessionCode=SESS-101", null, null);
+            assertTrue("Unauthorized caller cannot delete reports (401 Protected)", deleteUnauthorized.contains("401") || deleteUnauthorized.contains("Status: 401"));
+
+            String encodedTs = java.net.URLEncoder.encode(r2.getTimestamp(), java.nio.charset.StandardCharsets.UTF_8);
+            String deleteAuthorized = sendHttpRequest("DELETE", "/api/engagement?sessionCode=SESS-101&timestamp=" + encodedTs, null, managerToken);
+            assertTrue("Authorized Manager can delete specific report", deleteAuthorized.contains("true") || deleteAuthorized.contains("deleted"));
+
         } catch (Exception e) {
             System.err.println("Fatal Integration Test Error: " + e.getMessage());
             e.printStackTrace();

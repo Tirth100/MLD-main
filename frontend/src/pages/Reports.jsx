@@ -10,6 +10,9 @@ export default function Reports() {
   const [showModal, setShowModal] = useState(false);
   const [timelineData, setTimelineData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingKey, setDeletingKey] = useState(null);
+  const userRole = localStorage.getItem('user_role');
+  const isManager = userRole === 'MANAGER' || userRole === 'ADMIN';
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -33,6 +36,39 @@ export default function Reports() {
     const interval = setInterval(fetchReports, 5000);
     return () => clearInterval(interval);
   }, []);
+
+
+  const handleDeleteReport = async (emp) => {
+    const reportIdentifier = emp.name || 'this participant';
+    const timeDisplay = (emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : '';
+    if (!window.confirm(`Are you sure you want to delete the report for "${reportIdentifier}" (${timeDisplay})? This action cannot be undone.`)) {
+      return;
+    }
+
+    const key = emp.id ? `id_${emp.id}` : `ts_${emp.timestamp}`;
+    try {
+      setDeletingKey(key);
+      const params = new URLSearchParams();
+      if (emp.id) params.append('id', emp.id);
+      if (emp.timestamp) params.append('timestamp', emp.timestamp);
+      if (emp.sessionCode) params.append('sessionCode', emp.sessionCode);
+
+      const res = await api.delete(`/engagement?${params.toString()}`);
+      if (res && res.success) {
+        setData(prev => prev.filter(item => {
+          if (emp.id && item.id) return item.id !== emp.id;
+          return item.timestamp !== emp.timestamp;
+        }));
+      } else {
+        alert(res?.message || 'Failed to delete report.');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete report. Please try again.');
+    } finally {
+      setDeletingKey(null);
+    }
+  };
 
   const openTimeline = (timeline) => {
     setTimelineData(timeline || []);
@@ -196,9 +232,25 @@ export default function Reports() {
                                               <td><span className="fw-bold">{score}%</span></td>
                                               <td><span className={`badge badge-soft-${statusBadge} px-3 py-2 rounded-pill`}>{statusText}</span></td>
                                               <td className="text-secondary small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString()}</td>
-                                              <td>
-                                                  <button className="btn btn-sm btn-outline-primary" onClick={() => openTimeline(emp.timeline)}>View Timeline</button>
-                                              </td>
+                                              <td className="text-nowrap">
+                                                   <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openTimeline(emp.timeline)}>
+                                                       <i className="bi bi-clock-history me-1"></i>View Timeline
+                                                   </button>
+                                                   {isManager && !emp.isLive && (
+                                                       <button 
+                                                           className="btn btn-sm btn-outline-danger" 
+                                                           title="Delete this report"
+                                                           disabled={deletingKey === (emp.id ? `id_${emp.id}` : `ts_${emp.timestamp}`)}
+                                                           onClick={() => handleDeleteReport(emp)}
+                                                       >
+                                                           {deletingKey === (emp.id ? `id_${emp.id}` : `ts_${emp.timestamp}`) ? (
+                                                               <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                           ) : (
+                                                               <i className="bi bi-trash"></i>
+                                                           )}
+                                                       </button>
+                                                   )}
+                                               </td>
                                           </tr>
                                       );
                                   })

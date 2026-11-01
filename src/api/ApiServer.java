@@ -623,7 +623,7 @@ public class ApiServer {
                             activeSessionCode = Main.orgSessions.get(orgId).sessionCode;
                         }
                         
-                        DatabaseHelper.saveEngagementLog(activeSessionCode, uuid, analyzer.getAttentionScore(), new service.LeechDetector().checkLeech(analyzer.getAttentionScore()), analyzer.getTotalCount(), analyzer.getFocusedCount(), webcam, "");
+                        // Note: intermediate ticks tracked in-memory only; final report committed upon session stop or leave
                         sendResponse(exchange, "{\"success\": true, \"active\": true}");
                     } else {
                         sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Session stopped by manager.\"}");
@@ -699,16 +699,36 @@ public class ApiServer {
             if ("DELETE".equals(exchange.getRequestMethod())) {
                 if (!requireManagerOrAdmin(exchange, token)) return;
                 String query = exchange.getRequestURI().getQuery();
-                if (query != null && query.startsWith("timestamp=")) {
-                    String timestamp = java.net.URLDecoder.decode(query.substring(10), "UTF-8");
-                    boolean deleted = ReportGenerator.deleteReportForOrganization(timestamp, orgId);
-                    if (deleted) {
-                        sendResponse(exchange, "{\"success\": true, \"message\": \"Report deleted.\"}");
-                    } else {
-                        sendJsonError(exchange, 404, "Report not found or access denied.");
+                int reportId = -1;
+                String timestamp = null;
+                String sessionCode = null;
+                if (query != null && !query.isBlank()) {
+                    for (String part : query.split("&")) {
+                        String[] kv = part.split("=", 2);
+                        if (kv.length == 2) {
+                            String key = kv[0].trim();
+                            String val = java.net.URLDecoder.decode(kv[1].trim(), java.nio.charset.StandardCharsets.UTF_8);
+                            if ("id".equalsIgnoreCase(key)) {
+                                try { reportId = Integer.parseInt(val); } catch (Exception ignored) {}
+                            } else if ("timestamp".equalsIgnoreCase(key)) {
+                                timestamp = val;
+                            } else if ("sessionCode".equalsIgnoreCase(key)) {
+                                sessionCode = val;
+                            }
+                        }
                     }
+                }
+                
+                if (reportId == -1 && (timestamp == null || timestamp.isBlank())) {
+                    sendJsonError(exchange, 400, "Missing report identifier (id or timestamp required).");
+                    return;
+                }
+
+                boolean deleted = ReportGenerator.deleteReportForOrganization(reportId, timestamp, sessionCode, orgId);
+                if (deleted) {
+                    sendResponse(exchange, "{\"success\": true, \"message\": \"Report deleted successfully.\"}");
                 } else {
-                    sendJsonError(exchange, 400, "Missing timestamp.");
+                    sendJsonError(exchange, 404, "Report not found or access denied.");
                 }
                 return;
             }
