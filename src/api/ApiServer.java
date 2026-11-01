@@ -16,16 +16,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ApiServer {
-    
+
     private static String extractJsonField(String json, String field) {
-        if (json == null || field == null || json.isEmpty()) return "";
+        if (json == null || field == null || json.isEmpty())
+            return "";
         try {
             String pattern = "\"" + field + "\"";
             int idx = json.indexOf(pattern);
-            if (idx == -1) return "";
+            if (idx == -1)
+                return "";
             int colonIdx = json.indexOf(":", idx + pattern.length());
-            if (colonIdx == -1) return "";
-            
+            if (colonIdx == -1)
+                return "";
+
             String valSubstring = json.substring(colonIdx + 1).trim();
             if (valSubstring.startsWith("\"")) {
                 StringBuilder sb = new StringBuilder();
@@ -46,12 +49,12 @@ public class ApiServer {
                 return sb.toString();
             } else {
                 int endIdx = 0;
-                while (endIdx < valSubstring.length() && 
-                       valSubstring.charAt(endIdx) != ',' && 
-                       valSubstring.charAt(endIdx) != '}' && 
-                       valSubstring.charAt(endIdx) != ']' && 
-                       valSubstring.charAt(endIdx) != '\n' && 
-                       valSubstring.charAt(endIdx) != '\r') {
+                while (endIdx < valSubstring.length() &&
+                        valSubstring.charAt(endIdx) != ',' &&
+                        valSubstring.charAt(endIdx) != '}' &&
+                        valSubstring.charAt(endIdx) != ']' &&
+                        valSubstring.charAt(endIdx) != '\n' &&
+                        valSubstring.charAt(endIdx) != '\r') {
                     endIdx++;
                 }
                 return valSubstring.substring(0, endIdx).trim();
@@ -61,7 +64,7 @@ public class ApiServer {
         }
     }
 
-        public static class AlertRecord {
+    public static class AlertRecord {
         public String name;
         public String sessionCode;
         public int score;
@@ -78,13 +81,12 @@ public class ApiServer {
 
         public String toJson() {
             return String.format(
-                "{\"name\": \"%s\", \"sessionCode\": \"%s\", \"score\": %d, \"reason\": \"%s\", \"time\": \"%s\"}",
-                ApiServer.escapeJson(name),
-                ApiServer.escapeJson(sessionCode),
-                score,
-                ApiServer.escapeJson(reason),
-                ApiServer.escapeJson(time)
-            );
+                    "{\"name\": \"%s\", \"sessionCode\": \"%s\", \"score\": %d, \"reason\": \"%s\", \"time\": \"%s\"}",
+                    ApiServer.escapeJson(name),
+                    ApiServer.escapeJson(sessionCode),
+                    score,
+                    ApiServer.escapeJson(reason),
+                    ApiServer.escapeJson(time));
         }
     }
 
@@ -92,7 +94,7 @@ public class ApiServer {
 
     public static void addOrgAlert(int orgId, String name, String sessionCode, int score, String reason, String time) {
         orgAlerts.computeIfAbsent(orgId, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
-                 .add(new AlertRecord(name, sessionCode, score, reason, time));
+                .add(new AlertRecord(name, sessionCode, score, reason, time));
     }
 
     public static void clearOrgAlerts(int orgId) {
@@ -114,7 +116,8 @@ public class ApiServer {
         if (portEnv != null && !portEnv.isEmpty()) {
             try {
                 port = Integer.parseInt(portEnv);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
         startServer(port);
     }
@@ -128,7 +131,7 @@ public class ApiServer {
     public void startServer(int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         this.serverInstance = server;
-        
+
         server.createContext("/", new RootHandler());
         server.createContext("/download/mld-agent", new DownloadAgentHandler());
         server.createContext("/api/download-agent", new DownloadAgentHandler());
@@ -194,28 +197,36 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
-            
+
             String path = exchange.getRequestURI().getPath();
             if (path == null || path.equals("/")) {
                 path = "/index.html";
             }
-            
+
             java.io.File baseDir = new java.io.File(".").getCanonicalFile();
             java.io.File file = new java.io.File(baseDir, path).getCanonicalFile();
-            
+
             // Only allow specific safe directories and root HTML files
-            boolean isSafePath = path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/assets/") || path.endsWith(".html") || path.equals("/favicon.ico");
-            
-            if (isSafePath && file.exists() && !file.isDirectory() && file.getPath().startsWith(baseDir.getPath() + java.io.File.separator)) {
+            boolean isSafePath = path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/assets/")
+                    || path.endsWith(".html") || path.equals("/favicon.ico");
+
+            if (isSafePath && file.exists() && !file.isDirectory()
+                    && file.getPath().startsWith(baseDir.getPath() + java.io.File.separator)) {
                 byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
                 String contentType = "text/html";
-                if (path.endsWith(".css")) contentType = "text/css";
-                else if (path.endsWith(".js")) contentType = "application/javascript";
-                else if (path.endsWith(".svg")) contentType = "image/svg+xml";
-                else if (path.endsWith(".png")) contentType = "image/png";
-                else if (path.endsWith(".json")) contentType = "application/json";
-                else if (path.endsWith(".ico")) contentType = "image/x-icon";
-                
+                if (path.endsWith(".css"))
+                    contentType = "text/css";
+                else if (path.endsWith(".js"))
+                    contentType = "application/javascript";
+                else if (path.endsWith(".svg"))
+                    contentType = "image/svg+xml";
+                else if (path.endsWith(".png"))
+                    contentType = "image/png";
+                else if (path.endsWith(".json"))
+                    contentType = "application/json";
+                else if (path.endsWith(".ico"))
+                    contentType = "image/x-icon";
+
                 exchange.getResponseHeaders().set("Content-Type", contentType);
                 exchange.sendResponseHeaders(200, bytes.length);
                 try (OutputStream os = exchange.getResponseBody()) {
@@ -224,11 +235,12 @@ public class ApiServer {
                 return;
             }
             if (!isSafePath && !path.equals("/api")) {
-                 exchange.sendResponseHeaders(403, -1);
-                 return;
+                exchange.sendResponseHeaders(403, -1);
+                return;
             }
 
-            sendResponse(exchange, "{\"status\": \"online\", \"service\": \"Meeting Leech Detector Central Server\", \"version\": \"1.0.0\"}");
+            sendResponse(exchange,
+                    "{\"status\": \"online\", \"service\": \"Meeting Leech Detector Central Server\", \"version\": \"1.0.0\"}");
         }
     }
 
@@ -255,7 +267,8 @@ public class ApiServer {
                 if (fileToServe.exists()) {
                     byte[] bytes = java.nio.file.Files.readAllBytes(fileToServe.toPath());
                     exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
-                    exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + fileToServe.getName() + "\"");
+                    exchange.getResponseHeaders().set("Content-Disposition",
+                            "attachment; filename=\"" + fileToServe.getName() + "\"");
                     exchange.sendResponseHeaders(200, bytes.length);
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(bytes);
@@ -263,7 +276,9 @@ public class ApiServer {
                 } else {
                     String msg = "MLD Agent executable not found on server.";
                     exchange.sendResponseHeaders(404, msg.length());
-                    try (OutputStream os = exchange.getResponseBody()) { os.write(msg.getBytes()); }
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(msg.getBytes());
+                    }
                 }
             } catch (Exception e) {
                 sendResponse(exchange, "{\"error\": \"Download failed\"}");
@@ -296,8 +311,8 @@ public class ApiServer {
             }
 
             String token = extractToken(exchange);
-            boolean isAuthorized = (!token.isEmpty() && database.DatabaseHelper.getOrgIdFromToken(token) != -1) 
-                                 || database.DatabaseHelper.isValidDeviceUuid(uuid);
+            boolean isAuthorized = (!token.isEmpty() && database.DatabaseHelper.getOrgIdFromToken(token) != -1)
+                    || database.DatabaseHelper.isValidDeviceUuid(uuid);
 
             if (!isAuthorized) {
                 exchange.sendResponseHeaders(401, -1);
@@ -342,7 +357,7 @@ public class ApiServer {
             }
 
             String json = String.format("{\"connected\": %b, \"status\": \"%s\", \"uuid\": \"%s\"}",
-                isConnected, isConnected ? "Connected" : "Offline", escapeJson(uuid));
+                    isConnected, isConnected ? "Connected" : "Offline", escapeJson(uuid));
             sendResponse(exchange, json);
         }
     }
@@ -364,7 +379,8 @@ public class ApiServer {
             try {
                 java.io.InputStream is = exchange.getRequestBody();
                 String body;
-                try (java.util.Scanner s = new java.util.Scanner(is, java.nio.charset.StandardCharsets.UTF_8).useDelimiter("\\A")) {
+                try (java.util.Scanner s = new java.util.Scanner(is, java.nio.charset.StandardCharsets.UTF_8)
+                        .useDelimiter("\\A")) {
                     body = s.hasNext() ? s.next() : "{}";
                 }
                 String uuid = extractJsonField(body, "uuid").trim();
@@ -402,8 +418,8 @@ public class ApiServer {
             }
 
             String token = extractToken(exchange);
-            boolean isAuthorized = (!token.isEmpty() && database.DatabaseHelper.getOrgIdFromToken(token) != -1) 
-                                 || database.DatabaseHelper.isValidDeviceUuid(userUuid);
+            boolean isAuthorized = (!token.isEmpty() && database.DatabaseHelper.getOrgIdFromToken(token) != -1)
+                    || database.DatabaseHelper.isValidDeviceUuid(userUuid);
 
             if (!isAuthorized) {
                 exchange.sendResponseHeaders(401, -1);
@@ -413,7 +429,7 @@ public class ApiServer {
             if (!userUuid.isEmpty()) {
                 lastAgentHeartbeats.put(userUuid, System.currentTimeMillis());
             }
-            
+
             boolean active = false;
             String code = "";
             String orgActiveCode = "";
@@ -457,8 +473,10 @@ public class ApiServer {
             }
             String token = extractToken(exchange);
             int orgId = requireAuthenticated(exchange);
-            if (orgId == -1) return;
-            if (!requireManagerOrAdmin(exchange, token)) return;
+            if (orgId == -1)
+                return;
+            if (!requireManagerOrAdmin(exchange, token))
+                return;
             try {
                 if (!Main.isMonitoringActive(orgId)) {
                     sendResponse(exchange, "{\"success\": true, \"message\": \"No active session to stop.\"}");
@@ -467,11 +485,13 @@ public class ApiServer {
                 String sessionCode = Main.orgSessions.get(orgId).sessionCode;
                 DatabaseHelper.invalidateSession(sessionCode);
                 Main.stopMonitoring(orgId);
-                activeJoinedSessions.entrySet().removeIf(entry -> DatabaseHelper.getOrgIdFromToken(entry.getKey()) == orgId);
+                activeJoinedSessions.entrySet()
+                        .removeIf(entry -> DatabaseHelper.getOrgIdFromToken(entry.getKey()) == orgId);
                 sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped.\"}");
             } catch (Exception e) {
                 System.err.println("Stop error: " + e.getMessage());
-                sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped with warning: " + escapeJson(e.getMessage()) + "\"}");
+                sendResponse(exchange, "{\"success\": true, \"message\": \"Session stopped with warning: "
+                        + escapeJson(e.getMessage()) + "\"}");
             }
         }
     }
@@ -490,12 +510,13 @@ public class ApiServer {
                 String body = new String(is.readAllBytes());
                 String token = extractToken(exchange);
                 String uuid = extractJsonField(body, "uuid").trim().toLowerCase();
-                
+
                 if (token == null || token.isEmpty() || !uuid.equals(token.toLowerCase())) {
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Unauthorized session leave request.\"}");
+                    sendResponse(exchange,
+                            "{\"success\": false, \"message\": \"Unauthorized session leave request.\"}");
                     return;
                 }
-                
+
                 if (!uuid.isEmpty()) {
                     String sessionCode = activeJoinedSessions.get(uuid);
                     if (sessionCode != null) {
@@ -504,9 +525,11 @@ public class ApiServer {
                             try {
                                 double finalScore = clientAnalyzer.getAttentionScore();
                                 String status = new service.LeechDetector().checkLeech(finalScore);
-                                report.Report sessionReport = new report.Report(uuid, sessionCode, clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
+                                report.Report sessionReport = new report.Report(uuid, sessionCode,
+                                        clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
                                         clientAnalyzer.isWebcamActive(),
-                                        finalScore, status, clientAnalyzer.getWindowTimeline(), clientAnalyzer.getFocusTimeline());
+                                        finalScore, status, clientAnalyzer.getWindowTimeline(),
+                                        clientAnalyzer.getFocusTimeline());
                                 sessionReport.setJoinTime(clientAnalyzer.getJoinTimeFormatted());
                                 report.ReportGenerator.saveReport(sessionReport);
                             } catch (Exception e) {
@@ -541,20 +564,24 @@ public class ApiServer {
             try {
                 String token = extractToken(exchange);
                 int orgId = requireAuthenticated(exchange);
-                if (orgId == -1) return;
-                if (!requireManagerOrAdmin(exchange, token)) return;
-                
+                if (orgId == -1)
+                    return;
+                if (!requireManagerOrAdmin(exchange, token))
+                    return;
+
                 String sessionCode;
                 synchronized (Main.orgSessions) {
                     if (Main.isMonitoringActive(orgId)) {
                         sessionCode = Main.orgSessions.get(orgId).sessionCode;
-                        sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Session already active with code " + sessionCode + "\"}");
+                        sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode
+                                + "\", \"message\": \"Session already active with code " + sessionCode + "\"}");
                         return;
                     }
                     sessionCode = DatabaseHelper.createSession(token);
                     Main.startMonitoring(orgId, sessionCode);
                 }
-                sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Session started successfully with code " + sessionCode + "\"}");
+                sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode
+                        + "\", \"message\": \"Session started successfully with code " + sessionCode + "\"}");
             } catch (Exception e) {
                 e.printStackTrace();
                 sendResponse(exchange, "{\"success\": false, \"message\": \"Failed to start session.\"}");
@@ -571,7 +598,7 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
-            
+
             try {
                 InputStream is = exchange.getRequestBody();
                 String body = new String(is.readAllBytes());
@@ -584,7 +611,8 @@ public class ApiServer {
                     return;
                 }
 
-                DatabaseHelper.JoinValidationResult validation = DatabaseHelper.validateSessionOrgAccess(sessionCode, uuid);
+                DatabaseHelper.JoinValidationResult validation = DatabaseHelper.validateSessionOrgAccess(sessionCode,
+                        uuid);
                 if (!validation.allowed) {
                     sendResponse(exchange, "{\"success\": false, \"message\": \"" + validation.message + "\"}");
                     return;
@@ -594,7 +622,8 @@ public class ApiServer {
                     activeJoinedSessions.put(uuid.toLowerCase(), sessionCode);
                     Main.analyzers.put(uuid.toLowerCase(), new service.AttentionAnalyzer());
                     DatabaseHelper.clearInvite(uuid, sessionCode);
-                    sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode + "\", \"message\": \"Joined session successfully.\"}");
+                    sendResponse(exchange, "{\"success\": true, \"sessionCode\": \"" + sessionCode
+                            + "\", \"message\": \"Joined session successfully.\"}");
                 } else {
                     sendResponse(exchange, "{\"success\": false, \"message\": \"Session is not currently active.\"}");
                 }
@@ -619,15 +648,16 @@ public class ApiServer {
                 try {
                     java.io.InputStream is = exchange.getRequestBody();
                     String body = new String(is.readAllBytes());
-                    
+
                     String token = extractToken(exchange);
                     String uuid = extractJsonField(body, "uuid").trim();
-                    
+
                     if (token == null || token.isEmpty() || !uuid.equalsIgnoreCase(token)) {
-                        sendResponse(exchange, "{\"success\": false, \"active\": false, \"message\": \"Unauthorized track request.\"}");
+                        sendResponse(exchange,
+                                "{\"success\": false, \"active\": false, \"message\": \"Unauthorized track request.\"}");
                         return;
                     }
-                    
+
                     String sessionCode = extractJsonField(body, "sessionCode").trim();
                     String window = extractJsonField(body, "window");
                     int idle = 0;
@@ -635,10 +665,11 @@ public class ApiServer {
                         try {
                             String idleStr = body.split("\"idle\"")[1].split(":")[1].split("[,}]")[0].trim();
                             idle = Integer.parseInt(idleStr);
-                        } catch (Exception ex) {}
+                        } catch (Exception ex) {
+                        }
                     }
                     boolean webcam = body.contains("\"webcam\":true") || body.contains("\"webcam\": true");
-                    
+
                     if (!uuid.isEmpty()) {
                         lastAgentHeartbeats.put(uuid.toLowerCase(), System.currentTimeMillis());
                     }
@@ -646,11 +677,12 @@ public class ApiServer {
                     int orgId = DatabaseHelper.getOrgIdFromToken(uuid);
                     if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                         String cleanUuid = uuid.toLowerCase();
-                        
+
                         String userRole = DatabaseHelper.getUserRoleFromToken(uuid);
                         boolean isManager = "MANAGER".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole);
-                        boolean isJoined = activeJoinedSessions.containsKey(cleanUuid) || activeJoinedSessions.containsKey(uuid);
-                        
+                        boolean isJoined = activeJoinedSessions.containsKey(cleanUuid)
+                                || activeJoinedSessions.containsKey(uuid);
+
                         if (!isManager && !isJoined) {
                             sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Standby\"}");
                             return;
@@ -662,20 +694,23 @@ public class ApiServer {
                             Main.analyzers.put(cleanUuid.isEmpty() ? uuid : cleanUuid, analyzer);
                         }
                         analyzer.analyzeWindow(window, webcam, idle);
-                        
+
                         String activeSessionCode = sessionCode;
                         if (activeSessionCode == null || activeSessionCode.isEmpty()) {
                             activeSessionCode = Main.orgSessions.get(orgId).sessionCode;
                         }
-                        
-                        // Note: intermediate ticks tracked in-memory only; final report committed upon session stop or leave
+
+                        // Note: intermediate ticks tracked in-memory only; final report committed upon
+                        // session stop or leave
                         sendResponse(exchange, "{\"success\": true, \"active\": true}");
                     } else {
-                        sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Session stopped by manager.\"}");
+                        sendResponse(exchange,
+                                "{\"success\": true, \"active\": false, \"message\": \"Session stopped by manager.\"}");
                     }
                 } catch (Exception e) {
                     System.err.println("Track error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"active\": false, \"message\": \"" + escapeJson(e.getMessage()) + "\"}");
+                    sendResponse(exchange, "{\"success\": false, \"active\": false, \"message\": \""
+                            + escapeJson(e.getMessage()) + "\"}");
                 }
             }
         }
@@ -684,24 +719,24 @@ public class ApiServer {
     private void addCorsHeaders(HttpExchange exchange) {
         String origin = exchange.getRequestHeaders().getFirst("Origin");
         String allowedOrigin = "http://localhost:3000"; // default safe fallback
-        
-        if (origin != null && (
-            origin.equals("http://localhost:3000") || 
-            origin.equals("http://localhost:8000") ||
-            origin.equals("https://mld-server.onrender.com") ||
-            origin.equals("https://mld-main.onrender.com"))) {
+
+        if (origin != null && (origin.equals("http://localhost:3000") ||
+                origin.equals("http://localhost:8000") ||
+                origin.equals("https://mld-server.onrender.com") ||
+                origin.equals("https://mld-main.onrender.com"))) {
             allowedOrigin = origin;
         }
 
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", allowedOrigin);
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE, PUT");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization, Bypass-Tunnel-Reminder, Cache-Control");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers",
+                "Content-Type, Authorization, Bypass-Tunnel-Reminder, Cache-Control");
         exchange.getResponseHeaders().set("Access-Control-Max-Age", "86400");
         exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
         exchange.getResponseHeaders().set("X-Frame-Options", "DENY");
         exchange.getResponseHeaders().set("Referrer-Policy", "strict-origin-when-cross-origin");
     }
-    
+
     private void sendResponse(HttpExchange exchange, String response) throws IOException {
         addCorsHeaders(exchange);
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
@@ -739,10 +774,12 @@ public class ApiServer {
 
             String token = extractToken(exchange);
             int orgId = requireAuthenticated(exchange);
-            if (orgId == -1) return;
+            if (orgId == -1)
+                return;
 
             if ("DELETE".equals(exchange.getRequestMethod())) {
-                if (!requireManagerOrAdmin(exchange, token)) return;
+                if (!requireManagerOrAdmin(exchange, token))
+                    return;
                 String query = exchange.getRequestURI().getQuery();
                 int reportId = -1;
                 String timestamp = null;
@@ -752,9 +789,13 @@ public class ApiServer {
                         String[] kv = part.split("=", 2);
                         if (kv.length == 2) {
                             String key = kv[0].trim();
-                            String val = java.net.URLDecoder.decode(kv[1].trim(), java.nio.charset.StandardCharsets.UTF_8);
+                            String val = java.net.URLDecoder.decode(kv[1].trim(),
+                                    java.nio.charset.StandardCharsets.UTF_8);
                             if ("id".equalsIgnoreCase(key)) {
-                                try { reportId = Integer.parseInt(val); } catch (Exception ignored) {}
+                                try {
+                                    reportId = Integer.parseInt(val);
+                                } catch (Exception ignored) {
+                                }
                             } else if ("timestamp".equalsIgnoreCase(key)) {
                                 timestamp = val;
                             } else if ("sessionCode".equalsIgnoreCase(key)) {
@@ -763,7 +804,7 @@ public class ApiServer {
                         }
                     }
                 }
-                
+
                 if (reportId == -1 && (timestamp == null || timestamp.isBlank())) {
                     sendJsonError(exchange, 400, "Missing report identifier (id or timestamp required).");
                     return;
@@ -778,7 +819,8 @@ public class ApiServer {
                 return;
             }
 
-            // Retrieve actual JSON Array generated strictly from local file storage removing all placeholders
+            // Retrieve actual JSON Array generated strictly from local file storage
+            // removing all placeholders
             StringBuilder combinedJson = new StringBuilder("[");
             String role = DatabaseHelper.getUserRoleFromToken(token);
             int userId = DatabaseHelper.getUserIdFromToken(token);
@@ -792,17 +834,19 @@ public class ApiServer {
             if (localReports.length() > 2) {
                 combinedJson.append(localReports.substring(1, localReports.length() - 1));
             }
-            
+
             // Inject the currently active live session into the array natively
             if (Main.isMonitoringActive(orgId)) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
-                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
-                    
+                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId)
+                        continue;
+
                     service.AttentionAnalyzer analyzer = entry.getValue();
-                    
+
                     String empName = getEmployeeNameByUuid(uuid);
-                    if (empName == null) continue; // Skip managers/admins from employee engagement table
+                    if (empName == null)
+                        continue; // Skip managers/admins from employee engagement table
                     if (isEmployee) {
                         if (!uuid.equals(token) && DatabaseHelper.getUserIdFromToken(uuid) != userId) {
                             continue;
@@ -812,18 +856,22 @@ public class ApiServer {
                     double score = analyzer.getTotalCount() > 0 ? analyzer.getAttentionScore() : 1.0;
                     int scorePct = (int) Math.round(score * 100);
                     String stat = new service.LeechDetector().checkLeech(score);
-                    String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace" : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
+                    String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace"
+                            : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
 
                     String liveJson = String.format(
-                        "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"joinTime\": \"%s\", \"isLive\": true}",
-                        escapeJson(empName), scorePct, stat, lastWin, analyzer.getTotalCount(), analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(), analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode, analyzer.getJoinTimeFormatted()
-                    );
-                    
-                    if (combinedJson.length() > 1) combinedJson.append(", ");
+                            "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"joinTime\": \"%s\", \"isLive\": true}",
+                            escapeJson(empName), scorePct, stat, lastWin, analyzer.getTotalCount(),
+                            analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(),
+                            analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode,
+                            analyzer.getJoinTimeFormatted());
+
+                    if (combinedJson.length() > 1)
+                        combinedJson.append(", ");
                     combinedJson.append(liveJson);
                 }
             }
-            
+
             combinedJson.append("]");
             sendResponse(exchange, combinedJson.toString());
         }
@@ -861,40 +909,43 @@ public class ApiServer {
 
             StringBuilder combinedJson = new StringBuilder("[");
             boolean first = true;
-            
+
             if (Main.isMonitoringActive(orgId)) {
                 // Live meeting in progress: stream real-time focus alerts under 50%
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
-                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
-                    
+                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId)
+                        continue;
+
                     service.AttentionAnalyzer analyzer = entry.getValue();
                     if (analyzer.getTotalCount() > 0) {
                         double score = analyzer.getAttentionScore();
                         if (score < 0.5) {
-                            if (!first) combinedJson.append(",");
+                            if (!first)
+                                combinedJson.append(",");
                             String empName = getEmployeeNameByUuid(uuid);
                             int scorePct = (int) Math.round(score * 100);
                             combinedJson.append(String.format(
-                                "{\"name\": \"%s\", \"sessionCode\": \"%s\", \"score\": %d, \"reason\": \"Live low focus score of %d%% (< 50%% threshold) detected\", \"time\": \"Current Live Session\"}",
-                                escapeJson(empName), Main.orgSessions.get(orgId).sessionCode, scorePct, scorePct
-                            ));
+                                    "{\"name\": \"%s\", \"sessionCode\": \"%s\", \"score\": %d, \"reason\": \"Live low focus score of %d%% (< 50%% threshold) detected\", \"time\": \"Current Live Session\"}",
+                                    escapeJson(empName), Main.orgSessions.get(orgId).sessionCode, scorePct, scorePct));
                             first = false;
                         }
                     }
                 }
             } else {
-                // Meeting terminated: show the leech founded employees alerts recorded upon termination
+                // Meeting terminated: show the leech founded employees alerts recorded upon
+                // termination
                 java.util.List<AlertRecord> postMeetingAlerts = getOrgAlerts(orgId);
                 if (postMeetingAlerts != null && !postMeetingAlerts.isEmpty()) {
                     for (AlertRecord alert : postMeetingAlerts) {
-                        if (!first) combinedJson.append(",");
+                        if (!first)
+                            combinedJson.append(",");
                         combinedJson.append(alert.toJson());
                         first = false;
                     }
                 }
             }
-            
+
             combinedJson.append("]");
             sendResponse(exchange, combinedJson.toString());
         }
@@ -914,12 +965,13 @@ public class ApiServer {
             int focused = 0;
             int total = 0;
             java.util.List<Integer> history = new java.util.ArrayList<>();
-            
+
             if (Main.isMonitoringActive(orgId)) {
                 for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
                     String uuid = entry.getKey();
-                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId) continue;
-                    
+                    if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId)
+                        continue;
+
                     service.AttentionAnalyzer analyzer = entry.getValue();
                     focused += analyzer.getFocusedCount();
                     total += analyzer.getTotalCount();
@@ -928,22 +980,22 @@ public class ApiServer {
                     }
                 }
             }
-            
+
             int unfocused = total - focused;
-            
+
             String historyData = history.isEmpty() ? "[]" : history.toString();
             String timeLabels = "[";
-            for(int i=0; i<history.size(); i++) {
-                timeLabels += "\"" + (i*10) + "s\"" + (i < history.size()-1 ? "," : "");
+            for (int i = 0; i < history.size(); i++) {
+                timeLabels += "\"" + (i * 10) + "s\"" + (i < history.size() - 1 ? "," : "");
             }
             timeLabels += "]";
 
             String json = "{\n" +
-                "\"windowFocus\": [" + focused + ", " + unfocused + ", 0],\n" +
-                "\"chatActivity\": [0, 0, 0, 0, 0, 0],\n" +
-                "\"speakingTime\": " + timeLabels + ",\n" +
-                "\"speakingData\": " + historyData + "\n" +
-            "}";
+                    "\"windowFocus\": [" + focused + ", " + unfocused + ", 0],\n" +
+                    "\"chatActivity\": [0, 0, 0, 0, 0, 0],\n" +
+                    "\"speakingTime\": " + timeLabels + ",\n" +
+                    "\"speakingData\": " + historyData + "\n" +
+                    "}";
             sendResponse(exchange, json);
         }
     }
@@ -962,7 +1014,7 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
-            
+
             String token = extractToken(exchange);
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (token.isEmpty() || orgId == -1) {
@@ -970,7 +1022,7 @@ public class ApiServer {
                 exchange.close();
                 return;
             }
-            
+
             double sumScore = 0;
             int count = 0;
             if (Main.isMonitoringActive(orgId)) {
@@ -980,16 +1032,18 @@ public class ApiServer {
                     count++;
                 }
             }
-            int score = count > 0 ? (int)Math.round((sumScore / count) * 100) : 0;
+            int score = count > 0 ? (int) Math.round((sumScore / count) * 100) : 0;
             int focus = count > 0 ? score : 0;
-            String status = (orgId != -1 && Main.isMonitoringActive(orgId)) ? "Active Monitoring Session (" + Main.orgSessions.get(orgId).sessionCode + ")" : "Session Stopped";
+            String status = (orgId != -1 && Main.isMonitoringActive(orgId))
+                    ? "Active Monitoring Session (" + Main.orgSessions.get(orgId).sessionCode + ")"
+                    : "Session Stopped";
             String json = "{\n" +
-                "\"score\": " + score + ",\n" +
-                "\"focus\": " + focus + ",\n" +
-                "\"chat\": 0,\n" + // Set unused dimensions to 0 to prevent displaying fake data
-                "\"speaking\": 0,\n" +
-                "\"meetingStatus\": \"" + status + "\"\n" +
-            "}";
+                    "\"score\": " + score + ",\n" +
+                    "\"focus\": " + focus + ",\n" +
+                    "\"chat\": 0,\n" + // Set unused dimensions to 0 to prevent displaying fake data
+                    "\"speaking\": 0,\n" +
+                    "\"meetingStatus\": \"" + status + "\"\n" +
+                    "}";
             sendResponse(exchange, json);
         }
     }
@@ -1028,7 +1082,7 @@ public class ApiServer {
             try {
                 String email = extractJsonField(body, "email").trim();
                 String password = extractJsonField(body, "password").trim();
-                
+
                 if (!InputValidator.isValidEmail(email) || password.isBlank()) {
                     sendJsonError(exchange, 400, "Invalid email or missing password format.");
                     return;
@@ -1037,20 +1091,23 @@ public class ApiServer {
                 DatabaseHelper.LoginResult res = DatabaseHelper.login(email, password);
                 if (res.success) {
                     loginAttempts.remove(ip);
-                    sendResponse(exchange, "{\"success\": true, \"token\": \"" + res.token + "\", \"role\": \"" + res.role + "\", \"name\": \"" + escapeJson(res.name) + "\"}");
+                    sendResponse(exchange, "{\"success\": true, \"token\": \"" + res.token + "\", \"role\": \""
+                            + res.role + "\", \"name\": \"" + escapeJson(res.name) + "\"}");
                 } else {
                     int attempts = loginAttempts.getOrDefault(ip, 0) + 1;
                     loginAttempts.put(ip, attempts);
                     if (attempts >= 5) {
                         loginLockouts.put(ip, System.currentTimeMillis());
-                        sendResponse(exchange, "{\"success\": false, \"message\": \"Too many login attempts. Please wait 1 minute.\"}");
+                        sendResponse(exchange,
+                                "{\"success\": false, \"message\": \"Too many login attempts. Please wait 1 minute.\"}");
                     } else {
                         sendResponse(exchange, "{\"success\": false, \"message\": \"" + res.message + "\"}");
                     }
                 }
             } catch (Exception e) {
                 System.err.println("Login error: " + e.getMessage());
-                sendResponse(exchange, "{\"success\": false, \"message\": \"Login failed: " + escapeJson(e.getMessage()) + "\"}");
+                sendResponse(exchange,
+                        "{\"success\": false, \"message\": \"Login failed: " + escapeJson(e.getMessage()) + "\"}");
             }
         }
     }
@@ -1073,9 +1130,12 @@ public class ApiServer {
                         orgName = extractJsonField(body, "name");
                     }
                     String managerName = extractJsonField(body, "managerName");
-                    String email = extractJsonField(body, "email") != null ? extractJsonField(body, "email").trim() : "";
-                    String password = extractJsonField(body, "password") != null ? extractJsonField(body, "password").trim() : "";
-                    
+                    String email = extractJsonField(body, "email") != null ? extractJsonField(body, "email").trim()
+                            : "";
+                    String password = extractJsonField(body, "password") != null
+                            ? extractJsonField(body, "password").trim()
+                            : "";
+
                     if (!InputValidator.isValidEmail(email)) {
                         sendJsonError(exchange, 400, "Invalid email address format.");
                         return;
@@ -1085,19 +1145,23 @@ public class ApiServer {
                         return;
                     }
                     if (!InputValidator.isValidName(orgName)) {
-                        sendJsonError(exchange, 400, "Invalid organization name. Only letters, spaces, hyphens, and apostrophes allowed.");
+                        sendJsonError(exchange, 400,
+                                "Invalid organization name. Only letters, spaces, hyphens, and apostrophes allowed.");
                         return;
                     }
-                    
-                    DatabaseHelper.OrgSignupResult res = DatabaseHelper.signupOrg(orgName, managerName, email, password);
+
+                    DatabaseHelper.OrgSignupResult res = DatabaseHelper.signupOrg(orgName, managerName, email,
+                            password);
                     if (res.success) {
-                        sendResponse(exchange, "{\"success\": true, \"orgCode\": \"" + res.orgCode + "\", \"message\": \"" + res.message + "\"}");
+                        sendResponse(exchange, "{\"success\": true, \"orgCode\": \"" + res.orgCode
+                                + "\", \"message\": \"" + res.message + "\"}");
                     } else {
                         sendResponse(exchange, "{\"success\": false, \"message\": \"" + res.message + "\"}");
                     }
                 } catch (Exception e) {
                     System.err.println("Org Signup error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Signup failed: " + escapeJson(e.getMessage()) + "\"}");
+                    sendResponse(exchange,
+                            "{\"success\": false, \"message\": \"Signup failed: " + escapeJson(e.getMessage()) + "\"}");
                 }
             }
         }
@@ -1120,9 +1184,11 @@ public class ApiServer {
                     String email = extractJsonField(body, "email").trim();
                     String password = extractJsonField(body, "password").trim();
                     String orgCode = extractJsonField(body, "orgCode").trim();
-                    
-                    if (!InputValidator.isValidEmail(email) || !InputValidator.isValidPassword(password) || !InputValidator.isValidName(name)) {
-                        sendJsonError(exchange, 400, "Invalid input formats. Password must be 8+ chars, 1 uppercase, 1 lowercase, 1 number.");
+
+                    if (!InputValidator.isValidEmail(email) || !InputValidator.isValidPassword(password)
+                            || !InputValidator.isValidName(name)) {
+                        sendJsonError(exchange, 400,
+                                "Invalid input formats. Password must be 8+ chars, 1 uppercase, 1 lowercase, 1 number.");
                         return;
                     }
 
@@ -1134,7 +1200,8 @@ public class ApiServer {
                     }
                 } catch (Exception e) {
                     System.err.println("Emp Signup error: " + e.getMessage());
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Signup failed: " + escapeJson(e.getMessage()) + "\"}");
+                    sendResponse(exchange,
+                            "{\"success\": false, \"message\": \"Signup failed: " + escapeJson(e.getMessage()) + "\"}");
                 }
             }
         }
@@ -1159,7 +1226,7 @@ public class ApiServer {
 
             exchange.getResponseHeaders().add("Content-Type", "text/csv");
             exchange.getResponseHeaders().add("Content-Disposition", "attachment; filename=\"report.csv\"");
-            
+
             // Fetch aggregated reports via local API call to include remote employees
             String jsonArray = "[]";
             try {
@@ -1173,11 +1240,12 @@ public class ApiServer {
             } catch (Exception e) {
                 jsonArray = ReportGenerator.getAllReportsAsJsonArray(orgId);
             }
-            
-            // Generate basic CSV dynamically (Hack method: splitting JSON without Jackson for speed since it's raw format)
+
+            // Generate basic CSV dynamically (Hack method: splitting JSON without Jackson
+            // for speed since it's raw format)
             String csv = "Name,Role,Score,Status,TotalChecks,FocusedChecks,Timestamp,ActivitySummary\n";
             String[] reports = jsonArray.split("\"name\": \"");
-            for(int i = 1; i < reports.length; i++) {
+            for (int i = 1; i < reports.length; i++) {
                 String block = reports[i];
                 try {
                     String name = block.split("\"", 2)[0];
@@ -1194,30 +1262,35 @@ public class ApiServer {
                             extracted = extracted.substring(0, endIdx);
                         } else {
                             endIdx = extracted.lastIndexOf("]");
-                            if (endIdx != -1) extracted = extracted.substring(0, endIdx);
+                            if (endIdx != -1)
+                                extracted = extracted.substring(0, endIdx);
                         }
-                        timeline = extracted.replace("\r", "").replace("\n", "").replace(",", ";").replace("\"", "'").replace("  ", " ");
+                        timeline = extracted.replace("\r", "").replace("\n", "").replace(",", ";").replace("\"", "'")
+                                .replace("  ", " ");
                     }
-                    csv += csvEscape(name) + ",Employee," + csvEscape(scoreStr) + "," + csvEscape(statusStr) + "," + csvEscape(totCheck) + "," + csvEscape(focCheck) + "," + csvEscape(timestamp) + "," + csvEscape(timeline) + "\n";
+                    csv += csvEscape(name) + ",Employee," + csvEscape(scoreStr) + "," + csvEscape(statusStr) + ","
+                            + csvEscape(totCheck) + "," + csvEscape(focCheck) + "," + csvEscape(timestamp) + ","
+                            + csvEscape(timeline) + "\n";
                 } catch (Exception e) {
                     System.err.println("Error parsing report block for export: " + e.getMessage());
                 }
             }
-            
+
             exchange.sendResponseHeaders(200, csv.getBytes().length);
             OutputStream os = exchange.getResponseBody();
             os.write(csv.getBytes());
             os.close();
         }
     }
-    
+
     private static final java.util.Set<String> REVOKED_TOKENS = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private String extractToken(HttpExchange exchange) {
         String auth = exchange.getRequestHeaders().getFirst("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) {
             String token = auth.substring(7).trim();
-            if (REVOKED_TOKENS.contains(token)) return "";
+            if (REVOKED_TOKENS.contains(token))
+                return "";
             return token;
         }
         return "";
@@ -1271,22 +1344,27 @@ public class ApiServer {
     }
 
     private static String escapeJson(String input) {
-        if (input == null) return "";
+        if (input == null)
+            return "";
         return input.replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\b", "\\b")
-                    .replace("\f", "\\f")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
+                .replace("\"", "\\\"")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
-    // CSV export safety: prevents formula/DDE injection (CWE-1236) when a cell value
-    // starting with =, +, -, or @ gets opened in Excel/Sheets/LibreOffice, and follows
-    // RFC 4180 quoting so commas/quotes/newlines inside a field (e.g. an employee name)
+    // CSV export safety: prevents formula/DDE injection (CWE-1236) when a cell
+    // value
+    // starting with =, +, -, or @ gets opened in Excel/Sheets/LibreOffice, and
+    // follows
+    // RFC 4180 quoting so commas/quotes/newlines inside a field (e.g. an employee
+    // name)
     // don't corrupt the column structure.
     private static String csvEscape(String value) {
-        if (value == null) value = "";
+        if (value == null)
+            value = "";
         if (!value.isEmpty()) {
             char first = value.charAt(0);
             if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
@@ -1348,7 +1426,8 @@ public class ApiServer {
                 InputStream is = exchange.getRequestBody();
                 String body = new String(is.readAllBytes());
                 String idStr = extractJsonField(body, "id");
-                if (idStr.isEmpty()) idStr = "0";
+                if (idStr.isEmpty())
+                    idStr = "0";
                 boolean success = DatabaseHelper.removeEmployee(token, Integer.parseInt(idStr));
                 sendResponse(exchange, "{\"success\": " + success + "}");
             } catch (Exception e) {
@@ -1433,7 +1512,8 @@ public class ApiServer {
     }
 
     public static String[] decodeGoogleJwt(String token) {
-        if (token == null || token.trim().isEmpty()) return null;
+        if (token == null || token.trim().isEmpty())
+            return null;
         try {
             java.net.URL url = new java.net.URL("https://oauth2.googleapis.com/tokeninfo?id_token=" + token.trim());
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
@@ -1443,19 +1523,21 @@ public class ApiServer {
             if (conn.getResponseCode() == 200) {
                 try (InputStream is = conn.getInputStream()) {
                     String json = new String(is.readAllBytes());
-                    
+
                     String aud = extractJsonField(json, "aud");
-                    String expectedAud = System.getenv("GOOGLE_CLIENT_ID") != null ? System.getenv("GOOGLE_CLIENT_ID") : "875383442505-YOUR_CLIENT_ID.apps.googleusercontent.com";
+                    String expectedAud = System.getenv("GOOGLE_CLIENT_ID") != null ? System.getenv("GOOGLE_CLIENT_ID")
+                            : "117803210601-81apks2hhlv1p4og1g5knp85375r69em.apps.googleusercontent.com";
                     if (aud == null || !aud.equals(expectedAud)) {
                         System.err.println("[Google Auth] Invalid aud claim: " + aud);
                         return null;
                     }
-                    
+
                     String email = extractJsonField(json, "email");
                     String name = extractJsonField(json, "name");
-                    if (name == null || name.isEmpty()) name = email;
+                    if (name == null || name.isEmpty())
+                        name = email;
                     if (email != null && !email.isEmpty()) {
-                        return new String[]{email, name};
+                        return new String[] { email, name };
                     }
                 }
             }
@@ -1489,7 +1571,8 @@ public class ApiServer {
                             return;
                         }
                     }
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"User not found. Please register first.\"}");
+                    sendResponse(exchange,
+                            "{\"success\": false, \"message\": \"User not found. Please register first.\"}");
                 } catch (Exception e) {
                     sendResponse(exchange, "{\"success\": false}");
                 }
@@ -1523,7 +1606,8 @@ public class ApiServer {
                             return;
                         }
                     }
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Failed to register organization. Email might be in use.\"}");
+                    sendResponse(exchange,
+                            "{\"success\": false, \"message\": \"Failed to register organization. Email might be in use.\"}");
                 } catch (Exception e) {
                     sendResponse(exchange, "{\"success\": false}");
                 }
@@ -1557,7 +1641,8 @@ public class ApiServer {
                             return;
                         }
                     }
-                    sendResponse(exchange, "{\"success\": false, \"message\": \"Invalid org code or email already in use.\"}");
+                    sendResponse(exchange,
+                            "{\"success\": false, \"message\": \"Invalid org code or email already in use.\"}");
                 } catch (Exception e) {
                     sendResponse(exchange, "{\"success\": false}");
                 }
@@ -1580,13 +1665,14 @@ public class ApiServer {
                 return;
             }
             String token = extractToken(exchange);
-            if (!requireManagerOrAdmin(exchange, token)) return;
+            if (!requireManagerOrAdmin(exchange, token))
+                return;
 
             try {
                 InputStream is = exchange.getRequestBody();
                 String body = new String(is.readAllBytes());
                 String sessionCode = extractJsonField(body, "sessionCode").trim().toUpperCase();
-                
+
                 // Parse userIds array using a simple string split
                 java.util.List<Integer> userIds = new java.util.ArrayList<>();
                 if (body.contains("\"userIds\":")) {
@@ -1596,11 +1682,12 @@ public class ApiServer {
                         for (String p : parts) {
                             try {
                                 userIds.add(Integer.parseInt(p.trim()));
-                            } catch (NumberFormatException ignored) {}
+                            } catch (NumberFormatException ignored) {
+                            }
                         }
                     }
                 }
-                
+
                 if (sessionCode.isEmpty() || userIds.isEmpty()) {
                     sendJsonError(exchange, 400, "Missing session code or user IDs.");
                     return;
@@ -1640,7 +1727,8 @@ public class ApiServer {
                 StringBuilder sb = new StringBuilder("[");
                 for (int i = 0; i < invites.size(); i++) {
                     sb.append("\"").append(escapeJson(invites.get(i))).append("\"");
-                    if (i < invites.size() - 1) sb.append(",");
+                    if (i < invites.size() - 1)
+                        sb.append(",");
                 }
                 sb.append("]");
                 sendResponse(exchange, "{\"success\": true, \"invites\": " + sb.toString() + "}");
