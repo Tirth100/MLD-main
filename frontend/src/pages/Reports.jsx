@@ -221,15 +221,18 @@ export default function Reports() {
                                   </tr>
                               ) : (
                                   filteredData.map((emp, i) => {
-                                      const score = emp.score !== undefined ? (emp.score <= 1 ? Math.round(emp.score * 100) : emp.score) : 0;
-                                      let statusBadge = score < 50 ? 'danger' : 'success';
-                                      let statusText = score < 50 ? 'Distracted' : 'Engaged';
+                                      const rawScore = Number(emp.score);
+                                      const score = !isNaN(rawScore) ? (rawScore <= 1 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
+                                      const statusBadge = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
+                                      const statusText = emp.status && emp.status.trim() !== '' 
+                                          ? emp.status 
+                                          : (score > 75 ? 'Engaged' : (score >= 50 ? 'Focused' : 'Low Engagement'));
                                       
                                       return (
                                           <tr key={i}>
                                               <td className="ps-4 fw-medium">{emp.name}</td>
                                               <td className="text-muted text-capitalize">{emp.role}</td>
-                                              <td><span className="fw-bold">{score}%</span></td>
+                                              <td><span className={`fw-bold text-${statusBadge}`}>{score}%</span></td>
                                               <td><span className={`badge badge-soft-${statusBadge} px-3 py-2 rounded-pill`}>{statusText}</span></td>
                                               <td className="text-secondary small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString()}</td>
                                               <td className="text-nowrap">

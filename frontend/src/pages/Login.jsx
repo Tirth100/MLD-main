@@ -48,9 +48,9 @@ export default function Login() {
       if (res && res.success && res.token) {
         localStorage.setItem('uuid_token', res.token);
         localStorage.setItem('user_role', res.role || 'EMPLOYEE');
-        if (res.name) {
-          localStorage.setItem('username', res.name);
-        }
+        if (res.name) localStorage.setItem('username', res.name);
+        if (res.orgName) localStorage.setItem('org_name', res.orgName);
+        if (res.orgCode) localStorage.setItem('org_code', res.orgCode);
         
         if (res.role === 'MANAGER' || res.role === 'ADMIN') {
           navigate('/manager-dashboard');
@@ -58,7 +58,7 @@ export default function Login() {
           navigate('/employee-dashboard');
         }
       } else {
-        setError(res.message || 'No registered account found for this Google email. Please register your workspace or join as a participant first.');
+        setError(res.message || "You haven't joined any workspace yet. Please register your workspace or join as a participant with your Workspace Code first.");
       }
     } catch (err) {
       setError('Failed to sign in with Google. Please try again.');
@@ -112,9 +112,9 @@ export default function Login() {
       if (response.success && response.token) {
         localStorage.setItem('uuid_token', response.token);
         localStorage.setItem('user_role', response.role || 'EMPLOYEE');
-        if (response.name) {
-          localStorage.setItem('username', response.name);
-        }
+        if (response.name) localStorage.setItem('username', response.name);
+        if (response.orgName) localStorage.setItem('org_name', response.orgName);
+        if (response.orgCode) localStorage.setItem('org_code', response.orgCode);
         
         if (response.role === 'MANAGER' || response.role === 'ADMIN') {
           navigate('/manager-dashboard');

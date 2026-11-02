@@ -443,8 +443,32 @@ public class DatabaseHelper {
                     String role = rs.getString("role");
                     int userId = rs.getInt("user_id");
                     String name = rs.getString("name");
-                    String uuid = UUID.randomUUID().toString();
+                    int orgId = rs.getInt("org_id");
+                    boolean wasOrgNull = rs.wasNull();
 
+                    boolean orgExists = false;
+                    if (!wasOrgNull && orgId > 0) {
+                        try {
+                            String chkSql = "SELECT org_id FROM organizations WHERE org_id = ?";
+                            PreparedStatement chkStmt = conn.prepareStatement(chkSql);
+                            chkStmt.setInt(1, orgId);
+                            ResultSet chkRs = chkStmt.executeQuery();
+                            if (chkRs.next()) {
+                                orgExists = true;
+                            }
+                        } catch (Exception ignore) {}
+                    }
+
+                    if (!orgExists) {
+                        conn.close();
+                        if ("ADMIN".equalsIgnoreCase(role) || "MANAGER".equalsIgnoreCase(role)) {
+                            return new LoginResult(false, null, null, null, "No registered workspace found for this account. Please register your workspace first.");
+                        } else {
+                            return new LoginResult(false, null, null, null, "You haven't joined any workspace yet. Please join with your Workspace Code first.");
+                        }
+                    }
+
+                    String uuid = UUID.randomUUID().toString();
                     try {
                         String ensureCol = "ALTER TABLE devices ADD COLUMN IF NOT EXISTS user_id INTEGER";
                         try (Statement st = conn.createStatement()) {
@@ -460,6 +484,9 @@ public class DatabaseHelper {
                     } catch (Exception devErr) {
                         System.err.println("[Device Log Warning] " + devErr.getMessage());
                     }
+                    devicesToUserId.put(uuid, userId);
+                    devicesToOrgId.put(uuid, orgId);
+                    devicesToRole.put(uuid, role);
 
                     conn.close();
                     return new LoginResult(true, uuid, role, name, "Login successful");
@@ -481,8 +508,18 @@ public class DatabaseHelper {
         for (UserRecord user : usersByEmail.values()) {
             if (user.email != null && user.email.trim().equalsIgnoreCase(cleanEmail) &&
                     PasswordUtil.verifyPassword(cleanPass, user.password)) {
+                OrgRecord org = orgsById.get(user.orgId);
+                if (org == null) {
+                    if ("ADMIN".equalsIgnoreCase(user.role) || "MANAGER".equalsIgnoreCase(user.role)) {
+                        return new LoginResult(false, null, null, null, "No registered workspace found for this account. Please register your workspace first.");
+                    } else {
+                        return new LoginResult(false, null, null, null, "You haven't joined any workspace yet. Please join with your Workspace Code first.");
+                    }
+                }
                 String uuid = UUID.randomUUID().toString();
                 devicesToUserId.put(uuid, user.userId);
+                devicesToOrgId.put(uuid, user.orgId);
+                devicesToRole.put(uuid, user.role);
                 return new LoginResult(true, uuid, user.role, user.name, "Login successful");
             }
         }
@@ -1490,14 +1527,31 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))";
+                String sql = "SELECT u.user_id, u.name, u.role, u.org_id, o.org_name, o.org_code " +
+                             "FROM users u " +
+                             "LEFT JOIN organizations o ON u.org_id = o.org_id " +
+                             "WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(?))";
                 PreparedStatement pstmt = conn.prepareStatement(sql);
                 pstmt.setString(1, email != null ? email.trim() : "");
                 ResultSet rs = pstmt.executeQuery();
                 if (rs.next()) {
+                    int orgId = rs.getInt("org_id");
+                    boolean wasOrgNull = rs.wasNull();
+                    String orgName = rs.getString("org_name");
+                    String orgCode = rs.getString("org_code");
                     String role = rs.getString("role");
                     int userId = rs.getInt("user_id");
                     String name = rs.getString("name");
+
+                    if (wasOrgNull || orgId <= 0 || orgName == null) {
+                        conn.close();
+                        if ("ADMIN".equalsIgnoreCase(role) || "MANAGER".equalsIgnoreCase(role)) {
+                            return "{\"success\": false, \"message\": \"No registered workspace found for this Google account. Please register your workspace first.\"}";
+                        } else {
+                            return "{\"success\": false, \"message\": \"You haven't joined any workspace yet. Please join with your Workspace Code first.\"}";
+                        }
+                    }
+
                     String uuid = UUID.randomUUID().toString();
                     try {
                         String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
@@ -1507,11 +1561,15 @@ public class DatabaseHelper {
                         dStmt.executeUpdate();
                     } catch (Exception devErr) {
                     }
+                    devicesToUserId.put(uuid, userId);
+                    devicesToOrgId.put(uuid, orgId);
+                    devicesToRole.put(uuid, role);
                     conn.close();
                     return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + role + "\", \"name\": \""
-                            + name + "\"}";
+                            + escapeJson(name) + "\", \"orgName\": \"" + escapeJson(orgName) + "\", \"orgCode\": \"" + escapeJson(orgCode) + "\"}";
                 }
                 conn.close();
+                return "{\"success\": false, \"message\": \"You haven't joined any workspace yet. Please register your workspace or join as a participant with your Workspace Code first.\"}";
             } catch (Exception e) {
                 try {
                     conn.close();
@@ -1521,14 +1579,31 @@ public class DatabaseHelper {
         }
 
         // Fallback Store Login
-        UserRecord user = usersByEmail.get(email);
+        UserRecord user = null;
+        String cleanEmail = email != null ? email.trim().toLowerCase() : "";
+        for (UserRecord u : usersByEmail.values()) {
+            if (u.email != null && u.email.trim().equalsIgnoreCase(cleanEmail)) {
+                user = u;
+                break;
+            }
+        }
         if (user != null) {
+            OrgRecord org = orgsById.get(user.orgId);
+            if (org == null) {
+                if ("ADMIN".equalsIgnoreCase(user.role) || "MANAGER".equalsIgnoreCase(user.role)) {
+                    return "{\"success\": false, \"message\": \"No registered workspace found for this Google account. Please register your workspace first.\"}";
+                } else {
+                    return "{\"success\": false, \"message\": \"You haven't joined any workspace yet. Please join with your Workspace Code first.\"}";
+                }
+            }
             String uuid = UUID.randomUUID().toString();
             devicesToUserId.put(uuid, user.userId);
+            devicesToOrgId.put(uuid, user.orgId);
+            devicesToRole.put(uuid, user.role);
             return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"" + user.role + "\", \"name\": \""
-                    + user.name + "\"}";
+                    + escapeJson(user.name) + "\", \"orgName\": \"" + escapeJson(org.orgName) + "\", \"orgCode\": \"" + escapeJson(org.orgCode) + "\"}";
         }
-        return null;
+        return "{\"success\": false, \"message\": \"You haven't joined any workspace yet. Please register your workspace or join as a participant with your Workspace Code first.\"}";
     }
 
     public static String signupOrgWithGoogle(String email, String name, String orgName) {
@@ -1542,7 +1617,7 @@ public class DatabaseHelper {
                 ResultSet rs = checkStmt.executeQuery();
                 if (rs.next()) {
                     conn.close();
-                    return null;
+                    return "{\"success\": false, \"message\": \"Email address is already registered. Please sign in or use a different email.\"}";
                 }
                 String insertOrg = "INSERT INTO organizations(org_name, org_code) VALUES (?, ?)";
                 PreparedStatement pstmt = conn.prepareStatement(insertOrg, java.sql.Statement.RETURN_GENERATED_KEYS);
@@ -1553,16 +1628,36 @@ public class DatabaseHelper {
                 if (generatedKeys.next()) {
                     int orgId = generatedKeys.getInt(1);
                     String insertSql = "INSERT INTO users(name, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)";
-                    PreparedStatement pstmtUser = conn.prepareStatement(insertSql);
+                    PreparedStatement pstmtUser = conn.prepareStatement(insertSql, java.sql.Statement.RETURN_GENERATED_KEYS);
                     pstmtUser.setString(1, name);
                     pstmtUser.setString(2, email);
                     pstmtUser.setString(3, PasswordUtil.hashPassword(UUID.randomUUID().toString()));
                     pstmtUser.setString(4, "ADMIN");
                     pstmtUser.setInt(5, orgId);
                     pstmtUser.executeUpdate();
+                    ResultSet uKeys = pstmtUser.getGeneratedKeys();
+                    int newUid = -1;
+                    if (uKeys.next()) newUid = uKeys.getInt(1);
+
+                    String uuid = UUID.randomUUID().toString();
+                    if (newUid != -1) {
+                        try {
+                            String insertDevice = "INSERT INTO devices(device_uuid, user_id) VALUES (?, ?)";
+                            PreparedStatement dStmt = conn.prepareStatement(insertDevice);
+                            dStmt.setString(1, uuid);
+                            dStmt.setInt(2, newUid);
+                            dStmt.executeUpdate();
+                        } catch (Exception devErr) {}
+                        devicesToUserId.put(uuid, newUid);
+                        devicesToOrgId.put(uuid, orgId);
+                        devicesToRole.put(uuid, "ADMIN");
+                    }
+                    conn.close();
+                    return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"ADMIN\", \"name\": \""
+                            + escapeJson(name) + "\", \"orgCode\": \"" + orgCode + "\", \"orgName\": \"" + escapeJson(orgName) + "\"}";
                 }
                 conn.close();
-                return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
+                return "{\"success\": false, \"message\": \"Failed to create workspace database entry.\"}";
             } catch (Exception e) {
                 try {
                     conn.close();
@@ -1572,8 +1667,10 @@ public class DatabaseHelper {
         }
 
         // Fallback Org Signup
-        if (usersByEmail.containsKey(email)) {
-            return null;
+        for (UserRecord u : usersByEmail.values()) {
+            if (u.email != null && u.email.equalsIgnoreCase(email)) {
+                return "{\"success\": false, \"message\": \"Email address is already registered. Please sign in or use a different email.\"}";
+            }
         }
         OrgRecord newOrg = new OrgRecord(nextOrgId++, orgName, orgCode);
         orgsByCode.put(orgCode, newOrg);
@@ -1582,7 +1679,12 @@ public class DatabaseHelper {
                 PasswordUtil.hashPassword(UUID.randomUUID().toString()), "ADMIN", newOrg.orgId);
         usersByEmail.put(email, newAdmin);
         usersById.put(newAdmin.userId, newAdmin);
-        return "{\"success\": true, \"orgCode\": \"" + orgCode + "\"}";
+        String uuid = UUID.randomUUID().toString();
+        devicesToUserId.put(uuid, newAdmin.userId);
+        devicesToOrgId.put(uuid, newAdmin.orgId);
+        devicesToRole.put(uuid, "ADMIN");
+        return "{\"success\": true, \"token\": \"" + uuid + "\", \"role\": \"ADMIN\", \"name\": \""
+                + escapeJson(name) + "\", \"orgCode\": \"" + orgCode + "\", \"orgName\": \"" + escapeJson(orgName) + "\"}";
     }
 
     public static String signupEmpWithGoogle(String email, String name, String orgCode) {

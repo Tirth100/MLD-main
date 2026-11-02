@@ -8,6 +8,8 @@ export default function EmployeeDashboard() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
     const [profileName, setProfileName] = useState('Loading...');
+    const [workspaceName, setWorkspaceName] = useState(localStorage.getItem('org_name') || '');
+    const [workspaceCode, setWorkspaceCode] = useState(localStorage.getItem('org_code') || '');
     const [history, setHistory] = useState([]);
     const [timelineData, setTimelineData] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -91,14 +93,23 @@ export default function EmployeeDashboard() {
         const name = localStorage.getItem('username');
         if (name) {
             setProfileName(name);
-        } else {
-            api.get('/profile').then(res => {
-                if (res && res.name) {
+        }
+        api.get('/profile').then(res => {
+            if (res) {
+                if (res.name) {
                     setProfileName(res.name);
                     localStorage.setItem('username', res.name);
                 }
-            }).catch(() => { });
-        }
+                if (res.orgName) {
+                    setWorkspaceName(res.orgName);
+                    localStorage.setItem('org_name', res.orgName);
+                }
+                if (res.orgCode) {
+                    setWorkspaceCode(res.orgCode);
+                    localStorage.setItem('org_code', res.orgCode);
+                }
+            }
+        }).catch(() => { });
 
         fetchStatus();
         const interval = setInterval(fetchStatus, 5000);
@@ -151,7 +162,7 @@ export default function EmployeeDashboard() {
     };
 
     const overallScore = Math.round((dashboardData.attentionScore || 0) * 100);
-    const scoreColor = overallScore < 50 ? 'danger' : 'success';
+    const scoreColor = overallScore > 75 ? 'success' : (overallScore >= 50 ? 'warning' : 'danger');
 
     return (
         <div id="employeeDashboard" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
@@ -164,6 +175,11 @@ export default function EmployeeDashboard() {
                         <span className="fs-5 fw-bold">MLD Participant</span>
                     </a>
                     <div className="d-flex align-items-center gap-4">
+                        {workspaceName && (
+                            <span className="badge bg-light text-dark border px-2 py-1 d-none d-sm-inline-flex align-items-center">
+                                <i className="bi bi-building me-1 text-primary"></i> {workspaceName} ({workspaceCode})
+                            </span>
+                        )}
                         <Link to="/agent-setup" className="btn btn-sm btn-outline-primary shadow-sm"><i className="bi bi-download me-1"></i>Agent Setup</Link>
                         <div className="d-flex align-items-center gap-2 border-start ps-3">
                             <img id="employeeProfileImg" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profileName)}&background=0ea5e9&color=fff`} alt="Profile" className="rounded-circle shadow-sm" width="36" height="36" />
@@ -352,13 +368,18 @@ export default function EmployeeDashboard() {
                                                 </tr>
                                             ) : (
                                                 history.map((emp, i) => {
-                                                    const badgeClass = emp.status === 'engaged' ? 'success' : (emp.status === 'low engagement' ? 'danger' : 'warning');
+                                                    const rawScore = Number(emp.score);
+                                                    const numScore = !isNaN(rawScore) ? (rawScore <= 1 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
+                                                    const badgeClass = numScore > 75 ? 'success' : (numScore >= 50 ? 'warning' : 'danger');
+                                                    const badgeStatus = emp.status && emp.status.trim() !== ''
+                                                        ? emp.status
+                                                        : (numScore > 75 ? 'Engaged' : (numScore >= 50 ? 'Focused' : 'Low Engagement'));
                                                     return (
                                                         <tr key={i}>
                                                             <td className="ps-4">{emp.name}</td>
                                                             <td>{emp.role}</td>
-                                                            <td><span className="fw-bold">{emp.score}%</span></td>
-                                                            <td><span className={`badge badge-soft-${badgeClass} px-3 py-2 rounded-pill text-capitalize`}>{emp.status}</span></td>
+                                                            <td><span className={`fw-bold text-${badgeClass}`}>{numScore}%</span></td>
+                                                            <td><span className={`badge badge-soft-${badgeClass} px-3 py-2 rounded-pill text-capitalize`}>{badgeStatus}</span></td>
                                                             <td>
                                                                 <button className="btn btn-sm btn-outline-primary" onClick={() => openTimeline(emp.timeline)}>Actions</button>
                                                             </td>

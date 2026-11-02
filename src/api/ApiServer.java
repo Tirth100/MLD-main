@@ -1712,9 +1712,9 @@ public class ApiServer {
                         }
                     }
                     sendResponse(exchange,
-                            "{\"success\": false, \"message\": \"User not found. Please register first.\"}");
+                            "{\"success\": false, \"message\": \"You haven't joined any workspace yet. Please register your workspace or join as a participant with your Workspace Code first.\"}");
                 } catch (Exception e) {
-                    sendResponse(exchange, "{\"success\": false}");
+                    sendResponse(exchange, "{\"success\": false, \"message\": \"Google authentication failed. Please try again.\"}");
                 }
             }
         }

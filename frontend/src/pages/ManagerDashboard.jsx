@@ -464,7 +464,7 @@ export default function ManagerDashboard() {
                                                     ) : session.active ? (
                                                         data.map((emp, i) => {
                                                             const score = getEmpScore(emp);
-                                                            const scoreColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
+                                                            const scoreColor = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
                                                             const durSec = getEmpDuration(emp);
 
                                                             return (
@@ -486,7 +486,7 @@ export default function ManagerDashboard() {
                                                     ) : (
                                                         historicalGroups.map((group, i) => {
                                                             const avgScore = Math.round(group.totalScore / group.sessions.length);
-                                                            const scoreColor = avgScore < 50 ? 'danger' : (avgScore < 80 ? 'warning' : 'success');
+                                                            const scoreColor = avgScore > 75 ? 'success' : (avgScore >= 50 ? 'warning' : 'danger');
                                                             const durSec = group.totalDuration;
                                                             const isExpanded = expandedRows[group.name];
 
@@ -510,7 +510,7 @@ export default function ManagerDashboard() {
                                                                     </tr>
                                                                     {isExpanded && group.sessions.map((emp, j) => {
                                                                         const score = getEmpScore(emp);
-                                                                        const sColor = score < 50 ? 'danger' : (score < 80 ? 'warning' : 'success');
+                                                                        const sColor = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
                                                                         const empDur = getEmpDuration(emp);
 
                                                                         return (

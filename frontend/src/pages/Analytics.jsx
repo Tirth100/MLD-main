@@ -148,7 +148,7 @@ export default function Analytics() {
     datasets: [{
       label: 'Avg Engagement Score (%)',
       data: participantAvgScores.length > 0 ? participantAvgScores : [0],
-      backgroundColor: participantAvgScores.map(score => score >= 75 ? '#10b981' : score >= 50 ? '#3b82f6' : '#ef4444'),
+      backgroundColor: participantAvgScores.map(score => score > 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444'),
       borderRadius: 6
     }]
   };
