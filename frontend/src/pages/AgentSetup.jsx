@@ -121,7 +121,7 @@ export default function AgentSetup() {
       <nav className="navbar navbar-expand-lg border-bottom sticky-top" style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)' }}>
         <div className="container px-4 py-2">
           <Link className="navbar-brand d-flex align-items-center text-dark" to="/">
-            <i className="bi bi-radar text-primary fs-3 me-2"></i>
+            <img src="/logo.svg" alt="MLD" width="28" height="28" className="me-2 rounded-2 shadow-sm" />
             <span className="fs-5 fw-bold">MLD Agent Hub</span>
           </Link>
           <div className="d-flex align-items-center gap-3">
