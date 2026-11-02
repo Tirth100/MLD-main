@@ -171,7 +171,7 @@ export default function EmployeeDashboard() {
             <nav className="navbar navbar-expand-lg border-bottom border-secondary" style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)' }}>
                 <div className="container-fluid px-4 py-1">
                     <a className="navbar-brand d-flex align-items-center text-dark" href="#">
-                        <img src="/logo.svg" alt="MLD" width="28" height="28" className="me-2 rounded-2 shadow-sm" />
+                        <img src="/logo.png" alt="MLD" width="28" height="28" className="me-2 rounded-2 shadow-sm" />
                         <span className="fs-5 fw-bold">MLD Participant</span>
                     </a>
                     <div className="d-flex align-items-center gap-4">

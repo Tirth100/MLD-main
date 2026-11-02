@@ -223,7 +223,7 @@ export default function Login() {
 
             <div className="auth-brand-content">
                 <div className="auth-brand-icon mb-4">
-                    <img src="/logo.svg" alt="MLD" width="68" height="68" className="rounded-4 shadow" />
+                    <img src="/logo.png" alt="MLD" width="68" height="68" className="rounded-4 shadow" />
                 </div>
                 <h1 className="fw-bold display-5 mb-3">Meeting Leech Detector</h1>
                 <p className="auth-tagline">
