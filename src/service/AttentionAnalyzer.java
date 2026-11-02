@@ -34,10 +34,18 @@ public class AttentionAnalyzer {
         // Comprehensive case-insensitive matching for valid meeting applications & authorized workspaces
         String lowerWin = window.toLowerCase();
         if (lowerWin.contains("zoom")
-         || (lowerWin.contains("meet") && !lowerWin.contains("meeting leech detector") && !lowerWin.contains("mld employee"))
+         || (lowerWin.contains("meet") && !lowerWin.contains("meeting leech detector") && !lowerWin.contains("mld employee") && !lowerWin.contains("mld host"))
          || lowerWin.contains("teams")
          || lowerWin.contains("powerpoint")
-         || lowerWin.contains("powerpnt")) 
+         || lowerWin.contains("powerpnt")
+         || lowerWin.contains("webex")
+         || lowerWin.contains("slack")
+         || lowerWin.contains("huddle")
+         || lowerWin.contains("discord")
+         || lowerWin.contains("skype")
+         || lowerWin.contains("bluejeans")
+         || lowerWin.contains("chime")
+         || lowerWin.contains("gotomeeting")) 
         {
             isFocused = true;
         }

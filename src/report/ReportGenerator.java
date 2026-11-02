@@ -21,15 +21,16 @@ public class ReportGenerator {
             return;
         }
 
-        int totalChecks = report.getTotalChecks() > 0 ? report.getTotalChecks() : 1;
-        int focusedChecks = report.getTotalChecks() > 0 ? report.getFocusedChecks() : 1;
-        double finalScore = report.getTotalChecks() > 0 ? report.getAttentionScore() : 1.0;
+        int totalChecks = report.getTotalChecks();
+        int focusedChecks = report.getFocusedChecks();
+        double finalScore = totalChecks > 0 ? ((double) focusedChecks / totalChecks) : (report.getAttentionScore() <= 1.0 ? report.getAttentionScore() : report.getAttentionScore() / 100.0);
+        finalScore = Math.min(1.0, Math.max(0.0, finalScore));
+        int scorePct = (int) Math.round(finalScore * 100);
         String participation = (report.getParticipationLevel() != null && !report.getParticipationLevel().isBlank())
-                ? report.getParticipationLevel() : "Engaged";
+                ? report.getParticipationLevel() : (totalChecks > 0 ? new service.LeechDetector().checkLeech(finalScore) : "Low Engagement");
 
         String deviceId = report.getUsername() != null && report.getUsername().length() > 5 ? report.getUsername() : "local_device_1";
         String empName = DatabaseHelper.getEmployeeNameByUuid(deviceId);
-        int scorePct = (int) Math.round(finalScore * 100);
 
         StringBuilder sbTimeline = new StringBuilder("[");
         if (report.getWindowTimeline() != null && report.getFocusTimeline() != null && !report.getWindowTimeline().isEmpty()) {
@@ -199,12 +200,25 @@ public class ReportGenerator {
                         jsonArray.append("{");
                         int totalChecks = rs.getInt("total_checks");
                         int focusedChecks = rs.getInt("focused_checks");
+                        int scorePct;
+                        if (totalChecks > 0) {
+                            scorePct = (int) Math.round(((double) focusedChecks / totalChecks) * 100);
+                        } else {
+                            double dbScore = rs.getDouble("score");
+                            scorePct = dbScore <= 1.0 ? (int) Math.round(dbScore * 100) : (int) Math.round(dbScore);
+                        }
+                        scorePct = Math.min(100, Math.max(0, scorePct));
+
+                        String status = rs.getString("status");
+                        if (status == null || status.isBlank()) {
+                            status = new service.LeechDetector().checkLeech(scorePct / 100.0);
+                        }
                         
                         jsonArray.append("\"id\": ").append(rs.getInt("log_id")).append(",");
                         jsonArray.append("\"name\": \"").append(DatabaseHelper.escapeJson(name != null ? name : "Local System User")).append("\",");
                         jsonArray.append("\"role\": \"Employee\",");
-                        jsonArray.append("\"score\": ").append(Math.round(rs.getDouble("score") * 100)).append(",");
-                        jsonArray.append("\"status\": \"").append(rs.getString("status")).append("\",");
+                        jsonArray.append("\"score\": ").append(scorePct).append(",");
+                        jsonArray.append("\"status\": \"").append(DatabaseHelper.escapeJson(status)).append("\",");
                         jsonArray.append("\"totalChecks\": ").append(totalChecks).append(",");
                         jsonArray.append("\"focusedChecks\": ").append(focusedChecks).append(",");
                         jsonArray.append("\"durationSeconds\": ").append(totalChecks * 5).append(",");

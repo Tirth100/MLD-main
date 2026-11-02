@@ -919,9 +919,9 @@ public class ApiServer {
                         }
                     }
 
-                    double score = analyzer.getTotalCount() > 0 ? analyzer.getAttentionScore() : 1.0;
+                    double score = analyzer.getTotalCount() > 0 ? analyzer.getAttentionScore() : 0.0;
                     int scorePct = (int) Math.round(score * 100);
-                    String stat = new service.LeechDetector().checkLeech(score);
+                    String stat = analyzer.getTotalCount() > 0 ? new service.LeechDetector().checkLeech(score) : "Active";
                     String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace"
                             : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
 

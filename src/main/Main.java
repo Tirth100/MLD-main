@@ -84,10 +84,10 @@ public class Main {
                 try {
                     AttentionAnalyzer clientAnalyzer = entry.getValue();
                     
-                    double finalScore = clientAnalyzer.getTotalCount() > 0 ? clientAnalyzer.getAttentionScore() : 1.0;
-                    String status = new LeechDetector().checkLeech(finalScore);
-                    int totalCnt = clientAnalyzer.getTotalCount() > 0 ? clientAnalyzer.getTotalCount() : 1;
-                    int focusedCnt = clientAnalyzer.getTotalCount() > 0 ? clientAnalyzer.getFocusedCount() : 1;
+                    int totalCnt = clientAnalyzer.getTotalCount();
+                    int focusedCnt = clientAnalyzer.getFocusedCount();
+                    double finalScore = totalCnt > 0 ? ((double) focusedCnt / totalCnt) : 0.0;
+                    String status = totalCnt > 0 ? new LeechDetector().checkLeech(finalScore) : "Low Engagement";
                     
                     Report sessionReport = new Report(clientUuid, state.sessionCode, totalCnt, focusedCnt,
                             clientAnalyzer.isWebcamActive(),
@@ -125,8 +125,8 @@ public class Main {
                     int jOrg = DatabaseHelper.getOrgIdFromToken(joinedUuid);
                     if (jOrg == -1) jOrg = DatabaseHelper.getOrgIdFromToken(joinedUuid.toLowerCase());
                     if (jOrg == orgId) {
-                        Report joinedReport = new Report(joinedUuid, state.sessionCode, 1, 1, false, 1.0, "Engaged",
-                                java.util.Collections.singletonList("Meeting Session"), java.util.Collections.singletonList(true));
+                        Report joinedReport = new Report(joinedUuid, state.sessionCode, 0, 0, false, 0.0, "Low Engagement",
+                                java.util.Collections.singletonList("Meeting Session"), java.util.Collections.singletonList(false));
                         report.ReportGenerator.saveReport(joinedReport);
                         System.out.println("Saved joined participant attendance report for " + joinedUuid);
                     }

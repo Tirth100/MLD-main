@@ -38,6 +38,34 @@ export default function Reports() {
     return () => clearInterval(interval);
   }, []);
 
+  const getEmpScore = (emp) => {
+    if (!emp) return 0;
+    if (typeof emp.focusedChecks === 'number' && typeof emp.totalChecks === 'number' && emp.totalChecks > 0) {
+      return Math.min(100, Math.max(0, Math.round((emp.focusedChecks / emp.totalChecks) * 100)));
+    }
+    const raw = Number(emp.score !== undefined && emp.score !== null ? emp.score : emp.attentionScore);
+    if (isNaN(raw)) return 0;
+    if (raw > 0 && raw <= 1) return Math.min(100, Math.max(0, Math.round(raw * 100)));
+    return Math.min(100, Math.max(0, Math.round(raw)));
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds || isNaN(seconds) || seconds <= 0) return '0s';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    if (mins === 0) return `${secs}s`;
+    return `${mins}m ${secs}s`;
+  };
+
+  const getEmpDuration = (emp) => {
+    if (!emp) return 0;
+    if (emp.durationSeconds !== undefined && Number(emp.durationSeconds) > 0) return Number(emp.durationSeconds);
+    if (emp.totalChecks !== undefined && Number(emp.totalChecks) > 0) return Number(emp.totalChecks) * 5;
+    if (emp.duration !== undefined && Number(emp.duration) > 0) return Number(emp.duration);
+    return 0;
+  };
+
+
 
   const handleDeleteReport = async (emp) => {
     const reportIdentifier = emp.name || 'this participant';
@@ -83,8 +111,7 @@ export default function Reports() {
       return;
     }
     const participantName = selectedReport?.name || 'Participant';
-    const rawScore = Number(selectedReport?.score);
-    const scorePct = !isNaN(rawScore) ? (rawScore <= 1 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
+    const scorePct = getEmpScore(selectedReport);
     const sessionTime = (selectedReport?.joinTime || selectedReport?.timestamp)
       ? new Date(selectedReport.joinTime || selectedReport.timestamp).toLocaleString()
       : new Date().toLocaleString();
@@ -210,10 +237,11 @@ export default function Reports() {
       const worksheet = workbook.addWorksheet(sheetName);
 
       worksheet.columns = [
-        { header: 'Name', key: 'name', width: 20 },
-        { header: 'Role', key: 'role', width: 15 },
-        { header: 'Score (%)', key: 'score', width: 12 },
-        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Participant', key: 'name', width: 22 },
+        { header: 'Session Code', key: 'sessionCode', width: 16 },
+        { header: 'Duration', key: 'duration', width: 14 },
+        { header: 'Score (%)', key: 'score', width: 14 },
+        { header: 'Status', key: 'status', width: 18 },
         { header: 'Date & Time', key: 'dateTime', width: 25 },
       ];
 
@@ -225,18 +253,22 @@ export default function Reports() {
       };
 
       groupedByDay[day].forEach(emp => {
-        const score = emp.score !== undefined ? (emp.score <= 1 ? Math.round(emp.score * 100) : emp.score) : 0;
-        const statusText = score < 50 ? 'Distracted' : 'Engaged';
+        const score = getEmpScore(emp);
+        const statusText = emp.status && emp.status.trim() !== ''
+            ? emp.status
+            : (score > 75 ? 'Engaged' : (score >= 50 ? 'Focused' : 'Low Engagement'));
+        const dur = formatDuration(getEmpDuration(emp));
         
         const row = worksheet.addRow({
           name: emp.name,
-          role: emp.role,
-          score: score,
+          sessionCode: emp.sessionCode || '—',
+          duration: dur,
+          score: `${score}%`,
           status: statusText,
           dateTime: emp.dateObj.toLocaleString()
         });
 
-        const fillColor = statusText === 'Distracted' ? 'FFFFCCCC' : 'FFCCFFCC';
+        const fillColor = score > 75 ? 'FFDCFCE7' : (score >= 50 ? 'FFFEF3C7' : 'FFFEE2E2');
         row.eachCell((cell) => {
           cell.fill = {
             type: 'pattern',
@@ -290,8 +322,10 @@ export default function Reports() {
                           <thead className="bg-transparent">
                               <tr>
                                   <th scope="col" className="ps-4">Participant</th>
-                                  <th scope="col">Avg Score</th>
-                                  <th scope="col">General Status</th>
+                                  <th scope="col">Session</th>
+                                  <th scope="col">Duration</th>
+                                  <th scope="col">Attention Score</th>
+                                  <th scope="col">Status</th>
                                   <th scope="col">Date & Time</th>
                                   <th scope="col">Actions</th>
                               </tr>
@@ -299,37 +333,52 @@ export default function Reports() {
                           <tbody>
                               {loading && data.length === 0 ? (
                                   <tr>
-                                      <td colSpan="5" className="text-center py-4 text-muted">
+                                      <td colSpan="7" className="text-center py-4 text-muted">
                                           <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                           Loading reports...
                                       </td>
                                   </tr>
                               ) : filteredData.length === 0 ? (
                                   <tr>
-                                      <td colSpan="5" className="text-center py-4 text-muted">No records found.</td>
+                                      <td colSpan="7" className="text-center py-4 text-muted">No records found.</td>
                                   </tr>
                               ) : (
                                   filteredData.map((emp, i) => {
-                                      const rawScore = Number(emp.score);
-                                      const score = !isNaN(rawScore) ? (rawScore <= 1 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
+                                      const score = getEmpScore(emp);
                                       const statusBadge = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
                                       const statusText = emp.status && emp.status.trim() !== '' 
                                           ? emp.status 
                                           : (score > 75 ? 'Engaged' : (score >= 50 ? 'Focused' : 'Low Engagement'));
+                                      const dur = formatDuration(getEmpDuration(emp));
                                       
                                       return (
                                           <tr key={i}>
-                                              <td className="ps-4 fw-medium">{emp.name}</td>
-                                              <td><span className={`fw-bold text-${statusBadge}`}>{score}%</span></td>
-                                              <td><span className={`badge badge-soft-${statusBadge} px-3 py-2 rounded-pill`}>{statusText}</span></td>
+                                              <td className="ps-4 fw-medium text-dark">{emp.name}</td>
+                                              <td>
+                                                  <span className="badge bg-light text-secondary border font-monospace px-2.5 py-1">
+                                                      {emp.sessionCode || '—'}
+                                                  </span>
+                                              </td>
+                                              <td className="text-secondary small">{dur}</td>
+                                              <td>
+                                                  <div className="d-flex align-items-center gap-2">
+                                                      <span className={`fw-bold text-${statusBadge}`} style={{ minWidth: '40px' }}>
+                                                          {score}%
+                                                      </span>
+                                                      <div className="progress flex-grow-1" style={{ height: '6px', width: '60px', backgroundColor: '#e2e8f0' }}>
+                                                          <div className={`progress-bar bg-${statusBadge}`} style={{ width: `${score}%` }}></div>
+                                                      </div>
+                                                  </div>
+                                              </td>
+                                              <td><span className={`badge badge-soft-${statusBadge} px-3 py-1.5 rounded-pill`}>{statusText}</span></td>
                                               <td className="text-secondary small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString()}</td>
                                               <td className="text-nowrap">
-                                                   <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openTimeline(emp.timeline, emp)}>
+                                                   <button className="btn btn-sm btn-outline-primary me-2 shadow-xs" onClick={() => openTimeline(emp.timeline, emp)}>
                                                        <i className="bi bi-clock-history me-1"></i>View Timeline
                                                    </button>
                                                    {isManager && !emp.isLive && (
                                                        <button 
-                                                           className="btn btn-sm btn-outline-danger" 
+                                                           className="btn btn-sm btn-outline-danger shadow-xs" 
                                                            title="Delete this report"
                                                            disabled={deletingKey === (emp.id ? `id_${emp.id}` : `ts_${emp.timestamp}`)}
                                                            onClick={() => handleDeleteReport(emp)}

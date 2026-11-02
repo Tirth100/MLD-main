@@ -146,8 +146,19 @@ export default function ManagerDashboard() {
 
     const getEmpScore = (emp) => {
         if (!emp) return 0;
-        if (emp.score !== undefined && emp.score !== null) return Number(emp.score);
-        if (emp.attentionScore !== undefined && emp.attentionScore !== null) return Math.round(Number(emp.attentionScore) * 100);
+        if (typeof emp.focusedChecks === 'number' && typeof emp.totalChecks === 'number' && emp.totalChecks > 0) {
+            return Math.min(100, Math.max(0, Math.round((emp.focusedChecks / emp.totalChecks) * 100)));
+        }
+        if (emp.score !== undefined && emp.score !== null) {
+            const s = Number(emp.score);
+            if (s > 0 && s <= 1) return Math.round(s * 100);
+            return Math.round(s);
+        }
+        if (emp.attentionScore !== undefined && emp.attentionScore !== null) {
+            const s = Number(emp.attentionScore);
+            if (s > 0 && s <= 1) return Math.round(s * 100);
+            return Math.round(s);
+        }
         return 0;
     };
 
@@ -500,7 +511,7 @@ export default function ManagerDashboard() {
                                                     const s = getEmpScore(p);
                                                     const tierColor = s > 75 ? 'success' : (s >= 50 ? 'warning' : 'danger');
                                                     const tierName = s > 75 ? 'Engaged' : (s >= 50 ? 'Focused' : 'Low Engagement');
-                                                    const dur = p.duration ? formatDuration(p.duration) : (p.totalDuration ? formatDuration(p.totalDuration) : '-');
+                                                    const dur = p.durationSeconds ? formatDuration(p.durationSeconds) : (p.duration ? formatDuration(p.duration) : (p.totalDuration ? formatDuration(p.totalDuration) : '-'));
 
                                                     return (
                                                         <div key={idx} className="p-3 rounded-3 bg-light bg-opacity-75 border d-flex align-items-center justify-content-between flex-wrap gap-2">
