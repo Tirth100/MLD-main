@@ -71,9 +71,12 @@ public class Report {
         sb.append("  \"timeline\": [\n");
         if (windowTimeline != null && focusTimeline != null) {
             for (int i = 0; i < windowTimeline.size(); i++) {
+                String win = windowTimeline.get(i);
+                boolean isAi = win != null && (win.contains("[AI Detected") || win.contains("[AI Tool") || win.contains("Capture Evasion"));
                 sb.append("    { ");
-                sb.append("\"window\": \"").append(windowTimeline.get(i)).append("\", ");
-                sb.append("\"focused\": ").append(focusTimeline.get(i));
+                sb.append("\"window\": \"").append(database.DatabaseHelper.escapeJson(win)).append("\", ");
+                sb.append("\"focused\": ").append(focusTimeline.get(i)).append(", ");
+                sb.append("\"aiDetected\": ").append(isAi);
                 sb.append(" }");
                 if (i < windowTimeline.size() - 1) {
                     sb.append(",");

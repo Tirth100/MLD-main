@@ -60,11 +60,13 @@ export default function Alerts() {
               ) : (
                 alerts.map((alert, idx) => (
                   <div className="col-md-6 mb-4 alert-card" key={idx}>
-                      <div className="card glass-card h-100 border-start border-danger border-4">
+                      <div className={`card glass-card h-100 border-start ${alert.reason?.includes('Potential unauthorized assistance') ? 'border-warning' : 'border-danger'} border-4`}>
                           <div className="card-body">
                               <div className="d-flex justify-content-between align-items-center mb-3">
                                   <h5 className="card-title mb-0 fw-bold">{alert.name}</h5>
-                                  <span className="badge bg-danger rounded-pill px-3 py-2">Low Engagement</span>
+                                  <span className={`badge ${alert.reason?.includes('Potential unauthorized assistance') ? 'bg-warning text-dark' : 'bg-danger'} rounded-pill px-3 py-2`}>
+                                      {alert.reason?.includes('Potential unauthorized assistance') ? 'AI Assistance Review' : 'Low Engagement'}
+                                  </span>
                               </div>
                               <p className="card-text text-muted mb-3">{alert.reason}</p>
                               <div className="d-flex justify-content-between align-items-center mt-auto">

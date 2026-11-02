@@ -29,8 +29,11 @@ public class ReportGenerator {
         StringBuilder sbTimeline = new StringBuilder("[");
         if (report.getWindowTimeline() != null && report.getFocusTimeline() != null) {
             for (int i = 0; i < report.getWindowTimeline().size(); i++) {
-                sbTimeline.append("{\"window\": \"").append(report.getWindowTimeline().get(i)).append("\", ");
-                sbTimeline.append("\"focused\": ").append(report.getFocusTimeline().get(i)).append("}");
+                String win = report.getWindowTimeline().get(i);
+                boolean isAi = win != null && (win.contains("[AI Detected") || win.contains("[AI Tool") || win.contains("Capture Evasion"));
+                sbTimeline.append("{\"window\": \"").append(DatabaseHelper.escapeJson(win)).append("\", ");
+                sbTimeline.append("\"focused\": ").append(report.getFocusTimeline().get(i)).append(", ");
+                sbTimeline.append("\"aiDetected\": ").append(isAi).append("}");
                 if (i < report.getWindowTimeline().size() - 1) sbTimeline.append(",");
             }
         }

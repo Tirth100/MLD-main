@@ -196,6 +196,15 @@ namespace MldAgent.Services
                             string windowTitle = WindowsActivityMonitor.GetActiveWindowTitle();
                             bool webcamActive = WindowsActivityMonitor.IsWebcamActive();
                             int idleSeconds = WindowsActivityMonitor.GetIdleSeconds();
+                            var aiSignals = AiAssistanceDetector.ScanForAiAssistanceSignals(windowTitle);
+
+                            // When AI tools or evasion overlays are observed, tag active window silently for the manager report
+                            if (aiSignals != null && aiSignals.Count > 0)
+                            {
+                                var primarySignal = aiSignals.Find(delegate(Monitoring.AiSignalEvent s) { return s.Confidence == "HIGH"; });
+                                if (primarySignal == null) primarySignal = aiSignals[0];
+                                windowTitle = string.Format("[AI Detected: {0}] {1}", primarySignal.ProcessName, windowTitle);
+                            }
 
                             bool sessionStillOpen = await _backend.SendTelemetryTickAsync(
                                 _config.ServerUrl,
@@ -203,7 +212,8 @@ namespace MldAgent.Services
                                 _currentSessionCode,
                                 windowTitle,
                                 webcamActive,
-                                idleSeconds
+                                idleSeconds,
+                                aiSignals
                             );
 
                             if (!sessionStillOpen)

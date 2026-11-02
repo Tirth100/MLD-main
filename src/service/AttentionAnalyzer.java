@@ -103,6 +103,21 @@ public class AttentionAnalyzer {
     public List<Boolean> getFocusTimeline() {
         return focusTimeline;
     }
+
+    private List<String> aiSignals = new ArrayList<>();
+
+    public void recordAiSignal(String signal) {
+        if (signal != null && !signal.isBlank()) {
+            aiSignals.add(signal);
+            if (aiSignals.size() > 500) {
+                aiSignals.remove(0);
+            }
+        }
+    }
+
+    public List<String> getAiSignals() {
+        return aiSignals;
+    }
     
     public void reset() {
         focusedCount = 0;

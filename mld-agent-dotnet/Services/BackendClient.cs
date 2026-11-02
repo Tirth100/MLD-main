@@ -74,9 +74,9 @@ namespace MldAgent.Services
             return result;
         }
 
-        public async Task<bool> SendTelemetryTickAsync(string baseUrl, string uuid, string sessionCode, string window, bool webcam, int idleSeconds)
+        public async Task<bool> SendTelemetryTickAsync(string baseUrl, string uuid, string sessionCode, string window, bool webcam, int idleSeconds, List<Monitoring.AiSignalEvent> aiSignals = null)
         {
-            string payload = BuildTelemetryJson(uuid, sessionCode, window, webcam, idleSeconds);
+            string payload = BuildTelemetryJson(uuid, sessionCode, window, webcam, idleSeconds, aiSignals);
             string endpoint = CombineUrl(baseUrl, "/api/track");
 
             try
@@ -142,15 +142,27 @@ namespace MldAgent.Services
             }
         }
 
-        private static string BuildTelemetryJson(string uuid, string sessionCode, string window, bool webcam, int idleSeconds)
+        private static string BuildTelemetryJson(string uuid, string sessionCode, string window, bool webcam, int idleSeconds, List<Monitoring.AiSignalEvent> aiSignals = null)
         {
+            StringBuilder sbSignals = new StringBuilder("[");
+            if (aiSignals != null && aiSignals.Count > 0)
+            {
+                for (int i = 0; i < aiSignals.Count; i++)
+                {
+                    sbSignals.Append(aiSignals[i].ToJson());
+                    if (i < aiSignals.Count - 1) sbSignals.Append(",");
+                }
+            }
+            sbSignals.Append("]");
+
             return string.Format(
-                "{{\"uuid\":\"{0}\",\"sessionCode\":\"{1}\",\"window\":\"{2}\",\"webcam\":{3},\"idle\":{4}}}",
+                "{{\"uuid\":\"{0}\",\"sessionCode\":\"{1}\",\"window\":\"{2}\",\"webcam\":{3},\"idle\":{4},\"aiSignals\":{5}}}",
                 EscapeJson(uuid),
                 EscapeJson(sessionCode),
                 EscapeJson(window),
                 webcam ? "true" : "false",
-                idleSeconds
+                idleSeconds,
+                sbSignals.ToString()
             );
         }
 

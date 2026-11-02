@@ -634,6 +634,63 @@ public class ApiServer {
         }
     }
 
+        private static final java.util.Map<String, Long> lastAiAlertTimes = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void processAiSignals(int orgId, String uuid, String sessionCode, String body, service.AttentionAnalyzer analyzer) {
+        try {
+            int sigStart = body.indexOf("\"aiSignals\":");
+            if (sigStart < 0) return;
+            int arrStart = body.indexOf("[", sigStart);
+            int arrEnd = body.lastIndexOf("]");
+            if (arrStart < 0 || arrEnd <= arrStart) return;
+
+            String inner = body.substring(arrStart + 1, arrEnd).trim();
+            if (inner.isEmpty()) return;
+
+            int idx = 0;
+            while (idx < inner.length()) {
+                int objStart = inner.indexOf("{", idx);
+                if (objStart < 0) break;
+                int objEnd = inner.indexOf("}", objStart);
+                if (objEnd < 0) break;
+
+                String objStr = inner.substring(objStart, objEnd + 1);
+                idx = objEnd + 1;
+
+                String type = extractJsonField(objStr, "type");
+                String proc = extractJsonField(objStr, "process");
+                String confidence = extractJsonField(objStr, "confidence");
+                String reason = extractJsonField(objStr, "reason");
+
+                if ("HIGH".equalsIgnoreCase(confidence) || "MEDIUM".equalsIgnoreCase(confidence)) {
+                    analyzer.recordAiSignal(type + ": " + reason);
+
+                    String throttleKey = uuid + "_" + type;
+                    long now = System.currentTimeMillis();
+                    Long lastTime = lastAiAlertTimes.get(throttleKey);
+
+                    if (lastTime == null || (now - lastTime) > 60000) {
+                        lastAiAlertTimes.put(throttleKey, now);
+
+                        String empName = DatabaseHelper.getEmployeeNameByUuid(uuid);
+                        if (empName == null || empName.isBlank()) {
+                            empName = "Participant (" + (uuid.length() > 6 ? uuid.substring(0, 6) : uuid) + ")";
+                        }
+
+                        int scorePct = (int) Math.round(analyzer.getAttentionScore() * 100);
+                        String alertReason = "Potential unauthorized assistance — review required: " + reason + " (" + confidence + " Confidence)";
+                        String timeStr = new java.text.SimpleDateFormat("hh:mm:ss a").format(new java.util.Date());
+
+                        addOrgAlert(orgId, empName, sessionCode, scorePct, alertReason, timeStr);
+                        System.out.println("[AI Alert] " + alertReason + " for " + empName);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Error processing AI assistance signals: " + ex.getMessage());
+        }
+    }
+
     class TrackHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -698,6 +755,10 @@ public class ApiServer {
                         String activeSessionCode = sessionCode;
                         if (activeSessionCode == null || activeSessionCode.isEmpty()) {
                             activeSessionCode = Main.orgSessions.get(orgId).sessionCode;
+                        }
+
+                        if (body.contains("\"aiSignals\"")) {
+                            processAiSignals(orgId, cleanUuid, activeSessionCode, body, analyzer);
                         }
 
                         // Note: intermediate ticks tracked in-memory only; final report committed upon
@@ -932,17 +993,15 @@ public class ApiServer {
                         }
                     }
                 }
-            } else {
-                // Meeting terminated: show the leech founded employees alerts recorded upon
-                // termination
-                java.util.List<AlertRecord> postMeetingAlerts = getOrgAlerts(orgId);
-                if (postMeetingAlerts != null && !postMeetingAlerts.isEmpty()) {
-                    for (AlertRecord alert : postMeetingAlerts) {
-                        if (!first)
-                            combinedJson.append(",");
-                        combinedJson.append(alert.toJson());
-                        first = false;
-                    }
+            }
+            // Stream stored alerts (e.g. AI assistance alerts and end-of-session alerts)
+            java.util.List<AlertRecord> storedAlerts = getOrgAlerts(orgId);
+            if (storedAlerts != null && !storedAlerts.isEmpty()) {
+                for (AlertRecord alert : storedAlerts) {
+                    if (!first)
+                        combinedJson.append(",");
+                    combinedJson.append(alert.toJson());
+                    first = false;
                 }
             }
 
@@ -955,6 +1014,11 @@ public class ApiServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
             String token = extractToken(exchange);
             int orgId = DatabaseHelper.getOrgIdFromToken(token);
             if (orgId == -1) {

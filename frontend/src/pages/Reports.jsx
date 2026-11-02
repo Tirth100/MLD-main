@@ -292,13 +292,23 @@ export default function Reports() {
                                             const winName = check.window || "Desktop Workspace";
                                             const lowerWin = winName.toLowerCase();
                                             const isMeetingOrWorkspace = check.focused;
+                                            const isAi = check.aiDetected || lowerWin.includes('[ai detected') || lowerWin.includes('[ai tool') || lowerWin.includes('capture evasion');
 
                                             return (
-                                                <tr key={index}>
-                                                    <td className="ps-4">{timeSec}s</td>
-                                                    <td><small className="text-secondary">{winName}</small></td>
+                                                <tr key={index} className={isAi ? "table-danger bg-danger bg-opacity-10" : ""}>
+                                                    <td className="ps-4 fw-bold">{timeSec}s</td>
                                                     <td>
-                                                        {isMeetingOrWorkspace ? (
+                                                        <small className={isAi ? "text-danger fw-semibold" : "text-secondary"}>
+                                                            {isAi && <i className="bi bi-robot me-1 text-danger"></i>}
+                                                            {winName}
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        {isAi ? (
+                                                            <span className="badge bg-danger rounded-pill px-3 py-1">
+                                                                <i className="bi bi-exclamation-triangle-fill me-1"></i>AI Detected
+                                                            </span>
+                                                        ) : isMeetingOrWorkspace ? (
                                                             <span className="text-success fw-bold">Focused</span>
                                                         ) : (
                                                             <span className="text-danger">Distracted</span>

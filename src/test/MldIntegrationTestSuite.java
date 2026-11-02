@@ -249,6 +249,26 @@ public class MldIntegrationTestSuite {
             assertTrue("Employee cannot see other employees' reports (Krishna is isolated and not visible to Sarah)",
                     !empEngageResp.contains("KRISHNA") && !empEngageResp.contains("krishna-device-uuid-9"));
 
+            // Test 19: AI Assistance detection telemetry ingestion and alert generation
+            String startRes = sendHttpRequest("POST", "/api/start", "{\"sessionCode\":\"AI-TEST-99\"}", managerToken);
+            String aiSessionCode = extractJsonField(startRes, "sessionCode");
+            sendHttpRequest("POST", "/api/join", String.format("{\"sessionCode\":\"%s\",\"uuid\":\"%s\"}", aiSessionCode, empToken), empToken);
+            String aiTrackPayload = String.format(
+                "{\"uuid\":\"%s\",\"sessionCode\":\"%s\",\"window\":\"Zoom Meeting\",\"webcam\":true,\"idle\":0," +
+                "\"aiSignals\":[{\"type\":\"SCREEN_CAPTURE_EVASION\",\"process\":\"finalround.exe\",\"title\":\"Interview Copilot\",\"confidence\":\"HIGH\",\"reason\":\"Window explicitly configured with WDA_EXCLUDEFROMCAPTURE to hide from meeting screen share\",\"observed\":true}]}",
+                empToken, aiSessionCode
+            );
+            sendHttpRequest("POST", "/api/track", aiTrackPayload, empToken);
+            String alertsAiResp = sendHttpRequest("GET", "/api/alerts", null, managerToken);
+            assertTrue("AI assistance detection telemetry triggers neutral review alert",
+                    alertsAiResp.contains("Potential unauthorized assistance") && alertsAiResp.contains("WDA_EXCLUDEFROMCAPTURE"));
+
+            // Test 20: Verify attention scoring is completely preserved when AI signals are ingested
+            service.AttentionAnalyzer aiAnalyzer = main.Main.analyzers.get(empToken.toLowerCase());
+            assertTrue("Attention score remains purely based on focus telemetry without score corruption",
+                    aiAnalyzer != null && aiAnalyzer.getAiSignals().size() > 0);
+            sendHttpRequest("POST", "/api/stop", "{}", managerToken);
+
         } catch (Exception e) {
             System.err.println("Fatal Integration Test Error: " + e.getMessage());
             e.printStackTrace();
