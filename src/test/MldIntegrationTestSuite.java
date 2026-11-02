@@ -230,6 +230,8 @@ public class MldIntegrationTestSuite {
                     !alertsNewMeeting.contains("Dev Leech Employee"));
             sendHttpRequest("POST", "/api/stop", "{}", managerToken);
 
+
+
             // Test 18: Strict employee report isolation: employee only sees their own
             // reports on /api/engagement
             String empLoginPayload = String.format("{\"email\":\"%s\",\"password\":\"EmpPass#2026\"}", empEmail);
@@ -268,6 +270,34 @@ public class MldIntegrationTestSuite {
             assertTrue("Attention score remains purely based on focus telemetry without score corruption",
                     aiAnalyzer != null && aiAnalyzer.getAiSignals().size() > 0);
             sendHttpRequest("POST", "/api/stop", "{}", managerToken);
+
+            // Test 21: Forgot Password OTP Generation & Non-existent Email Handling
+            String forgotUnregisteredResp = sendHttpRequest("POST", "/api/forgot-password", "{\"email\":\"nonexistent.user99@unknown.org\"}", null);
+            assertTrue("POST /api/forgot-password rejects unregistered email address",
+                    forgotUnregisteredResp.contains("No registered account found"));
+
+            String forgotValidResp = sendHttpRequest("POST", "/api/forgot-password", String.format("{\"email\":\"%s\"}", empEmail), null);
+            assertTrue("POST /api/forgot-password succeeds for registered account",
+                    forgotValidResp.contains("success") && forgotValidResp.contains("verification code"));
+            String devOtp = extractJsonField(forgotValidResp, "devOtp");
+
+            // Test 22: Reset Password OTP Rejection on Invalid Code
+            String wrongOtpPayload = String.format("{\"email\":\"%s\",\"otp\":\"000000\",\"newPassword\":\"BrandNewPass#2026\"}", empEmail);
+            String resetFailResp = sendHttpRequest("POST", "/api/reset-password", wrongOtpPayload, null);
+            assertTrue("POST /api/reset-password rejects incorrect verification code",
+                    resetFailResp.contains("Invalid verification code"));
+
+            // Test 23: Successful Password Reset and Subsequent Login
+            String validResetPayload = String.format("{\"email\":\"%s\",\"otp\":\"%s\",\"newPassword\":\"BrandNewPass#2026\"}", empEmail, devOtp);
+            String resetSuccessResp = sendHttpRequest("POST", "/api/reset-password", validResetPayload, null);
+            assertTrue("POST /api/reset-password accepts valid OTP and updates password",
+                    resetSuccessResp.contains("success") && resetSuccessResp.contains("successfully reset"));
+
+            String newLoginPayload = String.format("{\"email\":\"%s\",\"password\":\"BrandNewPass#2026\"}", empEmail);
+            String newLoginResp = sendHttpRequest("POST", "/api/login", newLoginPayload, null);
+            assertTrue("User successfully logs in with the newly updated password",
+                    newLoginResp.contains("token") && newLoginResp.contains("EMPLOYEE"));
+
 
         } catch (Exception e) {
             System.err.println("Fatal Integration Test Error: " + e.getMessage());

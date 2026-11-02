@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.security.SecureRandom;
 
 public class DatabaseHelper {
 
@@ -1153,6 +1154,162 @@ public class DatabaseHelper {
             }
         }
         return "{}";
+    }
+
+    public static class PasswordResetOtp {
+        public final String email;
+        public final String otp;
+        public final long expiresAt;
+        public int attempts;
+
+        public PasswordResetOtp(String email, String otp, long expiresAt) {
+            this.email = email;
+            this.otp = otp;
+            this.expiresAt = expiresAt;
+            this.attempts = 0;
+        }
+    }
+
+    private static final Map<String, PasswordResetOtp> resetOtpsByEmail = new ConcurrentHashMap<>();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    public static class ForgotPasswordResult {
+        public final boolean success;
+        public final String message;
+        public final String devOtp;
+
+        public ForgotPasswordResult(boolean success, String message, String devOtp) {
+            this.success = success;
+            this.message = message;
+            this.devOtp = devOtp;
+        }
+    }
+
+    public static class ResetPasswordResult {
+        public final boolean success;
+        public final String message;
+
+        public ResetPasswordResult(boolean success, String message) {
+            this.success = success;
+            this.message = message;
+        }
+    }
+
+    public static ForgotPasswordResult generatePasswordResetOtp(String email) {
+        if (email == null || email.trim().isEmpty() || !api.InputValidator.isValidEmail(email.trim())) {
+            return new ForgotPasswordResult(false, "Please provide a valid registered email address.", null);
+        }
+        String safeEmail = email.trim().toLowerCase();
+        boolean userFound = false;
+
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "SELECT user_id FROM users WHERE LOWER(TRIM(email)) = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, safeEmail);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    userFound = true;
+                }
+                conn.close();
+            } catch (Exception e) {
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+
+        if (!userFound) {
+            for (UserRecord u : usersByEmail.values()) {
+                if (u.email != null && u.email.trim().equalsIgnoreCase(safeEmail)) {
+                    userFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!userFound) {
+            return new ForgotPasswordResult(false, "No registered account found with this email address.", null);
+        }
+
+        int code = 100000 + SECURE_RANDOM.nextInt(900000);
+        String otp = String.valueOf(code);
+        long expiresAt = System.currentTimeMillis() + (10 * 60 * 1000); // 10 minutes
+        resetOtpsByEmail.put(safeEmail, new PasswordResetOtp(safeEmail, otp, expiresAt));
+        System.out.println("[MLD-AUTH] Generated password reset code for " + safeEmail + ": " + otp);
+
+        return new ForgotPasswordResult(true, "A 6-digit verification code has been sent. It expires in 10 minutes.", otp);
+    }
+
+    public static ResetPasswordResult resetPasswordWithOtp(String email, String otp, String newPassword) {
+        if (email == null || email.trim().isEmpty()) {
+            return new ResetPasswordResult(false, "Email address is required.");
+        }
+        if (otp == null || otp.trim().isEmpty()) {
+            return new ResetPasswordResult(false, "Verification code is required.");
+        }
+        if (newPassword == null || !api.InputValidator.isValidPassword(newPassword)) {
+            return new ResetPasswordResult(false, "Password must be at least 8 characters long and contain uppercase, lowercase, and a number.");
+        }
+
+        String safeEmail = email.trim().toLowerCase();
+        PasswordResetOtp record = resetOtpsByEmail.get(safeEmail);
+        if (record == null) {
+            return new ResetPasswordResult(false, "No active password reset request found for this email. Please request a new code.");
+        }
+
+        if (System.currentTimeMillis() > record.expiresAt) {
+            resetOtpsByEmail.remove(safeEmail);
+            return new ResetPasswordResult(false, "Verification code has expired. Please request a new code.");
+        }
+
+        record.attempts++;
+        if (record.attempts > 5) {
+            resetOtpsByEmail.remove(safeEmail);
+            return new ResetPasswordResult(false, "Too many failed attempts. Please request a new code.");
+        }
+
+        if (!record.otp.equals(otp.trim())) {
+            return new ResetPasswordResult(false, "Invalid verification code. Please check and try again.");
+        }
+
+        String newHashed = PasswordUtil.hashPassword(newPassword);
+        boolean updated = false;
+
+        Connection conn = connect();
+        if (conn != null) {
+            try {
+                String sql = "UPDATE users SET password = ? WHERE LOWER(TRIM(email)) = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, newHashed);
+                ps.setString(2, safeEmail);
+                int rows = ps.executeUpdate();
+                conn.close();
+                if (rows > 0) {
+                    updated = true;
+                }
+            } catch (Exception e) {
+                System.err.println("DB error resetting password: " + e.getMessage());
+                try { conn.close(); } catch (Exception ignore) {}
+            }
+        }
+
+        for (UserRecord u : usersByEmail.values()) {
+            if (u.email != null && u.email.trim().equalsIgnoreCase(safeEmail)) {
+                u.password = newHashed;
+                UserRecord byId = usersById.get(u.userId);
+                if (byId != null) {
+                    byId.password = newHashed;
+                }
+                updated = true;
+            }
+        }
+
+        if (updated) {
+            resetOtpsByEmail.remove(safeEmail);
+            return new ResetPasswordResult(true, "Password has been successfully reset! You can now sign in.");
+        } else {
+            return new ResetPasswordResult(false, "Account could not be found to update password.");
+        }
     }
 
     public static boolean resetPassword(String token, String newPass) {

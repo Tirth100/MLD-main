@@ -156,6 +156,7 @@ public class ApiServer {
         server.createContext("/api/employees", new EmployeesHandler());
         server.createContext("/api/employees/remove", new RemoveEmployeeHandler());
         server.createContext("/api/profile", new ProfileHandler());
+        server.createContext("/api/forgot-password", new ForgotPasswordHandler());
         server.createContext("/api/reset-password", new ResetPasswordHandler());
         server.createContext("/api/notifications", new NotificationsHandler());
         server.createContext("/api/google-login", new GoogleLoginHandler());
@@ -1525,30 +1526,105 @@ public class ApiServer {
         }
     }
 
-    class ResetPasswordHandler implements HttpHandler {
+    class ForgotPasswordHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
             if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                addCorsHeaders(exchange);
                 exchange.sendResponseHeaders(204, -1);
                 exchange.close();
                 return;
             }
-            addCorsHeaders(exchange);
-            if ("POST".equals(exchange.getRequestMethod())) {
-                String token = extractToken(exchange);
-                try {
-                    InputStream is = exchange.getRequestBody();
-                    String body = new String(is.readAllBytes());
-                    String newPass = extractJsonField(body, "newPassword");
-                    boolean success = DatabaseHelper.resetPassword(token, newPass);
-                    sendResponse(exchange, "{\"success\": " + success + "}");
-                } catch (Exception e) {
-                    sendResponse(exchange, "{\"success\": false}");
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendJsonError(exchange, 405, "Method Not Allowed");
+                return;
+            }
+            try {
+                InputStream is = exchange.getRequestBody();
+                String body = new String(is.readAllBytes());
+                String email = extractJsonField(body, "email");
+                if (email == null || email.trim().isEmpty() || !InputValidator.isValidEmail(email.trim())) {
+                    sendJsonError(exchange, 400, "Please provide a valid registered email address.");
+                    return;
                 }
+                DatabaseHelper.ForgotPasswordResult res = DatabaseHelper.generatePasswordResetOtp(email);
+                if (res.success) {
+                    StringBuilder json = new StringBuilder("{");
+                    json.append("\"success\": true,");
+                    json.append("\"message\": \"").append(escapeJson(res.message)).append("\"");
+                    if (res.devOtp != null) {
+                        json.append(",\"devOtp\": \"").append(escapeJson(res.devOtp)).append("\"");
+                    }
+                    json.append("}");
+                    sendResponse(exchange, json.toString());
+                } else {
+                    sendJsonError(exchange, 404, res.message);
+                }
+            } catch (Exception e) {
+                sendJsonError(exchange, 500, "Failed to process request: " + e.getMessage());
             }
         }
     }
+
+    class ResetPasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendJsonError(exchange, 405, "Method Not Allowed");
+                return;
+            }
+            try {
+                InputStream is = exchange.getRequestBody();
+                String body = new String(is.readAllBytes());
+                String email = extractJsonField(body, "email");
+                String otp = extractJsonField(body, "otp");
+                String newPass = extractJsonField(body, "newPassword");
+
+                if (otp != null && !otp.trim().isEmpty()) {
+                    if (email == null || email.trim().isEmpty()) {
+                        sendJsonError(exchange, 400, "Email address is required.");
+                        return;
+                    }
+                    if (newPass == null || !InputValidator.isValidPassword(newPass)) {
+                        sendJsonError(exchange, 400, "Password must be at least 8 characters long and contain uppercase, lowercase, and a number.");
+                        return;
+                    }
+                    DatabaseHelper.ResetPasswordResult res = DatabaseHelper.resetPasswordWithOtp(email, otp, newPass);
+                    if (res.success) {
+                        sendResponse(exchange, "{\"success\": true, \"message\": \"" + escapeJson(res.message) + "\"}");
+                    } else {
+                        sendJsonError(exchange, 400, res.message);
+                    }
+                    return;
+                }
+
+                String token = extractToken(exchange);
+                if (token.isEmpty()) {
+                    sendJsonError(exchange, 401, "Unauthorized or missing credentials.");
+                    return;
+                }
+                if (newPass == null || !InputValidator.isValidPassword(newPass)) {
+                    sendJsonError(exchange, 400, "Password must be at least 8 characters long and contain uppercase, lowercase, and a number.");
+                    return;
+                }
+                boolean success = DatabaseHelper.resetPassword(token, newPass);
+                if (success) {
+                    sendResponse(exchange, "{\"success\": true, \"message\": \"Password updated successfully.\"}");
+                } else {
+                    sendJsonError(exchange, 400, "Failed to update password.");
+                }
+            } catch (Exception e) {
+                sendJsonError(exchange, 500, "Password reset failed: " + e.getMessage());
+            }
+        }
+    }
+
 
     class NotificationsHandler implements HttpHandler {
         @Override
