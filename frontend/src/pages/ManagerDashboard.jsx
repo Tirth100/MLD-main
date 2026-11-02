@@ -373,13 +373,12 @@ export default function ManagerDashboard() {
                                 <div className="card glass-card h-100">
                                     <div className="card-body">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="card-subtitle text-muted">Total Monitored</h6>
+                                            <h6 className="card-subtitle text-muted mb-0">Total Monitored</h6>
                                             <div className="bg-primary bg-opacity-10 p-2 rounded text-primary">
                                                 <i className="bi bi-people-fill"></i>
                                             </div>
                                         </div>
-                                        <h2 className="metric-value">{uniqueEmployees}</h2>
-                                        <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Based on active records</span>
+                                        <h2 className="metric-value mb-0">{uniqueEmployees}</h2>
                                     </div>
                                 </div>
                             </div>
@@ -387,13 +386,12 @@ export default function ManagerDashboard() {
                                 <div className="card glass-card h-100">
                                     <div className="card-body">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="card-subtitle text-muted">Avg Engagement</h6>
+                                            <h6 className="card-subtitle text-muted mb-0">Avg Engagement</h6>
                                             <div className="bg-info bg-opacity-10 p-2 rounded text-info">
                                                 <i className="bi bi-activity"></i>
                                             </div>
                                         </div>
-                                        <h2 className="metric-value">{avgEngagement}%</h2>
-                                        <span className="text-success small"><i className="bi bi-arrow-up-short"></i> Across all active participants</span>
+                                        <h2 className="metric-value mb-0">{avgEngagement}%</h2>
                                     </div>
                                 </div>
                             </div>
@@ -401,13 +399,12 @@ export default function ManagerDashboard() {
                                 <div className="card glass-card h-100">
                                     <div className="card-body">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="card-subtitle text-muted">Active Sessions</h6>
+                                            <h6 className="card-subtitle text-muted mb-0">Active Sessions</h6>
                                             <div className="bg-warning bg-opacity-10 p-2 rounded text-warning">
                                                 <i className="bi bi-camera-video-fill"></i>
                                             </div>
                                         </div>
-                                        <h2 className="metric-value">{session.active ? 1 : 0}</h2>
-                                        <span className="text-muted small">Live right now</span>
+                                        <h2 className="metric-value mb-0">{session.active ? 1 : 0}</h2>
                                     </div>
                                 </div>
                             </div>
@@ -415,13 +412,12 @@ export default function ManagerDashboard() {
                                 <div className="card glass-card h-100">
                                     <div className="card-body">
                                         <div className="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 className="card-subtitle text-muted">Low Engagement Alerts</h6>
+                                            <h6 className="card-subtitle text-muted mb-0">Low Engagement Alerts</h6>
                                             <div className="bg-danger bg-opacity-10 p-2 rounded text-danger">
                                                 <i className="bi bi-exclamation-triangle-fill"></i>
                                             </div>
                                         </div>
-                                        <h2 className="metric-value text-danger">{alerts.length}</h2>
-                                        <span className="text-danger small">Requires attention</span>
+                                        <h2 className="metric-value text-danger mb-0">{alerts.length}</h2>
                                     </div>
                                 </div>
                             </div>
@@ -492,10 +488,15 @@ export default function ManagerDashboard() {
 
                                                             return (
                                                                 <React.Fragment key={`group-${i}`}>
-                                                                    <tr className="bg-light" style={{ cursor: 'pointer' }} onClick={() => toggleRow(group.name)}>
+                                                                    <tr className="bg-light bg-opacity-75" style={{ cursor: 'pointer' }} onClick={() => toggleRow(group.name)}>
                                                                         <td className="ps-4 fw-bold">
-                                                                            <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-2 text-muted`}></i>
-                                                                            {group.name}
+                                                                            <div className="d-flex align-items-center">
+                                                                                <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-2 text-primary`}></i>
+                                                                                <span>{group.name}</span>
+                                                                                <span className="badge bg-secondary bg-opacity-10 text-secondary border ms-2 small fw-normal">
+                                                                                    {group.sessions.length} {group.sessions.length === 1 ? 'session' : 'sessions'}
+                                                                                </span>
+                                                                            </div>
                                                                         </td>
                                                                         <td className="font-monospace text-muted">{group.lastSessionCode || '-'}</td>
                                                                         <td className="fw-medium text-primary">{formatDuration(durSec)}</td>
@@ -512,15 +513,30 @@ export default function ManagerDashboard() {
                                                                         const score = getEmpScore(emp);
                                                                         const sColor = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
                                                                         const empDur = getEmpDuration(emp);
+                                                                        const sessionDate = (emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : null;
 
                                                                         return (
-                                                                            <tr key={`sub-${i}-${j}`} className="bg-white">
-                                                                                <td className="ps-5 border-start border-3 border-primary text-secondary">└─ Session {j + 1}</td>
-                                                                                <td className="font-monospace text-muted">{emp.sessionCode || '-'}</td>
-                                                                                <td className="fw-medium text-primary">{formatDuration(empDur)}</td>
+                                                                            <tr key={`sub-${i}-${j}`} style={{ backgroundColor: '#f8fafc' }}>
+                                                                                <td className="ps-5">
+                                                                                    <div className="d-flex align-items-center">
+                                                                                        <i className="bi bi-arrow-return-right text-muted me-2 small"></i>
+                                                                                        <span className="badge bg-white text-dark border px-2 py-1 rounded-pill fw-semibold me-2 shadow-xs">
+                                                                                            Session {j + 1}
+                                                                                        </span>
+                                                                                        {sessionDate && (
+                                                                                            <span className="text-muted small">({sessionDate})</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <span className="badge bg-light text-secondary border font-monospace px-2 py-1">
+                                                                                        {emp.sessionCode || '-'}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td className="fw-medium text-secondary">{formatDuration(empDur)}</td>
                                                                                 <td>
                                                                                     <div className="d-flex align-items-center gap-2">
-                                                                                        <div className="progress flex-grow-1" style={{ height: '6px' }}>
+                                                                                        <div className="progress flex-grow-1" style={{ height: '6px', backgroundColor: '#e2e8f0' }}>
                                                                                             <div className={`progress-bar bg-${sColor}`} role="progressbar" style={{ width: `${Math.min(100, Math.max(0, score))}%` }}></div>
                                                                                         </div>
                                                                                         <span className={`fw-bold text-${sColor}`} style={{ minWidth: '40px' }}>{score}%</span>
