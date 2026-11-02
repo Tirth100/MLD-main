@@ -9,6 +9,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [timelineData, setTimelineData] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingKey, setDeletingKey] = useState(null);
   const userRole = localStorage.getItem('user_role');
@@ -70,9 +71,106 @@ export default function Reports() {
     }
   };
 
-  const openTimeline = (timeline) => {
+  const openTimeline = (timeline, emp = null) => {
     setTimelineData(timeline || []);
+    setSelectedReport(emp);
     setShowModal(true);
+  };
+
+  const exportTimelineToExcel = async () => {
+    if (!timelineData || timelineData.length === 0) {
+      alert("No timeline activity to export.");
+      return;
+    }
+    const participantName = selectedReport?.name || 'Participant';
+    const rawScore = Number(selectedReport?.score);
+    const scorePct = !isNaN(rawScore) ? (rawScore <= 1 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore)) : 0;
+    const sessionTime = (selectedReport?.joinTime || selectedReport?.timestamp)
+      ? new Date(selectedReport.joinTime || selectedReport.timestamp).toLocaleString()
+      : new Date().toLocaleString();
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Timeline Activity');
+
+    worksheet.mergeCells('A1:C1');
+    worksheet.getCell('A1').value = 'Meeting Leech Detector — Session Timeline Activity';
+    worksheet.getCell('A1').font = { size: 14, bold: true, color: { argb: 'FF1E293B' } };
+    worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
+
+    worksheet.getCell('A2').value = `Participant: ${participantName}`;
+    worksheet.getCell('B2').value = `Avg Score: ${scorePct}%`;
+    worksheet.getCell('C2').value = `Date & Time: ${sessionTime}`;
+    ['A2', 'B2', 'C2'].forEach(ref => {
+      worksheet.getCell(ref).font = { italic: true, color: { argb: 'FF475569' } };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow(['Time (s)', 'Active Window / Application', 'Classification']);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell(cell => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2563EB' }
+      };
+      cell.alignment = { vertical: 'middle' };
+    });
+
+    worksheet.columns = [
+      { width: 14 },
+      { width: 55 },
+      { width: 24 }
+    ];
+
+    timelineData.forEach((check, index) => {
+      const timeSec = `${index * 10}s`;
+      const winName = check.window || "Desktop Workspace";
+      const lowerWin = winName.toLowerCase();
+      const isFocused = check.focused;
+      const isAi = check.aiDetected || lowerWin.includes('[ai detected') || lowerWin.includes('[ai tool') || lowerWin.includes('capture evasion');
+      const classification = isAi ? 'AI Assistance Detected' : (isFocused ? 'Focused' : 'Distracted');
+
+      const row = worksheet.addRow([timeSec, winName, classification]);
+      const bgColor = isAi ? 'FFFFE4E6' : (isFocused ? 'FFDCFCE7' : 'FFFEE2E2');
+      const textColor = isAi ? 'FF991B1B' : (isFocused ? 'FF166534' : 'FF991B1B');
+
+      row.getCell(3).font = { bold: true, color: { argb: textColor } };
+      row.getCell(3).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: bgColor }
+      };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const safeName = participantName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    saveAs(blob, `${safeName}_Timeline_Activity.xlsx`);
+  };
+
+  const exportTimelineToCsv = () => {
+    if (!timelineData || timelineData.length === 0) {
+      alert("No timeline activity to export.");
+      return;
+    }
+    const participantName = selectedReport?.name || 'Participant';
+    const csvRows = [['Time (s)', 'Active Window', 'Classification']];
+
+    timelineData.forEach((check, index) => {
+      const timeSec = `${index * 10}s`;
+      const winName = (check.window || "Desktop Workspace").replace(/"/g, '""');
+      const lowerWin = winName.toLowerCase();
+      const isFocused = check.focused;
+      const isAi = check.aiDetected || lowerWin.includes('[ai detected') || lowerWin.includes('[ai tool') || lowerWin.includes('capture evasion');
+      const classification = isAi ? 'AI Assistance Detected' : (isFocused ? 'Focused' : 'Distracted');
+      csvRows.push([timeSec, `"${winName}"`, classification]);
+    });
+
+    const csvContent = csvRows.map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const safeName = participantName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    saveAs(blob, `${safeName}_Timeline_Activity.csv`);
   };
 
   const filteredData = data.filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -226,7 +324,7 @@ export default function Reports() {
                                               <td><span className={`badge badge-soft-${statusBadge} px-3 py-2 rounded-pill`}>{statusText}</span></td>
                                               <td className="text-secondary small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString()}</td>
                                               <td className="text-nowrap">
-                                                   <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openTimeline(emp.timeline)}>
+                                                   <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openTimeline(emp.timeline, emp)}>
                                                        <i className="bi bi-clock-history me-1"></i>View Timeline
                                                    </button>
                                                    {isManager && !emp.isLive && (
@@ -260,9 +358,28 @@ export default function Reports() {
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
             <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div className="modal-content bg-white border-secondary">
-                    <div className="modal-header border-secondary">
-                        <h5 className="modal-title">Session Timeline Activity</h5>
-                        <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                    <div className="modal-header border-secondary d-flex justify-content-between align-items-center">
+                        <div className="d-flex align-items-center gap-2">
+                            <i className="bi bi-clock-history text-primary fs-5"></i>
+                            <h5 className="modal-title mb-0">Session Timeline Activity</h5>
+                            {selectedReport?.name && (
+                                <span className="badge bg-light text-dark border ms-2">
+                                    {selectedReport.name}
+                                </span>
+                            )}
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-success d-flex align-items-center gap-1 shadow-sm"
+                                onClick={exportTimelineToExcel}
+                                disabled={!timelineData || timelineData.length === 0}
+                                title="Export Timeline to Excel"
+                            >
+                                <i className="bi bi-file-earmark-excel me-1"></i>Export
+                            </button>
+                            <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                        </div>
                     </div>
                     <div className="modal-body p-0">
                         <div className="table-responsive">
@@ -315,8 +432,26 @@ export default function Reports() {
                             </table>
                         </div>
                     </div>
-                    <div className="modal-footer border-secondary">
-                        <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Close</button>
+                    <div className="modal-footer border-secondary d-flex justify-content-between align-items-center">
+                        <div className="d-flex gap-2">
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-success d-flex align-items-center gap-1 shadow-sm"
+                                onClick={exportTimelineToExcel}
+                                disabled={!timelineData || timelineData.length === 0}
+                            >
+                                <i className="bi bi-file-earmark-excel-fill me-1"></i>Export Excel (.xlsx)
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 shadow-sm"
+                                onClick={exportTimelineToCsv}
+                                disabled={!timelineData || timelineData.length === 0}
+                            >
+                                <i className="bi bi-filetype-csv me-1"></i>Export CSV
+                            </button>
+                        </div>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowModal(false)}>Close</button>
                     </div>
                 </div>
             </div>
