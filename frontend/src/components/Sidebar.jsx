@@ -14,7 +14,7 @@ export default function Sidebar() {
     <nav className="sidebar d-none d-md-flex flex-column p-3">
         <Link to="/manager-dashboard" className="d-flex align-items-center mb-4 text-dark text-decoration-none px-3">
             <img src="/logo.png" alt="MLD" width="30" height="30" className="me-2 rounded-2 shadow-sm" />
-            <span className="fs-5 fw-bold">MLD Host</span>
+            <span className="fs-5 fw-bold">MLD</span>
         </Link>
         <hr className="border-secondary mt-0" />
         <ul className="nav flex-column mb-auto">

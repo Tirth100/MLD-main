@@ -216,6 +216,29 @@ export default function ManagerDashboard() {
 
     const avgEngagementColor = avgEngagement > 75 ? 'success' : (avgEngagement >= 50 ? 'warning' : 'danger');
 
+    // Idea 2: Team Focus Distribution calculations
+    const activeParticipantsList = session.active
+        ? data
+        : historicalGroups.map(g => ({
+            name: g.name,
+            score: Math.round(g.totalScore / g.sessions.length),
+            duration: g.totalDuration,
+            sessionCode: g.lastSessionCode,
+            sessionsCount: g.sessions.length
+        }));
+
+    const totalMembers = activeParticipantsList.length;
+    const engagedList = activeParticipantsList.filter(p => getEmpScore(p) > 75);
+    const focusedList = activeParticipantsList.filter(p => {
+        const s = getEmpScore(p);
+        return s >= 50 && s <= 75;
+    });
+    const lowList = activeParticipantsList.filter(p => getEmpScore(p) < 50);
+
+    const engagedPct = totalMembers > 0 ? Math.round((engagedList.length / totalMembers) * 100) : 0;
+    const focusedPct = totalMembers > 0 ? Math.round((focusedList.length / totalMembers) * 100) : 0;
+    const lowPct = totalMembers > 0 ? Math.max(0, 100 - engagedPct - focusedPct) : 0;
+
     return (
         <>
             <Sidebar />
@@ -225,7 +248,7 @@ export default function ManagerDashboard() {
                 <header className="top-navbar rounded-4 glass-card mb-4 border-0 shadow-sm py-3 px-4">
                     <div className="d-flex align-items-center gap-3">
                         <div>
-                            <h4 className="fw-bold mb-0 text-dark">Host Overview</h4>
+                            <h4 className="fw-bold mb-0 text-dark">Overview</h4>
                             <p className="text-muted small mb-0">Meeting Leech Detector Workspace</p>
                         </div>
 
@@ -268,32 +291,6 @@ export default function ManagerDashboard() {
                                 </button>
                             </div>
                         )}
-
-                        {/* Notifications */}
-                        <div className="dropdown">
-                            <button className="btn btn-light btn-sm rounded-circle p-2 border shadow-xs position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Alerts">
-                                <i className="bi bi-bell text-secondary"></i>
-                                {alerts.length > 0 && (
-                                    <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" style={{ width: '8px', height: '8px' }}></span>
-                                )}
-                            </button>
-                            <ul className="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3 mt-2" style={{ width: '280px', maxHeight: '350px', overflowY: 'auto' }}>
-                                <li className="px-3 py-2 border-bottom">
-                                    <span className="fw-bold small text-dark">Notifications</span>
-                                    <span className="badge bg-light text-secondary border float-end">{alerts.length}</span>
-                                </li>
-                                {alerts.length === 0 ? (
-                                    <li className="p-3 text-center text-muted small">No active notifications</li>
-                                ) : (
-                                    alerts.slice(0, 5).map((a, i) => (
-                                        <li key={i} className="px-3 py-2 border-bottom">
-                                            <div className="fw-semibold small text-dark">{a?.name || 'Participant'}</div>
-                                            <div className="text-muted small text-truncate">{a?.reason || a?.message || 'Low engagement'}</div>
-                                        </li>
-                                    ))
-                                )}
-                            </ul>
-                        </div>
 
                         {/* Profile Dropdown */}
                         <div className="dropdown">
@@ -392,146 +389,132 @@ export default function ManagerDashboard() {
 
                 {/* Main 2-Column Section */}
                 <div className="row g-4 mb-4">
-                    {/* Left: Engagement Table */}
+                    {/* Left: Team Focus Distribution Gauge & Highlights (Idea 2) */}
                     <div className="col-lg-8">
                         <div className="card glass-card border-0 shadow-sm h-100">
                             <div className="card-header bg-transparent border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                                 <div>
                                     <h5 className="fw-bold mb-0 text-dark">
-                                        {session.active ? "Live Participant Stream" : "Session Engagement"}
+                                        {session.active ? "Live Focus Distribution" : "Team Focus Distribution"}
                                     </h5>
+                                    <small className="text-muted">Real-time attention & engagement breakdown</small>
                                 </div>
                                 <Link to="/reports" className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-xs">
                                     View Reports
                                 </Link>
                             </div>
 
-                            <div className="card-body p-0">
-                                <div className="table-responsive">
-                                    <table className="table table-hover align-middle mb-0">
-                                        <thead className="bg-light bg-opacity-50 text-nowrap">
-                                            <tr>
-                                                <th scope="col" className="ps-4 text-muted small fw-semibold">Participant</th>
-                                                <th scope="col" className="text-muted small fw-semibold">Session</th>
-                                                <th scope="col" className="text-muted small fw-semibold">Duration</th>
-                                                <th scope="col" className="text-muted small fw-semibold pe-4">Score</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {loading && data.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="4" className="text-center py-5 text-muted">
-                                                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                                                        Loading records...
-                                                    </td>
-                                                </tr>
-                                            ) : data.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="4" className="text-center py-5 text-muted">
-                                                        <i className="bi bi-inbox fs-2 d-block text-secondary opacity-50 mb-2"></i>
-                                                        <span className="fw-medium">No records available</span>
-                                                        <p className="small text-muted mb-0">Start a session to monitor participant engagement.</p>
-                                                    </td>
-                                                </tr>
-                                            ) : session.active ? (
-                                                data.map((emp, i) => {
-                                                    const score = getEmpScore(emp);
-                                                    const scoreColor = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
-                                                    const durSec = getEmpDuration(emp);
+                            <div className="card-body p-4">
+                                {totalMembers === 0 ? (
+                                    <div className="text-center py-5 text-muted">
+                                        <i className="bi bi-pie-chart fs-1 d-block text-secondary opacity-50 mb-2"></i>
+                                        <span className="fw-semibold text-dark">No Engagement Data</span>
+                                        <p className="small text-muted mb-0">Start a session to monitor participant engagement.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Multi-segment Distribution Bar */}
+                                        <div className="mb-4">
+                                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                                <span className="small text-muted fw-semibold text-uppercase tracking-wider">Overall Focus</span>
+                                                <span className="small text-dark fw-bold">{totalMembers} {totalMembers === 1 ? 'Participant' : 'Participants'}</span>
+                                            </div>
+                                            <div className="progress rounded-pill shadow-xs" style={{ height: '14px', backgroundColor: '#e2e8f0', overflow: 'hidden' }}>
+                                                {engagedPct > 0 && (
+                                                    <div className="progress-bar bg-success" style={{ width: `${engagedPct}%` }} title={`Engaged: ${engagedList.length} (${engagedPct}%)`}></div>
+                                                )}
+                                                {focusedPct > 0 && (
+                                                    <div className="progress-bar bg-warning" style={{ width: `${focusedPct}%` }} title={`Focused: ${focusedList.length} (${focusedPct}%)`}></div>
+                                                )}
+                                                {lowPct > 0 && (
+                                                    <div className="progress-bar bg-danger" style={{ width: `${lowPct}%` }} title={`Low Engagement: ${lowList.length} (${lowPct}%)`}></div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 3 Tier Summary Cards */}
+                                        <div className="row g-3 mb-4">
+                                            <div className="col-4">
+                                                <div className="p-3 rounded-3 border bg-success bg-opacity-10 text-center">
+                                                    <div className="d-flex align-items-center justify-content-center gap-1 mb-1">
+                                                        <span className="rounded-circle bg-success d-inline-block" style={{ width: '8px', height: '8px' }}></span>
+                                                        <span className="small fw-semibold text-success">Engaged</span>
+                                                    </div>
+                                                    <h4 className="fw-bold text-success mb-0">{`${engagedPct}%`}</h4>
+                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>{engagedList.length} {engagedList.length === 1 ? 'member' : 'members'}</small>
+                                                </div>
+                                            </div>
+
+                                            <div className="col-4">
+                                                <div className="p-3 rounded-3 border bg-warning bg-opacity-10 text-center">
+                                                    <div className="d-flex align-items-center justify-content-center gap-1 mb-1">
+                                                        <span className="rounded-circle bg-warning d-inline-block" style={{ width: '8px', height: '8px' }}></span>
+                                                        <span className="small fw-semibold text-warning">Focused</span>
+                                                    </div>
+                                                    <h4 className="fw-bold text-warning mb-0">{`${focusedPct}%`}</h4>
+                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>{focusedList.length} {focusedList.length === 1 ? 'member' : 'members'}</small>
+                                                </div>
+                                            </div>
+
+                                            <div className="col-4">
+                                                <div className="p-3 rounded-3 border bg-danger bg-opacity-10 text-center">
+                                                    <div className="d-flex align-items-center justify-content-center gap-1 mb-1">
+                                                        <span className="rounded-circle bg-danger d-inline-block" style={{ width: '8px', height: '8px' }}></span>
+                                                        <span className="small fw-semibold text-danger">Low Focus</span>
+                                                    </div>
+                                                    <h4 className="fw-bold text-danger mb-0">{`${lowPct}%`}</h4>
+                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>{lowList.length} {lowList.length === 1 ? 'member' : 'members'}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Participant Breakdown Cards */}
+                                        <div className="border-top pt-3">
+                                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                                <span className="small text-muted fw-semibold text-uppercase tracking-wider">Participant Breakdown</span>
+                                                <span className="small text-muted">{activeParticipantsList.length} Total</span>
+                                            </div>
+                                            <div className="d-flex flex-column gap-2">
+                                                {activeParticipantsList.map((p, idx) => {
+                                                    const s = getEmpScore(p);
+                                                    const tierColor = s > 75 ? 'success' : (s >= 50 ? 'warning' : 'danger');
+                                                    const tierName = s > 75 ? 'Engaged' : (s >= 50 ? 'Focused' : 'Low Engagement');
+                                                    const dur = p.duration ? formatDuration(p.duration) : (p.totalDuration ? formatDuration(p.totalDuration) : '-');
 
                                                     return (
-                                                        <tr key={i}>
-                                                            <td className="ps-4 fw-medium text-dark">{emp.name || 'Participant'}</td>
-                                                            <td><span className="badge bg-light text-secondary border font-monospace">{emp.sessionCode || session.code || '-'}</span></td>
-                                                            <td className="text-secondary small">{formatDuration(durSec)}</td>
-                                                            <td className="pe-4">
-                                                                <div className="d-flex align-items-center gap-2">
-                                                                    <div className="progress flex-grow-1" style={{ height: '6px', backgroundColor: '#e2e8f0' }}>
-                                                                        <div className={`progress-bar bg-${scoreColor}`} role="progressbar" style={{ width: `${Math.min(100, Math.max(0, score))}%` }}></div>
+                                                        <div key={idx} className="p-3 rounded-3 bg-light bg-opacity-75 border d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                            <div className="d-flex align-items-center gap-3">
+                                                                <img
+                                                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || 'User')}&background=4f46e5&color=fff&bold=true`}
+                                                                    width="34"
+                                                                    height="34"
+                                                                    className="rounded-circle shadow-xs"
+                                                                    alt={p.name}
+                                                                />
+                                                                <div>
+                                                                    <div className="fw-semibold text-dark small">{p.name || 'Participant'}</div>
+                                                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                        {p.sessionsCount ? `${p.sessionsCount} ${p.sessionsCount === 1 ? 'session' : 'sessions'} • ` : ''}Duration: {dur}
                                                                     </div>
-                                                                    <span className={`fw-bold text-${scoreColor} small`} style={{ minWidth: '38px' }}>{score}%</span>
                                                                 </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            ) : (
-                                                historicalGroups.map((group, i) => {
-                                                    const avgScore = Math.round(group.totalScore / group.sessions.length);
-                                                    const scoreColor = avgScore > 75 ? 'success' : (avgScore >= 50 ? 'warning' : 'danger');
-                                                    const durSec = group.totalDuration;
-                                                    const isExpanded = expandedRows[group.name];
-
-                                                    return (
-                                                        <React.Fragment key={`group-${i}`}>
-                                                            <tr className="bg-light bg-opacity-50" style={{ cursor: 'pointer' }} onClick={() => toggleRow(group.name)}>
-                                                                <td className="ps-4 fw-semibold text-dark">
-                                                                    <div className="d-flex align-items-center">
-                                                                        <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-2 text-primary small`}></i>
-                                                                        <span>{group.name}</span>
-                                                                        <span className="badge bg-white text-secondary border ms-2 small fw-normal">
-                                                                            {group.sessions.length} {group.sessions.length === 1 ? 'session' : 'sessions'}
-                                                                        </span>
+                                                            </div>
+                                                            <div className="d-flex align-items-center gap-3">
+                                                                <div style={{ width: '100px' }}>
+                                                                    <div className="progress" style={{ height: '6px', backgroundColor: '#e2e8f0' }}>
+                                                                        <div className={`progress-bar bg-${tierColor}`} style={{ width: `${Math.min(100, Math.max(0, s))}%` }}></div>
                                                                     </div>
-                                                                </td>
-                                                                <td>
-                                                                    <span className="badge bg-light text-secondary border font-monospace">
-                                                                        {group.lastSessionCode || '-'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="text-secondary small">{formatDuration(durSec)}</td>
-                                                                <td className="pe-4">
-                                                                    <div className="d-flex align-items-center gap-2">
-                                                                        <div className="progress flex-grow-1" style={{ height: '6px', backgroundColor: '#e2e8f0' }}>
-                                                                            <div className={`progress-bar bg-${scoreColor}`} role="progressbar" style={{ width: `${Math.min(100, Math.max(0, avgScore))}%` }}></div>
-                                                                        </div>
-                                                                        <span className={`fw-bold text-${scoreColor} small`} style={{ minWidth: '38px' }}>{avgScore}%</span>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                            {isExpanded && group.sessions.map((emp, j) => {
-                                                                const score = getEmpScore(emp);
-                                                                const sColor = score > 75 ? 'success' : (score >= 50 ? 'warning' : 'danger');
-                                                                const empDur = getEmpDuration(emp);
-                                                                const sessionDate = (emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : null;
-
-                                                                return (
-                                                                    <tr key={`sub-${i}-${j}`} style={{ backgroundColor: '#f8fafc' }}>
-                                                                        <td className="ps-5">
-                                                                            <div className="d-flex align-items-center">
-                                                                                <i className="bi bi-arrow-return-right text-muted me-2 small"></i>
-                                                                                <span className="badge bg-white text-dark border px-2 py-0.5 rounded-pill fw-semibold me-2 shadow-xs">
-                                                                                    Session {j + 1}
-                                                                                </span>
-                                                                                {sessionDate && (
-                                                                                    <span className="text-muted small">({sessionDate})</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </td>
-                                                                        <td>
-                                                                            <span className="badge bg-white text-secondary border font-monospace px-2 py-0.5">
-                                                                                {emp.sessionCode || '-'}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="text-secondary small">{formatDuration(empDur)}</td>
-                                                                        <td className="pe-4">
-                                                                            <div className="d-flex align-items-center gap-2">
-                                                                                <div className="progress flex-grow-1" style={{ height: '5px', backgroundColor: '#e2e8f0' }}>
-                                                                                    <div className={`progress-bar bg-${sColor}`} role="progressbar" style={{ width: `${Math.min(100, Math.max(0, score))}%` }}></div>
-                                                                                </div>
-                                                                                <span className={`fw-bold text-${sColor} small`} style={{ minWidth: '38px' }}>{score}%</span>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </React.Fragment>
+                                                                </div>
+                                                                <span className={`badge bg-${tierColor} bg-opacity-10 text-${tierColor} px-2.5 py-1 rounded-pill fw-semibold small`}>
+                                                                    {s}% • {tierName}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     );
-                                                })
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                })}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
