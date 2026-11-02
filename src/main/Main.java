@@ -74,6 +74,9 @@ public class Main {
 
         System.out.println("\nMonitoring session stopped for Org " + orgId + "! Saving all client reports...");
         
+        java.util.Set<String> savedUuids = new java.util.HashSet<>();
+        java.util.Set<Integer> savedUserIds = new java.util.HashSet<>();
+
         for (Map.Entry<String, AttentionAnalyzer> entry : analyzers.entrySet()) {
             String clientUuid = entry.getKey();
             int clientOrgId = DatabaseHelper.getOrgIdFromToken(clientUuid);
@@ -95,6 +98,10 @@ public class Main {
                     sessionReport.setJoinTime(clientAnalyzer.getJoinTimeFormatted());
                     report.ReportGenerator.saveReport(sessionReport);
                     
+                    savedUuids.add(clientUuid.toLowerCase());
+                    int uid = DatabaseHelper.getUserIdFromToken(clientUuid);
+                    if (uid > 0) savedUserIds.add(uid);
+
                     System.out.println("Saved report for " + clientUuid + " with score: " + (Math.round(finalScore * 100)) + "%");
 
                     // Immediately record alert for Leech detected employee (< 50% focus threshold)
@@ -116,7 +123,7 @@ public class Main {
             }
         }
 
-        // Also ensure any participant who joined this session but had no analyzer ticks is saved
+        // Also ensure any participant who joined this session but had no analyzer ticks is saved (without duplicate)
         try {
             for (Map.Entry<String, String> joined : api.ApiServer.getActiveJoinedSessions().entrySet()) {
                 String joinedUuid = joined.getKey();
@@ -125,6 +132,13 @@ public class Main {
                     int jOrg = DatabaseHelper.getOrgIdFromToken(joinedUuid);
                     if (jOrg == -1) jOrg = DatabaseHelper.getOrgIdFromToken(joinedUuid.toLowerCase());
                     if (jOrg == orgId) {
+                        int jUid = DatabaseHelper.getUserIdFromToken(joinedUuid);
+                        if (savedUuids.contains(joinedUuid.toLowerCase()) || (jUid > 0 && savedUserIds.contains(jUid))) {
+                            continue; // Already saved
+                        }
+                        savedUuids.add(joinedUuid.toLowerCase());
+                        if (jUid > 0) savedUserIds.add(jUid);
+
                         Report joinedReport = new Report(joinedUuid, state.sessionCode, 0, 0, false, 0.0, "Low Engagement",
                                 java.util.Collections.singletonList("Meeting Session"), java.util.Collections.singletonList(false));
                         report.ReportGenerator.saveReport(joinedReport);

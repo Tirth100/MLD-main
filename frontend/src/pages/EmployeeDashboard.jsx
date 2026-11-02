@@ -51,15 +51,22 @@ export default function EmployeeDashboard() {
                 const engRes = await api.get('/engagement');
                 if (Array.isArray(engRes) && engRes.length > 0) {
                     const username = localStorage.getItem('username') || profileName;
-                    const currentEmp = engRes.find(emp => (username && username !== 'Loading...' && emp.name && emp.name.toLowerCase() === username.toLowerCase()) || emp.isLive) || engRes[0];
-                    setDashboardData({
-                        attentionScore: currentEmp.score !== undefined ? (Number(currentEmp.score) > 1 ? Number(currentEmp.score) / 100 : Number(currentEmp.score)) : (currentEmp.attentionScore !== undefined ? Number(currentEmp.attentionScore) : 1.0),
-                        webcam: currentEmp.webcamActive !== undefined ? Boolean(currentEmp.webcamActive) : Boolean(currentEmp.webcam),
-                        duration: currentEmp.durationSeconds !== undefined ? Number(currentEmp.durationSeconds) : (currentEmp.duration !== undefined ? Number(currentEmp.duration) : 0),
-                        idleSeconds: currentEmp.idleSeconds !== undefined ? Number(currentEmp.idleSeconds) : 0,
-                        activeWindow: currentEmp.activeWindow || currentEmp.window || 'Meeting Workspace',
-                        status: currentEmp.status || 'Engaged'
-                    });
+                    const liveEmp = engRes.find(emp => emp.isLive && (
+                        (username && username !== 'Loading...' && emp.name && emp.name.toLowerCase() === username.toLowerCase()) || true
+                    )) || engRes.find(emp => emp.isLive);
+
+                    if (liveEmp) {
+                        const rawScore = liveEmp.score !== undefined ? Number(liveEmp.score) : 0;
+                        const scoreNorm = rawScore > 1 ? rawScore / 100 : rawScore;
+                        setDashboardData({
+                            attentionScore: scoreNorm,
+                            webcam: liveEmp.webcamActive !== undefined ? Boolean(liveEmp.webcamActive) : Boolean(liveEmp.webcam),
+                            duration: liveEmp.durationSeconds !== undefined ? Number(liveEmp.durationSeconds) : (liveEmp.duration !== undefined ? Number(liveEmp.duration) : 0),
+                            idleSeconds: liveEmp.idleSeconds !== undefined ? Number(liveEmp.idleSeconds) : 0,
+                            activeWindow: liveEmp.activeWindow || liveEmp.window || 'Meeting Workspace',
+                            status: liveEmp.status || 'Active'
+                        });
+                    }
                 }
             }
 
@@ -118,6 +125,33 @@ export default function EmployeeDashboard() {
         const interval = setInterval(fetchStatus, 5000);
         return () => clearInterval(interval);
     }, [navigate]);
+
+    // Send background browser activity ticks while session is active
+    useEffect(() => {
+        if (!session.active || !session.code) return;
+        const token = localStorage.getItem('uuid_token') || '';
+        if (!token) return;
+
+        const sendWebTelemetry = async () => {
+            try {
+                const isHidden = document.hidden;
+                const winTitle = isHidden ? "Browser - Background Tab" : "MLD Participant - Web Workspace";
+                await api.post('/track', {
+                    uuid: token,
+                    sessionCode: session.code,
+                    window: winTitle,
+                    webcam: false,
+                    idle: 0
+                });
+            } catch (e) {
+                // silent fallback
+            }
+        };
+
+        sendWebTelemetry();
+        const trackerInterval = setInterval(sendWebTelemetry, 8000);
+        return () => clearInterval(trackerInterval);
+    }, [session.active, session.code]);
 
     const joinSession = async (codeToJoin) => {
         setError('');

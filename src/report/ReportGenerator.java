@@ -31,6 +31,12 @@ public class ReportGenerator {
 
         String deviceId = report.getUsername() != null && report.getUsername().length() > 5 ? report.getUsername() : "local_device_1";
         String empName = DatabaseHelper.getEmployeeNameByUuid(deviceId);
+        if (empName == null || empName.isBlank()) {
+            empName = DatabaseHelper.getUserNameFromToken(deviceId);
+        }
+        if (empName == null || empName.isBlank()) {
+            empName = "Participant (" + (deviceId.length() > 6 ? deviceId.substring(0, 6) : deviceId) + ")";
+        }
 
         StringBuilder sbTimeline = new StringBuilder("[");
         if (report.getWindowTimeline() != null && report.getFocusTimeline() != null && !report.getWindowTimeline().isEmpty()) {
@@ -49,9 +55,10 @@ public class ReportGenerator {
         String timelineStr = sbTimeline.toString();
         String sessionCode = report.getSessionCode() != null ? report.getSessionCode().trim() : "";
 
+        final String targetEmpName = empName;
         // Remove any prior duplicate fallback report for this user in this session to enforce 1 report per user
         fallbackReports.removeIf(rep -> {
-            boolean matchesUser = rep.contains("\"name\": \"" + DatabaseHelper.escapeJson(empName) + "\"");
+            boolean matchesUser = rep.contains("\"name\": \"" + DatabaseHelper.escapeJson(targetEmpName) + "\"");
             boolean matchesSession = !sessionCode.isEmpty() && rep.contains("\"sessionCode\": \"" + sessionCode + "\"");
             return matchesUser && matchesSession;
         });

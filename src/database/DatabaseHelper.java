@@ -1130,26 +1130,32 @@ public class DatabaseHelper {
             try {
                 conn.setAutoCommit(false);
 
-                // 1. Delete session invites for this user
+                // 1. Delete notifications for this user
+                try (PreparedStatement psNotif = conn.prepareStatement("DELETE FROM notifications WHERE user_id = ?")) {
+                    psNotif.setInt(1, empId);
+                    psNotif.executeUpdate();
+                } catch (Exception ignore) {}
+
+                // 2. Delete session invites for this user
                 try (PreparedStatement psInv = conn.prepareStatement("DELETE FROM session_invites WHERE user_id = ?")) {
                     psInv.setInt(1, empId);
                     psInv.executeUpdate();
-                }
+                } catch (Exception ignore) {}
 
-                // 2. Delete engagement logs for devices owned by this user
+                // 3. Delete engagement logs for devices owned by this user
                 try (PreparedStatement psLogs = conn.prepareStatement(
-                        "DELETE FROM engagement_logs WHERE device_uuid IN (SELECT device_uuid FROM devices WHERE user_id = ?)")) {
+                        "DELETE FROM engagement_logs WHERE LOWER(device_uuid) IN (SELECT LOWER(device_uuid) FROM devices WHERE user_id = ?)")) {
                     psLogs.setInt(1, empId);
                     psLogs.executeUpdate();
-                }
+                } catch (Exception ignore) {}
 
-                // 3. Delete devices owned by this user
+                // 4. Delete devices owned by this user
                 try (PreparedStatement psDev = conn.prepareStatement("DELETE FROM devices WHERE user_id = ?")) {
                     psDev.setInt(1, empId);
                     psDev.executeUpdate();
-                }
+                } catch (Exception ignore) {}
 
-                // 4. Delete user record
+                // 5. Delete user record
                 int rows = 0;
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM users WHERE user_id = ? AND org_id = ? AND role = 'EMPLOYEE'")) {
                     ps.setInt(1, empId);

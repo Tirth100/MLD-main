@@ -450,9 +450,39 @@ public class ApiServer {
                 if (isManager) {
                     active = true;
                     code = orgActiveCode;
-                } else if (!userUuid.isEmpty() && activeJoinedSessions.containsKey(userUuid)) {
-                    String joinedCode = activeJoinedSessions.get(userUuid);
-                    if (joinedCode != null && joinedCode.equals(orgActiveCode)) {
+                } else if (!userUuid.isEmpty()) {
+                    String cleanUuid = userUuid.toLowerCase();
+                    boolean isJoined = false;
+                    String joinedCode = activeJoinedSessions.get(cleanUuid);
+                    if (joinedCode == null) joinedCode = activeJoinedSessions.get(userUuid);
+
+                    if (joinedCode != null && joinedCode.equalsIgnoreCase(orgActiveCode)) {
+                        isJoined = true;
+                    } else {
+                        // Check if another token belonging to the same user has joined
+                        int uid = DatabaseHelper.getUserIdFromToken(userUuid);
+                        if (uid != -1) {
+                            for (Map.Entry<String, String> entry : activeJoinedSessions.entrySet()) {
+                                if (entry.getValue().equalsIgnoreCase(orgActiveCode)) {
+                                    int entryUid = DatabaseHelper.getUserIdFromToken(entry.getKey());
+                                    if (entryUid == uid) {
+                                        isJoined = true;
+                                        // Auto-bind desktop agent token to session
+                                        activeJoinedSessions.put(cleanUuid, orgActiveCode);
+                                        // Share analyzer reference
+                                        service.AttentionAnalyzer existing = Main.analyzers.get(entry.getKey().toLowerCase());
+                                        if (existing == null) existing = Main.analyzers.get(entry.getKey());
+                                        if (existing != null) {
+                                            Main.analyzers.put(cleanUuid, existing);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (isJoined) {
                         active = true;
                         code = orgActiveCode;
                     }
@@ -739,11 +769,26 @@ public class ApiServer {
                     int orgId = DatabaseHelper.getOrgIdFromToken(uuid);
                     if (orgId != -1 && Main.isMonitoringActive(orgId)) {
                         String cleanUuid = uuid.toLowerCase();
+                        String currentSession = Main.orgSessions.get(orgId).sessionCode;
 
                         String userRole = DatabaseHelper.getUserRoleFromToken(uuid);
                         boolean isManager = "MANAGER".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole);
                         boolean isJoined = activeJoinedSessions.containsKey(cleanUuid)
                                 || activeJoinedSessions.containsKey(uuid);
+
+                        int trackUid = DatabaseHelper.getUserIdFromToken(uuid);
+                        String joinedTokenForUser = null;
+                        if (!isJoined && trackUid != -1) {
+                            for (Map.Entry<String, String> entry : activeJoinedSessions.entrySet()) {
+                                if (entry.getValue().equalsIgnoreCase(currentSession) &&
+                                        DatabaseHelper.getUserIdFromToken(entry.getKey()) == trackUid) {
+                                    isJoined = true;
+                                    joinedTokenForUser = entry.getKey();
+                                    activeJoinedSessions.put(cleanUuid, currentSession);
+                                    break;
+                                }
+                            }
+                        }
 
                         if (!isManager && !isJoined) {
                             sendResponse(exchange, "{\"success\": true, \"active\": false, \"message\": \"Standby\"}");
@@ -751,10 +796,20 @@ public class ApiServer {
                         }
 
                         service.AttentionAnalyzer analyzer = Main.analyzers.get(cleanUuid);
+                        if (analyzer == null && joinedTokenForUser != null) {
+                            analyzer = Main.analyzers.get(joinedTokenForUser.toLowerCase());
+                            if (analyzer == null) {
+                                analyzer = Main.analyzers.get(joinedTokenForUser);
+                            }
+                        }
                         if (analyzer == null) {
                             analyzer = new service.AttentionAnalyzer();
-                            Main.analyzers.put(cleanUuid.isEmpty() ? uuid : cleanUuid, analyzer);
                         }
+                        Main.analyzers.put(cleanUuid, analyzer);
+                        if (joinedTokenForUser != null) {
+                            Main.analyzers.put(joinedTokenForUser.toLowerCase(), analyzer);
+                        }
+
                         analyzer.analyzeWindow(window, webcam, idle);
 
                         String activeSessionCode = sessionCode;
@@ -903,33 +958,55 @@ public class ApiServer {
 
             // Inject the currently active live session into the array natively
             if (Main.isMonitoringActive(orgId)) {
-                for (java.util.Map.Entry<String, service.AttentionAnalyzer> entry : Main.analyzers.entrySet()) {
-                    String uuid = entry.getKey();
+                String currentSession = Main.orgSessions.get(orgId).sessionCode;
+                java.util.Set<String> processedUsersInLive = new java.util.HashSet<>();
+
+                for (java.util.Map.Entry<String, String> joined : activeJoinedSessions.entrySet()) {
+                    String uuid = joined.getKey();
+                    String joinedCode = joined.getValue();
+                    if (joinedCode == null || !joinedCode.equalsIgnoreCase(currentSession))
+                        continue;
+
                     if (DatabaseHelper.getOrgIdFromToken(uuid) != orgId)
                         continue;
 
-                    service.AttentionAnalyzer analyzer = entry.getValue();
-
                     String empName = getEmployeeNameByUuid(uuid);
-                    if (empName == null)
+                    if (empName == null || empName.contains("(MANAGER)") || empName.contains("(ADMIN)"))
                         continue; // Skip managers/admins from employee engagement table
+
+                    int uId = DatabaseHelper.getUserIdFromToken(uuid);
+                    String userKey = (uId > 0) ? ("uid_" + uId) : empName.toLowerCase();
+                    if (!processedUsersInLive.add(userKey)) {
+                        continue; // Don't duplicate if both web token and agent token joined for same employee
+                    }
+
                     if (isEmployee) {
-                        if (!uuid.equals(token) && DatabaseHelper.getUserIdFromToken(uuid) != userId) {
+                        if (!uuid.equalsIgnoreCase(token) && uId != userId) {
                             continue;
                         }
                     }
 
-                    double score = analyzer.getTotalCount() > 0 ? analyzer.getAttentionScore() : 0.0;
-                    int scorePct = (int) Math.round(score * 100);
-                    String stat = analyzer.getTotalCount() > 0 ? new service.LeechDetector().checkLeech(score) : "Active";
+                    service.AttentionAnalyzer analyzer = Main.analyzers.get(uuid.toLowerCase());
+                    if (analyzer == null) {
+                        analyzer = Main.analyzers.get(uuid);
+                    }
+                    if (analyzer == null) {
+                        analyzer = new service.AttentionAnalyzer();
+                        Main.analyzers.put(uuid.toLowerCase(), analyzer);
+                    }
+
+                    int totalCount = analyzer.getTotalCount();
+                    int focusedCount = analyzer.getFocusedCount();
+                    int scorePct = totalCount > 0 ? (int) Math.round(((double) focusedCount / totalCount) * 100) : 0;
+                    String stat = totalCount > 0 ? new service.LeechDetector().checkLeech((double) focusedCount / totalCount) : "Waiting for checks";
                     String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace"
                             : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
 
                     String liveJson = String.format(
                             "{\"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"activeWindow\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"webcamActive\": %b, \"idleSeconds\": %d, \"durationSeconds\": %d, \"sessionCode\": \"%s\", \"timestamp\": \"Live Session\", \"joinTime\": \"%s\", \"isLive\": true}",
-                            escapeJson(empName), scorePct, stat, lastWin, analyzer.getTotalCount(),
-                            analyzer.getFocusedCount(), analyzer.isWebcamActive(), analyzer.getIdleSeconds(),
-                            analyzer.getDurationSeconds(), Main.orgSessions.get(orgId).sessionCode,
+                            escapeJson(empName), scorePct, stat, lastWin, totalCount,
+                            focusedCount, analyzer.isWebcamActive(), analyzer.getIdleSeconds(),
+                            analyzer.getDurationSeconds(), currentSession,
                             analyzer.getJoinTimeFormatted());
 
                     if (combinedJson.length() > 1)
@@ -1498,7 +1575,7 @@ public class ApiServer {
                 if (idStr.isEmpty())
                     idStr = "0";
                 boolean success = DatabaseHelper.removeEmployee(token, Integer.parseInt(idStr));
-                sendResponse(exchange, "{\"success\": " + success + "}");
+                sendResponse(exchange, "{\"success\": " + success + (success ? "" : ", \"message\": \"Failed to remove participant. Please check permissions or database constraint.\"") + "}");
             } catch (Exception e) {
                 sendResponse(exchange, "{\"success\": false, \"message\": \"" + escapeJson(e.getMessage()) + "\"}");
             }

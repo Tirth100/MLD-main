@@ -227,8 +227,17 @@ export default function ManagerDashboard() {
 
     const avgEngagementColor = avgEngagement > 75 ? 'success' : (avgEngagement >= 50 ? 'warning' : 'danger');
 
-    // Live joined participants strictly filtered by isLive
-    const liveJoinedList = data.filter(emp => emp.isLive === true);
+    // Live joined participants strictly filtered by isLive (deduplicated by name)
+    const liveJoinedList = (() => {
+        const seen = new Set();
+        return (Array.isArray(data) ? data : []).filter(emp => {
+            if (emp.isLive !== true) return false;
+            const key = (emp.name || '').trim().toLowerCase();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    })();
 
     // Live session strictly shows active joined participants; idle shows historical aggregate
     const activeParticipantsList = session.active
@@ -246,6 +255,17 @@ export default function ManagerDashboard() {
         ? (liveJoinedList.length > 0 ? Math.round(liveJoinedList.reduce((acc, c) => acc + getEmpScore(c), 0) / liveJoinedList.length) : 0)
         : avgEngagement;
     const displayAvgColor = displayAvgEngagement > 75 ? 'success' : (displayAvgEngagement >= 50 ? 'warning' : 'danger');
+
+    const bottomParticipants = session.active ? liveJoinedList.length : uniqueEmployees;
+    const bottomTopFocus = session.active
+        ? (liveJoinedList.length > 0 ? [...liveJoinedList].sort((a, b) => getEmpScore(b) - getEmpScore(a))[0]?.name || '-' : '-')
+        : mostEngaged;
+    const bottomNeedsReview = session.active
+        ? (liveJoinedList.length > 0 ? [...liveJoinedList].sort((a, b) => getEmpScore(a) - getEmpScore(b))[0]?.name || '-' : '-')
+        : mostDistracted;
+    const bottomAvgTime = session.active
+        ? (liveJoinedList.length > 0 ? Math.round(liveJoinedList.reduce((acc, c) => acc + (c.durationSeconds || c.duration || 0), 0) / liveJoinedList.length / 60) : 0)
+        : avgDurationMinutes;
 
     const totalMembers = activeParticipantsList.length;
     const engagedList = activeParticipantsList.filter(p => getEmpScore(p) > 75);
@@ -599,19 +619,19 @@ export default function ManagerDashboard() {
                         <div className="row g-3 text-center">
                             <div className="col-6 col-md-3 border-end">
                                 <span className="text-muted small text-uppercase fw-semibold d-block mb-1">Participants</span>
-                                <h4 className="fw-bold text-dark mb-0">{uniqueEmployees}</h4>
+                                <h4 className="fw-bold text-dark mb-0">{bottomParticipants}</h4>
                             </div>
                             <div className="col-6 col-md-3 border-end">
                                 <span className="text-muted small text-uppercase fw-semibold d-block mb-1">Top Focus</span>
-                                <h4 className="fw-bold text-success mb-0">{mostEngaged}</h4>
+                                <h4 className="fw-bold text-success mb-0">{bottomTopFocus}</h4>
                             </div>
                             <div className="col-6 col-md-3 border-end">
                                 <span className="text-muted small text-uppercase fw-semibold d-block mb-1">Needs Review</span>
-                                <h4 className="fw-bold text-danger mb-0">{mostDistracted}</h4>
+                                <h4 className="fw-bold text-danger mb-0">{bottomNeedsReview}</h4>
                             </div>
                             <div className="col-6 col-md-3">
                                 <span className="text-muted small text-uppercase fw-semibold d-block mb-1">Avg Session Time</span>
-                                <h4 className="fw-bold text-primary mb-0">{avgDurationMinutes}m</h4>
+                                <h4 className="fw-bold text-primary mb-0">{bottomAvgTime}m</h4>
                             </div>
                         </div>
                     </div>
