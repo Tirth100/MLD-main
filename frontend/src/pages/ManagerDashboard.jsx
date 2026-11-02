@@ -216,9 +216,12 @@ export default function ManagerDashboard() {
 
     const avgEngagementColor = avgEngagement > 75 ? 'success' : (avgEngagement >= 50 ? 'warning' : 'danger');
 
-    // Idea 2: Team Focus Distribution calculations
+    // Live joined participants strictly filtered by isLive
+    const liveJoinedList = data.filter(emp => emp.isLive === true);
+
+    // Live session strictly shows active joined participants; idle shows historical aggregate
     const activeParticipantsList = session.active
-        ? data
+        ? liveJoinedList
         : historicalGroups.map(g => ({
             name: g.name,
             score: Math.round(g.totalScore / g.sessions.length),
@@ -226,6 +229,12 @@ export default function ManagerDashboard() {
             sessionCode: g.lastSessionCode,
             sessionsCount: g.sessions.length
         }));
+
+    const displayParticipants = session.active ? liveJoinedList.length : uniqueEmployees;
+    const displayAvgEngagement = session.active
+        ? (liveJoinedList.length > 0 ? Math.round(liveJoinedList.reduce((acc, c) => acc + getEmpScore(c), 0) / liveJoinedList.length) : 0)
+        : avgEngagement;
+    const displayAvgColor = displayAvgEngagement > 75 ? 'success' : (displayAvgEngagement >= 50 ? 'warning' : 'danger');
 
     const totalMembers = activeParticipantsList.length;
     const engagedList = activeParticipantsList.filter(p => getEmpScore(p) > 75);
@@ -330,7 +339,7 @@ export default function ManagerDashboard() {
                                         <i className="bi bi-people-fill"></i>
                                     </span>
                                 </div>
-                                <h3 className="fw-bold text-dark mb-0">{uniqueEmployees}</h3>
+                                <h3 className="fw-bold text-dark mb-0">{displayParticipants}</h3>
                             </div>
                         </div>
                     </div>
@@ -340,11 +349,11 @@ export default function ManagerDashboard() {
                             <div className="card-body p-3.5">
                                 <div className="d-flex justify-content-between align-items-center mb-2">
                                     <span className="text-muted small fw-medium text-uppercase tracking-wider">Avg Engagement</span>
-                                    <span className={`badge bg-${avgEngagementColor} bg-opacity-10 text-${avgEngagementColor} p-2 rounded-circle`}>
+                                    <span className={`badge bg-${displayAvgColor} bg-opacity-10 text-${displayAvgColor} p-2 rounded-circle`}>
                                         <i className="bi bi-activity"></i>
                                     </span>
                                 </div>
-                                <h3 className={`fw-bold text-${avgEngagementColor} mb-0`}>{avgEngagement}%</h3>
+                                <h3 className={`fw-bold text-${displayAvgColor} mb-0`}>{displayAvgEngagement}%</h3>
                             </div>
                         </div>
                     </div>
@@ -407,9 +416,21 @@ export default function ManagerDashboard() {
                             <div className="card-body p-4">
                                 {totalMembers === 0 ? (
                                     <div className="text-center py-5 text-muted">
-                                        <i className="bi bi-pie-chart fs-1 d-block text-secondary opacity-50 mb-2"></i>
-                                        <span className="fw-semibold text-dark">No Engagement Data</span>
-                                        <p className="small text-muted mb-0">Start a session to monitor participant engagement.</p>
+                                        {session.active ? (
+                                            <>
+                                                <div className="spinner-border spinner-border-sm text-primary mb-3" role="status"></div>
+                                                <span className="fw-semibold text-dark d-block mb-1">
+                                                    Waiting for participants to join session {session.code}...
+                                                </span>
+                                                <p className="small text-muted mb-0">Participants who join will appear here in real-time.</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="bi bi-pie-chart fs-1 d-block text-secondary opacity-50 mb-2"></i>
+                                                <span className="fw-semibold text-dark d-block">No Engagement Data</span>
+                                                <p className="small text-muted mb-0">Start a session to monitor participant engagement.</p>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <>

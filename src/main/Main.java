@@ -76,14 +76,20 @@ public class Main {
         
         for (Map.Entry<String, AttentionAnalyzer> entry : analyzers.entrySet()) {
             String clientUuid = entry.getKey();
-            if (DatabaseHelper.getOrgIdFromToken(clientUuid) == orgId) {
+            int clientOrgId = DatabaseHelper.getOrgIdFromToken(clientUuid);
+            if (clientOrgId == -1 && clientUuid != null) {
+                clientOrgId = DatabaseHelper.getOrgIdFromToken(clientUuid.toLowerCase());
+            }
+            if (clientOrgId == orgId) {
                 try {
                     AttentionAnalyzer clientAnalyzer = entry.getValue();
                     
-                    double finalScore = clientAnalyzer.getAttentionScore();
+                    double finalScore = clientAnalyzer.getTotalCount() > 0 ? clientAnalyzer.getAttentionScore() : 1.0;
                     String status = new LeechDetector().checkLeech(finalScore);
+                    int totalCnt = clientAnalyzer.getTotalCount() > 0 ? clientAnalyzer.getTotalCount() : 1;
+                    int focusedCnt = clientAnalyzer.getTotalCount() > 0 ? clientAnalyzer.getFocusedCount() : 1;
                     
-                    Report sessionReport = new Report(clientUuid, state.sessionCode, clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
+                    Report sessionReport = new Report(clientUuid, state.sessionCode, totalCnt, focusedCnt,
                             clientAnalyzer.isWebcamActive(),
                             finalScore, status, clientAnalyzer.getWindowTimeline(), clientAnalyzer.getFocusTimeline());
                     sessionReport.setJoinTime(clientAnalyzer.getJoinTimeFormatted());
@@ -108,6 +114,26 @@ public class Main {
                 }
                 analyzers.remove(clientUuid);
             }
+        }
+
+        // Also ensure any participant who joined this session but had no analyzer ticks is saved
+        try {
+            for (Map.Entry<String, String> joined : api.ApiServer.getActiveJoinedSessions().entrySet()) {
+                String joinedUuid = joined.getKey();
+                String sCode = joined.getValue();
+                if (state.sessionCode.equalsIgnoreCase(sCode)) {
+                    int jOrg = DatabaseHelper.getOrgIdFromToken(joinedUuid);
+                    if (jOrg == -1) jOrg = DatabaseHelper.getOrgIdFromToken(joinedUuid.toLowerCase());
+                    if (jOrg == orgId) {
+                        Report joinedReport = new Report(joinedUuid, state.sessionCode, 1, 1, false, 1.0, "Engaged",
+                                java.util.Collections.singletonList("Meeting Session"), java.util.Collections.singletonList(true));
+                        report.ReportGenerator.saveReport(joinedReport);
+                        System.out.println("Saved joined participant attendance report for " + joinedUuid);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Error saving joined session participants: " + ex.getMessage());
         }
         
         if (state.scheduler != null && !state.scheduler.isShutdown()) {

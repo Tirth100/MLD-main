@@ -946,7 +946,7 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "SELECT u.name, u.role FROM devices d JOIN users u ON d.user_id = u.user_id WHERE d.device_uuid = ?";
+                String sql = "SELECT u.name, u.role FROM devices d JOIN users u ON d.user_id = u.user_id WHERE LOWER(d.device_uuid) = LOWER(?)";
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setString(1, uuid);
                     ResultSet rs = pstmt.executeQuery();
@@ -973,6 +973,8 @@ public class DatabaseHelper {
 
         // Fallback name resolution
         Integer userId = devicesToUserId.get(uuid);
+        if (userId == null) userId = devicesToUserId.get(uuid.toLowerCase());
+        if (userId == null) userId = devicesToUserId.get(uuid.toUpperCase());
         if (userId != null) {
             for (UserRecord u : usersByEmail.values()) {
                 if (u.userId == userId) {
@@ -1126,18 +1128,52 @@ public class DatabaseHelper {
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "DELETE FROM users WHERE user_id = ? AND org_id = ? AND role = 'EMPLOYEE'";
-                PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setInt(1, empId);
-                ps.setInt(2, orgId);
-                int rows = ps.executeUpdate();
+                conn.setAutoCommit(false);
+
+                // 1. Delete session invites for this user
+                try (PreparedStatement psInv = conn.prepareStatement("DELETE FROM session_invites WHERE user_id = ?")) {
+                    psInv.setInt(1, empId);
+                    psInv.executeUpdate();
+                }
+
+                // 2. Delete engagement logs for devices owned by this user
+                try (PreparedStatement psLogs = conn.prepareStatement(
+                        "DELETE FROM engagement_logs WHERE device_uuid IN (SELECT device_uuid FROM devices WHERE user_id = ?)")) {
+                    psLogs.setInt(1, empId);
+                    psLogs.executeUpdate();
+                }
+
+                // 3. Delete devices owned by this user
+                try (PreparedStatement psDev = conn.prepareStatement("DELETE FROM devices WHERE user_id = ?")) {
+                    psDev.setInt(1, empId);
+                    psDev.executeUpdate();
+                }
+
+                // 4. Delete user record
+                int rows = 0;
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM users WHERE user_id = ? AND org_id = ? AND role = 'EMPLOYEE'")) {
+                    ps.setInt(1, empId);
+                    ps.setInt(2, orgId);
+                    rows = ps.executeUpdate();
+                }
+
+                conn.commit();
                 conn.close();
+
+                // Clean up in-memory caches as well
+                UserRecord emp = usersById.remove(empId);
+                if (emp != null) usersByEmail.remove(emp.email);
+                devicesToUserId.entrySet().removeIf(e -> e.getValue().equals(empId));
+                pendingInvites.remove(empId);
+
                 return rows > 0;
             } catch (Exception e) {
                 try {
+                    conn.rollback();
                     conn.close();
                 } catch (Exception ignore) {
                 }
+                e.printStackTrace();
             }
         }
 
@@ -1146,6 +1182,8 @@ public class DatabaseHelper {
         if (emp != null && emp.orgId == orgId && "EMPLOYEE".equals(emp.role)) {
             usersById.remove(empId);
             usersByEmail.remove(emp.email);
+            devicesToUserId.entrySet().removeIf(e -> e.getValue().equals(empId));
+            pendingInvites.remove(empId);
             return true;
         }
         return false;
@@ -1385,20 +1423,25 @@ public class DatabaseHelper {
     }
 
     public static int getUserIdFromToken(String token) {
+        if (token == null || token.isBlank())
+            return -1;
         Integer cachedUid = devicesToUserId.get(token);
+        if (cachedUid == null) cachedUid = devicesToUserId.get(token.toLowerCase());
+        if (cachedUid == null) cachedUid = devicesToUserId.get(token.toUpperCase());
         if (cachedUid != null)
             return cachedUid;
 
         Connection conn = connect();
         if (conn != null) {
             try {
-                String sql = "SELECT user_id FROM devices WHERE device_uuid = ?";
+                String sql = "SELECT user_id FROM devices WHERE LOWER(device_uuid) = LOWER(?) AND user_id IS NOT NULL";
                 PreparedStatement ps = conn.prepareStatement(sql);
                 ps.setString(1, token);
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     int uid = rs.getInt("user_id");
                     devicesToUserId.put(token, uid);
+                    devicesToUserId.put(token.toLowerCase(), uid);
                     conn.close();
                     return uid;
                 }
@@ -1412,6 +1455,7 @@ public class DatabaseHelper {
         }
         // Fallback
         Integer uid = devicesToUserId.get(token);
+        if (uid == null) uid = devicesToUserId.get(token.toLowerCase());
         return uid != null ? uid : -1;
     }
 
@@ -1456,7 +1500,11 @@ public class DatabaseHelper {
     }
 
     public static int getOrgIdFromToken(String token) {
+        if (token == null || token.isBlank())
+            return -1;
         Integer cachedOrgId = devicesToOrgId.get(token);
+        if (cachedOrgId == null) cachedOrgId = devicesToOrgId.get(token.toLowerCase());
+        if (cachedOrgId == null) cachedOrgId = devicesToOrgId.get(token.toUpperCase());
         if (cachedOrgId != null)
             return cachedOrgId;
 
@@ -1473,6 +1521,7 @@ public class DatabaseHelper {
                 if (rs.next()) {
                     int orgId = rs.getInt("org_id");
                     devicesToOrgId.put(token, orgId);
+                    devicesToOrgId.put(token.toLowerCase(), orgId);
                     conn.close();
                     return orgId;
                 }
@@ -1490,7 +1539,11 @@ public class DatabaseHelper {
     }
 
     public static String getUserRoleFromToken(String token) {
+        if (token == null || token.isBlank())
+            return null;
         String cachedRole = devicesToRole.get(token);
+        if (cachedRole == null) cachedRole = devicesToRole.get(token.toLowerCase());
+        if (cachedRole == null) cachedRole = devicesToRole.get(token.toUpperCase());
         if (cachedRole != null)
             return cachedRole;
 
@@ -1507,6 +1560,7 @@ public class DatabaseHelper {
                 if (rs.next()) {
                     String role = rs.getString("role");
                     devicesToRole.put(token, role);
+                    devicesToRole.put(token.toLowerCase(), role);
                     conn.close();
                     return role;
                 }

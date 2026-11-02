@@ -290,6 +290,10 @@ public class ApiServer {
     private static final Map<String, Long> lastAgentHeartbeats = new ConcurrentHashMap<>();
     private static final Map<String, String> activeJoinedSessions = new ConcurrentHashMap<>();
 
+    public static Map<String, String> getActiveJoinedSessions() {
+        return activeJoinedSessions;
+    }
+
     class AgentStatusHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
