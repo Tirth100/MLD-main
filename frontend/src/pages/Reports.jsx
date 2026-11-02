@@ -167,7 +167,7 @@ export default function Reports() {
           <div className="card glass-card mb-4">
               <div className="card-body">
                   <div className="row align-items-center g-3">
-                      <div className="col-md-4">
+                      <div className="col-md-6">
                           <label className="form-label text-muted small">Search Participant</label>
                           <div className="input-group">
                               <span className="input-group-text bg-transparent border-secondary text-muted"><i className="bi bi-search"></i></span>
@@ -178,15 +178,7 @@ export default function Reports() {
                           <label className="form-label text-muted small">Export Month</label>
                           <input type="month" className="form-control" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} />
                       </div>
-                      <div className="col-md-3">
-                          <label className="form-label text-muted small">Department / Role</label>
-                          <select className="form-select">
-                              <option value="">All Roles</option>
-                              <option value="developer">Developer</option>
-                              <option value="designer">Designer</option>
-                          </select>
-                      </div>
-                      <div className="col-md-2 d-flex align-items-end">
+                      <div className="col-md-3 d-flex align-items-end">
                           <button onClick={handleExport} className="btn btn-primary w-100"><i className="bi bi-file-earmark-spreadsheet me-2"></i>Export Report</button>
                       </div>
                   </div>
@@ -200,7 +192,6 @@ export default function Reports() {
                           <thead className="bg-transparent">
                               <tr>
                                   <th scope="col" className="ps-4">Participant</th>
-                                  <th scope="col">Role</th>
                                   <th scope="col">Avg Score</th>
                                   <th scope="col">General Status</th>
                                   <th scope="col">Date & Time</th>
@@ -210,14 +201,14 @@ export default function Reports() {
                           <tbody>
                               {loading && data.length === 0 ? (
                                   <tr>
-                                      <td colSpan="6" className="text-center py-4 text-muted">
+                                      <td colSpan="5" className="text-center py-4 text-muted">
                                           <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                           Loading reports...
                                       </td>
                                   </tr>
                               ) : filteredData.length === 0 ? (
                                   <tr>
-                                      <td colSpan="6" className="text-center py-4 text-muted">No records found.</td>
+                                      <td colSpan="5" className="text-center py-4 text-muted">No records found.</td>
                                   </tr>
                               ) : (
                                   filteredData.map((emp, i) => {
@@ -231,7 +222,6 @@ export default function Reports() {
                                       return (
                                           <tr key={i}>
                                               <td className="ps-4 fw-medium">{emp.name}</td>
-                                              <td className="text-muted text-capitalize">{emp.role}</td>
                                               <td><span className={`fw-bold text-${statusBadge}`}>{score}%</span></td>
                                               <td><span className={`badge badge-soft-${statusBadge} px-3 py-2 rounded-pill`}>{statusText}</span></td>
                                               <td className="text-secondary small">{(emp.joinTime || emp.timestamp) ? new Date(emp.joinTime || emp.timestamp).toLocaleString() : new Date().toLocaleString()}</td>

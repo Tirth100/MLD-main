@@ -177,7 +177,7 @@ export default function EmployeeDashboard() {
                     <div className="d-flex align-items-center gap-4">
                         {workspaceName && (
                             <span className="badge bg-light text-dark border px-2 py-1 d-none d-sm-inline-flex align-items-center">
-                                <i className="bi bi-building me-1 text-primary"></i> {workspaceName} ({workspaceCode})
+                                <i className="bi bi-building me-1 text-primary"></i> {workspaceName}
                             </span>
                         )}
                         <Link to="/agent-setup" className="btn btn-sm btn-outline-primary shadow-sm"><i className="bi bi-download me-1"></i>Agent Setup</Link>
@@ -348,7 +348,6 @@ export default function EmployeeDashboard() {
                                         <thead className="bg-transparent">
                                             <tr>
                                                 <th scope="col" className="ps-4">Name</th>
-                                                <th scope="col">Role</th>
                                                 <th scope="col">Score</th>
                                                 <th scope="col">Status</th>
                                                 <th scope="col">Actions</th>
@@ -357,14 +356,14 @@ export default function EmployeeDashboard() {
                                         <tbody>
                                             {loading && history.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="5" className="text-center py-4 text-muted">
+                                                    <td colSpan="4" className="text-center py-4 text-muted">
                                                         <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                                         Loading history...
                                                     </td>
                                                 </tr>
                                             ) : history.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="5" className="text-center py-4 text-muted">No history records found.</td>
+                                                    <td colSpan="4" className="text-center py-4 text-muted">No history records found.</td>
                                                 </tr>
                                             ) : (
                                                 history.map((emp, i) => {
@@ -377,7 +376,6 @@ export default function EmployeeDashboard() {
                                                     return (
                                                         <tr key={i}>
                                                             <td className="ps-4">{emp.name}</td>
-                                                            <td>{emp.role}</td>
                                                             <td><span className={`fw-bold text-${badgeClass}`}>{numScore}%</span></td>
                                                             <td><span className={`badge badge-soft-${badgeClass} px-3 py-2 rounded-pill text-capitalize`}>{badgeStatus}</span></td>
                                                             <td>
