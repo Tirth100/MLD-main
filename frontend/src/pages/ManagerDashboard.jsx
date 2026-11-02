@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api';
 import Sidebar from '../components/Sidebar';
 
@@ -433,7 +433,7 @@ export default function ManagerDashboard() {
                                     <div className="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
                                         <h5 className="mb-0 fw-bold">{session.active ? "Live Participant Engagement" : "Historical Session Engagement"}</h5>
                                         <div className="d-flex gap-2">
-                                            <a href="#/reports" className="btn btn-sm btn-outline-primary shadow-sm">View Reports</a>
+                                            <Link to="/reports" className="btn btn-sm btn-primary shadow-sm">View Reports</Link>
                                         </div>
                                     </div>
                                     <div className="card-body p-0">
@@ -560,7 +560,7 @@ export default function ManagerDashboard() {
                                         )}
                                     </div>
                                     <div className="card-footer bg-transparent border-top border-secondary text-center py-3">
-                                        <a href="#/alerts" className="text-decoration-none text-primary fw-medium">View All Alerts <i className="bi bi-arrow-right"></i></a>
+                                        <Link to="/alerts" className="text-decoration-none text-primary fw-medium">View All Alerts <i className="bi bi-arrow-right"></i></Link>
                                     </div>
                                 </div>
                             </div>
