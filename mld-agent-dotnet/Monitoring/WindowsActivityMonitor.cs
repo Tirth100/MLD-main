@@ -133,6 +133,13 @@ namespace MldAgent.Monitoring
                                 if (nonPackaged == null) continue;
                                 foreach (string appKeyName in nonPackaged.GetSubKeyNames())
                                 {
+                                    // Rule: Exclude MLD-Agent's own sensor registry entries to prevent self-detection regression
+                                    if (appKeyName.IndexOf("mld-agent", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        appKeyName.IndexOf("mldagent", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        continue;
+                                    }
+
                                     using (RegistryKey appKey = nonPackaged.OpenSubKey(appKeyName))
                                     {
                                         if (appKey == null) continue;
@@ -147,6 +154,12 @@ namespace MldAgent.Monitoring
                         }
                         else
                         {
+                            if (subKeyName.IndexOf("mld-agent", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                subKeyName.IndexOf("mldagent", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                continue;
+                            }
+
                             using (RegistryKey appKey = baseKey.OpenSubKey(subKeyName))
                             {
                                 if (appKey == null) continue;

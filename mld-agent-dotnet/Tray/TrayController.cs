@@ -11,8 +11,8 @@ namespace MldAgent.Tray
     {
         private readonly NotifyIcon _notifyIcon;
         private readonly AgentConfiguration _config;
-        private readonly MenuItem _statusMenuItem;
-        private readonly MenuItem _startupMenuItem;
+        private readonly ToolStripMenuItem _statusMenuItem;
+        private readonly ToolStripMenuItem _startupMenuItem;
 
         public ApplicationContext Context { get; private set; }
 
@@ -28,29 +28,31 @@ namespace MldAgent.Tray
                 Visible = true
             };
 
-            var contextMenu = new ContextMenu();
+            var contextMenu = new ContextMenuStrip();
 
-            var titleItem = new MenuItem("MLD Desktop Agent (v2.0)") { Enabled = false };
-            _statusMenuItem = new MenuItem("Status: Initializing...") { Enabled = false };
+            var titleItem = new ToolStripMenuItem("MLD Desktop Agent (v2.0)") { Enabled = false };
+            _statusMenuItem = new ToolStripMenuItem("Status: Initializing...") { Enabled = false };
+            var cpatStatusItem = new ToolStripMenuItem("Camera Attention: " + (_config.CpatEnabled ? "Active" : "Disabled")) { Enabled = false };
             
-            var openDashItem = new MenuItem("Open Web Dashboard", delegate { OpenDashboard(); });
-            var linkItem = new MenuItem("Pair Account Token...", delegate { PromptPairToken(); });
+            var openDashItem = new ToolStripMenuItem("Open Web Dashboard", null, delegate { OpenDashboard(); });
+            var linkItem = new ToolStripMenuItem("Pair Account Token...", null, delegate { PromptPairToken(); });
             
-            _startupMenuItem = new MenuItem("Launch on Windows Startup", delegate { ToggleStartup(); });
+            _startupMenuItem = new ToolStripMenuItem("Launch on Windows Startup", null, delegate { ToggleStartup(); });
             _startupMenuItem.Checked = WindowsRegistration.IsStartupRunEnabled();
 
-            var exitItem = new MenuItem("Exit Agent", delegate { ExitApplication(); });
+            var exitItem = new ToolStripMenuItem("Exit Agent", null, delegate { ExitApplication(); });
 
-            contextMenu.MenuItems.Add(titleItem);
-            contextMenu.MenuItems.Add(_statusMenuItem);
-            contextMenu.MenuItems.Add("-");
-            contextMenu.MenuItems.Add(openDashItem);
-            contextMenu.MenuItems.Add(linkItem);
-            contextMenu.MenuItems.Add(_startupMenuItem);
-            contextMenu.MenuItems.Add("-");
-            contextMenu.MenuItems.Add(exitItem);
+            contextMenu.Items.Add(titleItem);
+            contextMenu.Items.Add(_statusMenuItem);
+            contextMenu.Items.Add(cpatStatusItem);
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add(openDashItem);
+            contextMenu.Items.Add(linkItem);
+            contextMenu.Items.Add(_startupMenuItem);
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add(exitItem);
 
-            _notifyIcon.ContextMenu = contextMenu;
+            _notifyIcon.ContextMenuStrip = contextMenu;
             _notifyIcon.DoubleClick += delegate { OpenDashboard(); };
 
             UpdateTrayState(false, "Standing by");

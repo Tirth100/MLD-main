@@ -17,6 +17,7 @@ namespace MldAgent.Configuration
         public string EmployeeName { get; set; }
         public int TelemetryIntervalSeconds { get; set; }
         public int HeartbeatIntervalSeconds { get; set; }
+        public bool CpatEnabled { get; set; }
 
         public AgentConfiguration()
         {
@@ -26,6 +27,7 @@ namespace MldAgent.Configuration
             EmployeeName = "Employee";
             TelemetryIntervalSeconds = 10;
             HeartbeatIntervalSeconds = 30;
+            CpatEnabled = false;
         }
 
         public static AgentConfiguration Load()
@@ -73,6 +75,10 @@ namespace MldAgent.Configuration
                         case "employeename":
                             if (!string.IsNullOrEmpty(val)) config.EmployeeName = val;
                             break;
+                        case "cpatenabled":
+                            bool cpat;
+                            if (bool.TryParse(val, out cpat)) config.CpatEnabled = cpat;
+                            break;
                     }
                 }
             }
@@ -96,6 +102,7 @@ namespace MldAgent.Configuration
                 sb.AppendLine(string.Format("uuid={0}", Uuid));
                 sb.AppendLine(string.Format("email={0}", Email));
                 sb.AppendLine(string.Format("employeeName={0}", EmployeeName));
+                sb.AppendLine(string.Format("cpatEnabled={0}", CpatEnabled));
 
                 File.WriteAllText(ConfigFilePath, sb.ToString(), Encoding.UTF8);
                 Logging.AgentLogger.LogInfo("Configuration saved successfully.");

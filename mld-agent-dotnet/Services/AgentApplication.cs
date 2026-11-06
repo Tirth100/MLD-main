@@ -20,6 +20,7 @@ namespace MldAgent.Services
         private bool _isMonitoring;
         private string _currentSessionCode;
         private HttpListener _localHttpListener;
+        private MLD.Agent.Cpat.CpatService? _cpatService;
 
         public AgentApplication(AgentConfiguration config, TrayController tray)
         {
@@ -48,6 +49,20 @@ namespace MldAgent.Services
 
             // Send immediate first heartbeat on start
             SendHeartbeatOnceAsync();
+
+            // Rule: Initialize CPAT only when feature flag is active
+            if (_config.CpatEnabled)
+            {
+                try
+                {
+                    _cpatService = new MLD.Agent.Cpat.CpatService(_config);
+                    _cpatService.Start();
+                }
+                catch (Exception cpatEx)
+                {
+                    Logging.AgentLogger.LogError("Failed to start CPAT service", cpatEx);
+                }
+            }
 
             Task.Run(new Func<Task>(HeartbeatLoopAsync));
             Task.Run(new Func<Task>(TelemetryLoopAsync));
@@ -191,6 +206,7 @@ namespace MldAgent.Services
                                 _tray.UpdateTrayState(true, _currentSessionCode);
                                 _tray.ShowNotification("Meeting Monitoring Active", string.Format("Joined telemetry session: {0}", _currentSessionCode), ToolTipIcon.Info);
                                 await _backend.FlushOfflineQueueAsync(_config.ServerUrl, _config.Uuid);
+                                _cpatService?.OnSessionStarted(_currentSessionCode);
                             }
 
                             string windowTitle = WindowsActivityMonitor.GetActiveWindowTitle();
@@ -204,6 +220,20 @@ namespace MldAgent.Services
                                 var primarySignal = aiSignals.Find(delegate(Monitoring.AiSignalEvent s) { return s.Confidence == "HIGH"; });
                                 if (primarySignal == null) primarySignal = aiSignals[0];
                                 windowTitle = string.Format("[AI Detected: {0}] {1}", primarySignal.ProcessName, windowTitle);
+                            }
+
+                            // Rule: When CPAT is enabled, augment telemetry if camera is off or face is turned away
+                            if (_config.CpatEnabled && _cpatService != null)
+                            {
+                                var cpatState = _cpatService.CurrentState;
+                                if (cpatState.CameraState == MLD.Agent.Cpat.CpatCameraState.MeetingCameraOff)
+                                {
+                                    windowTitle = "[Camera: Off] " + windowTitle;
+                                }
+                                else if (cpatState.Verdict == MLD.Agent.Cpat.AttentionVerdict.Distracted)
+                                {
+                                    windowTitle = string.Format("[Camera: Looking Away ({0}s)] {1}", cpatState.ConsecutiveDistractedSeconds, windowTitle);
+                                }
                             }
 
                             bool sessionStillOpen = await _backend.SendTelemetryTickAsync(
@@ -221,6 +251,7 @@ namespace MldAgent.Services
                                 _isMonitoring = false;
                                 _currentSessionCode = null;
                                 _tray.UpdateTrayState(false, "Session concluded");
+                                _cpatService?.OnSessionEnded();
                             }
                         }
                         else
@@ -231,6 +262,7 @@ namespace MldAgent.Services
                                 _currentSessionCode = null;
                                 _tray.UpdateTrayState(false, "Standing by");
                                 _tray.ShowNotification("Meeting Ended", "Session telemetry completed. Agent is in standby mode.", ToolTipIcon.Info);
+                                _cpatService?.OnSessionEnded();
                             }
                             else
                             {
@@ -269,6 +301,7 @@ namespace MldAgent.Services
 
             _cts.Cancel();
             _cts.Dispose();
+            _cpatService?.Dispose();
         }
     }
 }
