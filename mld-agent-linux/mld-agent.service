@@ -1,0 +1,13 @@
+[Unit]
+Description=Meeting Leech Detector (MLD) Background Agent
+After=graphical-session.target network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/bin/mld_agent_linux.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+

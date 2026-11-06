@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.mld.agent</string>
+    <key>CFBundleName</key>
+    <string>MLD Agent</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.0</string>
+    <key>CFBundleVersion</key>
+    <string>2.0</string>
+    <key>LSUIElement</key>
+    <true/> <!-- Runs as Menu Bar Agent without Dock Icon -->
+    <key>NSCameraUsageDescription</key>
+    <string>MLD Agent requires camera access during active meetings to evaluate participant attention.</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.mld.agent.link</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>mld-agent</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
+

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=MLD Desktop Agent
+Comment=Meeting Leech Detector Background Telemetry Agent
+Exec=python3 /opt/mld-agent/mld_agent_linux.py %u
+Terminal=false
+Type=Application
+Categories=Utility;Network;
+MimeType=x-scheme-handler/mld-agent;
+Icon=utilities-system-monitor
+StartupNotify=false
+
