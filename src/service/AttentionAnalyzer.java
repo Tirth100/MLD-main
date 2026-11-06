@@ -30,24 +30,33 @@ public class AttentionAnalyzer {
         }
 
         boolean isFocused = false;
-        
-        // Comprehensive case-insensitive matching for valid meeting applications & authorized workspaces
         String lowerWin = window.toLowerCase();
-        if (lowerWin.contains("zoom")
-         || (lowerWin.contains("meet") && !lowerWin.contains("meeting leech detector") && !lowerWin.contains("mld employee") && !lowerWin.contains("mld host"))
-         || lowerWin.contains("teams")
-         || lowerWin.contains("powerpoint")
-         || lowerWin.contains("powerpnt")
-         || lowerWin.contains("webex")
-         || lowerWin.contains("slack")
-         || lowerWin.contains("huddle")
-         || lowerWin.contains("discord")
-         || lowerWin.contains("skype")
-         || lowerWin.contains("bluejeans")
-         || lowerWin.contains("chime")
-         || lowerWin.contains("gotomeeting")) 
-        {
-            isFocused = true;
+
+        // CPAT camera distraction signals or background tab overrides
+        boolean cameraDistracted = lowerWin.contains("[camera: looking away") || lowerWin.contains("[camera: off]");
+        boolean isBackgroundTab = lowerWin.contains("browser - background tab") || lowerWin.contains("background tab");
+
+        if (!cameraDistracted && !isBackgroundTab) {
+            // Comprehensive case-insensitive matching for valid meeting applications & authorized workspaces
+            if (lowerWin.contains("zoom")
+             || (lowerWin.contains("meet") && !lowerWin.contains("meeting leech detector") && !lowerWin.contains("mld employee") && !lowerWin.contains("mld host"))
+             || lowerWin.contains("teams")
+             || lowerWin.contains("powerpoint")
+             || lowerWin.contains("powerpnt")
+             || lowerWin.contains("webex")
+             || lowerWin.contains("slack")
+             || lowerWin.contains("huddle")
+             || lowerWin.contains("discord")
+             || lowerWin.contains("skype")
+             || lowerWin.contains("bluejeans")
+             || lowerWin.contains("chime")
+             || lowerWin.contains("gotomeeting")
+             || lowerWin.contains("mld participant")
+             || lowerWin.contains("web workspace")
+             || lowerWin.contains("meeting workspace"))
+            {
+                isFocused = true;
+            }
         }
         
         webcamActive = webcam;
@@ -80,7 +89,7 @@ public class AttentionAnalyzer {
     }
 
     public double getAttentionScore() {
-        if (totalCount == 0) return 0;
+        if (totalCount == 0) return 0.0;
         return (double) focusedCount / totalCount;
     }
     

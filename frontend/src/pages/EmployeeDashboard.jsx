@@ -50,10 +50,9 @@ export default function EmployeeDashboard() {
             if (sessionRes && sessionRes.active) {
                 const engRes = await api.get('/engagement');
                 if (Array.isArray(engRes) && engRes.length > 0) {
-                    const username = localStorage.getItem('username') || profileName;
-                    const liveEmp = engRes.find(emp => emp.isLive && (
-                        (username && username !== 'Loading...' && emp.name && emp.name.toLowerCase() === username.toLowerCase()) || true
-                    )) || engRes.find(emp => emp.isLive);
+                    const username = (localStorage.getItem('username') || profileName || '').trim().toLowerCase();
+                    const liveEmp = engRes.find(emp => emp.isLive && emp.name && emp.name.trim().toLowerCase() === username)
+                        || engRes.find(emp => emp.isLive);
 
                     if (liveEmp) {
                         const rawScore = liveEmp.score !== undefined ? Number(liveEmp.score) : 0;

@@ -64,7 +64,7 @@ public class ReportGenerator {
         });
 
         int fallbackId = nextFallbackId++;
-        int durSec = totalChecks * 5;
+        int durSec = totalChecks * 10;
         String jsonRecord = String.format(
             "{\"id\": %d, \"name\": \"%s\", \"role\": \"Employee\", \"score\": %d, \"status\": \"%s\", \"totalChecks\": %d, \"focusedChecks\": %d, \"durationSeconds\": %d, \"webcamActive\": %b, \"sessionCode\": \"%s\", \"timestamp\": \"%s\", \"timeline\": %s}",
             fallbackId, DatabaseHelper.escapeJson(empName), scorePct, participation, totalChecks, focusedChecks, durSec, report.isWebcamActive(), sessionCode, report.getTimestamp(), timelineStr
@@ -228,7 +228,7 @@ public class ReportGenerator {
                         jsonArray.append("\"status\": \"").append(DatabaseHelper.escapeJson(status)).append("\",");
                         jsonArray.append("\"totalChecks\": ").append(totalChecks).append(",");
                         jsonArray.append("\"focusedChecks\": ").append(focusedChecks).append(",");
-                        jsonArray.append("\"durationSeconds\": ").append(totalChecks * 5).append(",");
+                        jsonArray.append("\"durationSeconds\": ").append(totalChecks * 10).append(",");
                         jsonArray.append("\"webcamActive\": ").append(rs.getBoolean("webcam_active")).append(",");
                         jsonArray.append("\"sessionCode\": \"").append(sessionCode != null ? sessionCode : "").append("\",");
                         jsonArray.append("\"timestamp\": \"").append(rs.getString("timestamp") != null ? rs.getString("timestamp") : "").append("\",");

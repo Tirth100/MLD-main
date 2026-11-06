@@ -553,14 +553,19 @@ public class ApiServer {
                 }
 
                 if (!uuid.isEmpty()) {
-                    String sessionCode = activeJoinedSessions.get(uuid);
+                    String cleanUuid = uuid.toLowerCase();
+                    String sessionCode = activeJoinedSessions.get(cleanUuid);
+                    if (sessionCode == null) sessionCode = activeJoinedSessions.get(uuid);
+
                     if (sessionCode != null) {
-                        service.AttentionAnalyzer clientAnalyzer = Main.analyzers.get(uuid);
+                        service.AttentionAnalyzer clientAnalyzer = Main.analyzers.get(cleanUuid);
+                        if (clientAnalyzer == null) clientAnalyzer = Main.analyzers.get(uuid);
+
                         if (clientAnalyzer != null) {
                             try {
                                 double finalScore = clientAnalyzer.getAttentionScore();
                                 String status = new service.LeechDetector().checkLeech(finalScore);
-                                report.Report sessionReport = new report.Report(uuid, sessionCode,
+                                report.Report sessionReport = new report.Report(cleanUuid, sessionCode,
                                         clientAnalyzer.getTotalCount(), clientAnalyzer.getFocusedCount(),
                                         clientAnalyzer.isWebcamActive(),
                                         finalScore, status, clientAnalyzer.getWindowTimeline(),
@@ -572,7 +577,9 @@ public class ApiServer {
                             }
                         }
                     }
+                    activeJoinedSessions.remove(cleanUuid);
                     activeJoinedSessions.remove(uuid);
+                    Main.analyzers.remove(cleanUuid);
                     Main.analyzers.remove(uuid);
                 }
                 sendResponse(exchange, "{\"success\": true, \"message\": \"Left session successfully.\"}");
@@ -997,8 +1004,8 @@ public class ApiServer {
 
                     int totalCount = analyzer.getTotalCount();
                     int focusedCount = analyzer.getFocusedCount();
-                    int scorePct = totalCount > 0 ? (int) Math.round(((double) focusedCount / totalCount) * 100) : 0;
-                    String stat = totalCount > 0 ? new service.LeechDetector().checkLeech((double) focusedCount / totalCount) : "Waiting for checks";
+                    int scorePct = totalCount > 0 ? (int) Math.round(((double) focusedCount / totalCount) * 100) : 100;
+                    String stat = totalCount > 0 ? new service.LeechDetector().checkLeech((double) focusedCount / totalCount) : "Engaged";
                     String lastWin = analyzer.getWindowTimeline().isEmpty() ? "Meeting Workspace"
                             : analyzer.getWindowTimeline().get(analyzer.getWindowTimeline().size() - 1);
 

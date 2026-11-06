@@ -171,7 +171,7 @@ export default function ManagerDashboard() {
             return Number(emp.duration);
         }
         if (emp.totalChecks && Number(emp.totalChecks) > 0) {
-            return Number(emp.totalChecks) * 5;
+            return Number(emp.totalChecks) * 10;
         }
         if (Array.isArray(emp.timeline) && emp.timeline.length > 0) {
             return emp.timeline.length * 5;

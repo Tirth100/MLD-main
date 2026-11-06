@@ -83,14 +83,21 @@ public class Main {
             if (clientOrgId == -1 && clientUuid != null) {
                 clientOrgId = DatabaseHelper.getOrgIdFromToken(clientUuid.toLowerCase());
             }
+            if (clientOrgId == -1 && clientUuid != null) {
+                String joinedCode = api.ApiServer.getActiveJoinedSessions().get(clientUuid.toLowerCase());
+                if (joinedCode == null) joinedCode = api.ApiServer.getActiveJoinedSessions().get(clientUuid);
+                if (joinedCode != null && joinedCode.equalsIgnoreCase(state.sessionCode)) {
+                    clientOrgId = orgId;
+                }
+            }
             if (clientOrgId == orgId) {
                 try {
                     AttentionAnalyzer clientAnalyzer = entry.getValue();
                     
                     int totalCnt = clientAnalyzer.getTotalCount();
                     int focusedCnt = clientAnalyzer.getFocusedCount();
-                    double finalScore = totalCnt > 0 ? ((double) focusedCnt / totalCnt) : 0.0;
-                    String status = totalCnt > 0 ? new LeechDetector().checkLeech(finalScore) : "Low Engagement";
+                    double finalScore = totalCnt > 0 ? ((double) focusedCnt / totalCnt) : 1.0;
+                    String status = totalCnt > 0 ? new LeechDetector().checkLeech(finalScore) : "Engaged";
                     
                     Report sessionReport = new Report(clientUuid, state.sessionCode, totalCnt, focusedCnt,
                             clientAnalyzer.isWebcamActive(),
@@ -139,8 +146,8 @@ public class Main {
                         savedUuids.add(joinedUuid.toLowerCase());
                         if (jUid > 0) savedUserIds.add(jUid);
 
-                        Report joinedReport = new Report(joinedUuid, state.sessionCode, 0, 0, false, 0.0, "Low Engagement",
-                                java.util.Collections.singletonList("Meeting Session"), java.util.Collections.singletonList(false));
+                        Report joinedReport = new Report(joinedUuid, state.sessionCode, 0, 0, false, 1.0, "Engaged",
+                                java.util.Collections.singletonList("Meeting Session Workspace"), java.util.Collections.singletonList(true));
                         report.ReportGenerator.saveReport(joinedReport);
                         System.out.println("Saved joined participant attendance report for " + joinedUuid);
                     }

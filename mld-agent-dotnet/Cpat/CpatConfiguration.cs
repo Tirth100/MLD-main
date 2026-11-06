@@ -13,3 +13,4 @@ namespace MLD.Agent.Cpat
         public static CpatConfiguration Default => new CpatConfiguration();
     }
 }
+

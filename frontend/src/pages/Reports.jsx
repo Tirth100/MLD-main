@@ -60,7 +60,7 @@ export default function Reports() {
   const getEmpDuration = (emp) => {
     if (!emp) return 0;
     if (emp.durationSeconds !== undefined && Number(emp.durationSeconds) > 0) return Number(emp.durationSeconds);
-    if (emp.totalChecks !== undefined && Number(emp.totalChecks) > 0) return Number(emp.totalChecks) * 5;
+    if (emp.totalChecks !== undefined && Number(emp.totalChecks) > 0) return Number(emp.totalChecks) * 10;
     if (emp.duration !== undefined && Number(emp.duration) > 0) return Number(emp.duration);
     return 0;
   };
